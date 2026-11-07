@@ -1,11 +1,7 @@
 import { Fragment, useState } from 'react'
-import { safeLink, type ShownGroup } from '../reportLogic'
+import { groupKey, safeLink, type ShownGroup } from '../reportLogic'
+import { FixPanel, type FixState } from './FixPanel'
 import type { Finding, PackageGroup, Severity } from '../types'
-
-/** A unique key per group: JSON keeps null and "" apart, and needs no separator. */
-function groupKey(group: PackageGroup): string {
-  return JSON.stringify([group.target, group.pkg_name, group.installed_version])
-}
 
 function SeverityBadge({ severity }: { severity: Severity }) {
   return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severity}</span>
@@ -72,8 +68,14 @@ function CveList({ findings }: { findings: Finding[] }) {
   )
 }
 
-/** Package groups, worst first, each expandable to its list of CVEs. */
-export function GroupTable({ shown }: { shown: ShownGroup[] }) {
+interface TableProps {
+  shown: ShownGroup[]
+  fixFor: (group: PackageGroup) => FixState | undefined
+  onExplain: (group: PackageGroup) => void
+}
+
+/** Package groups, worst first, each expandable to its AI advice and CVEs. */
+export function GroupTable({ shown, fixFor, onExplain }: TableProps) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
 
   function toggle(key: string) {
@@ -110,6 +112,8 @@ export function GroupTable({ shown }: { shown: ShownGroup[] }) {
               listId={`cves-${index}`}
               isOpen={open.has(key)}
               onToggle={() => toggle(key)}
+              fix={fixFor(item.group)}
+              onExplain={() => onExplain(item.group)}
             />
           )
         })}
@@ -123,10 +127,12 @@ interface RowProps {
   listId: string
   isOpen: boolean
   onToggle: () => void
+  fix: FixState | undefined
+  onExplain: () => void
 }
 
-/** One group row, plus its CVE list underneath when it is open. */
-function GroupRows({ item, listId, isOpen, onToggle }: RowProps) {
+/** One group row, plus its AI advice and CVE list underneath when it is open. */
+function GroupRows({ item, listId, isOpen, onToggle, fix, onExplain }: RowProps) {
   const { group, findings, worst } = item
   const name = group.pkg_name ?? 'unknown package'
   const count =
@@ -159,6 +165,7 @@ function GroupRows({ item, listId, isOpen, onToggle }: RowProps) {
       {isOpen && (
         <tr id={listId} className="cve-row">
           <td colSpan={7}>
+            <FixPanel fix={fix} onExplain={onExplain} />
             <CveList findings={findings} />
           </td>
         </tr>

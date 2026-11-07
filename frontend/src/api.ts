@@ -1,6 +1,7 @@
 // Calls to our backend. The Vite dev proxy forwards /api/ to FastAPI.
+import { isFixAdvice, isLlmTestResult, toSettingsBody } from './llmLogic'
 import { isAnalyzeResult, isObject, showHiddenCharacters } from './reportLogic'
-import type { AnalyzeResult } from './types'
+import type { AnalyzeResult, FixAdvice, FixGroupRequest, LlmSettings, LlmTestResult } from './types'
 
 export type Health =
   | { state: 'checking' }
@@ -11,6 +12,10 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; message: string 
 
 const HEALTH_TIMEOUT_MS = 5000
 const ANALYZE_TIMEOUT_MS = 60000
+// A little longer than the backend's own limits (10 s and 120 s), so its
+// clearer message arrives first.
+const LLM_TEST_TIMEOUT_MS = 20000
+const FIX_TIMEOUT_MS = 150000
 const NOT_RUNNING = 'Cannot reach the backend. Start it as described in README.md.'
 
 function isTimeout(error: unknown): boolean {
@@ -71,4 +76,19 @@ export function analyzeReport(file: File): Promise<ApiResult<AnalyzeResult>> {
   const form = new FormData()
   form.append('file', file)
   return callBackend('/api/analyze', { method: 'POST', body: form }, ANALYZE_TIMEOUT_MS, isAnalyzeResult)
+}
+
+function jsonPost(body: unknown): RequestInit {
+  return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+}
+
+/** "Test connection": does Ollama answer, and does it have the model? Never rejects. */
+export function testLlm(settings: LlmSettings): Promise<ApiResult<LlmTestResult>> {
+  return callBackend('/api/llm/test', jsonPost(toSettingsBody(settings)), LLM_TEST_TIMEOUT_MS, isLlmTestResult)
+}
+
+/** "Explain with AI" for one group; the API key travels only in this request body. */
+export function explainFix(settings: LlmSettings, group: FixGroupRequest): Promise<ApiResult<FixAdvice>> {
+  const body = { settings: toSettingsBody(settings), group }
+  return callBackend('/api/fix', jsonPost(body), FIX_TIMEOUT_MS, isFixAdvice)
 }

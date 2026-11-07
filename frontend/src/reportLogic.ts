@@ -20,6 +20,11 @@ export function countText(count: number, word: string): string {
   return `${count} ${count === 1 ? word : `${word}s`}`
 }
 
+/** A unique key per group: JSON keeps null and "" apart, and needs no separator. */
+export function groupKey(group: PackageGroup): string {
+  return JSON.stringify([group.target, group.pkg_name, group.installed_version])
+}
+
 export interface ShownGroup {
   group: PackageGroup
   findings: Finding[] // only the findings that match the filters

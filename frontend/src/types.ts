@@ -64,3 +64,47 @@ export interface AnalyzeResult {
   summary: Summary
   package_groups: PackageGroup[]
 }
+
+// LLM settings as the page keeps them (React state only; the key is never stored).
+export interface LlmSettings {
+  baseUrl: string
+  model: string
+  apiKey: string
+}
+
+// /api/llm/test answer.
+export interface LlmTestResult {
+  ok: boolean
+  models: string[]
+  model_found: boolean
+}
+
+// /api/fix request body "group" (backend/fixes.py FixGroup).
+export interface FixGroupRequest {
+  target: string
+  pkg_name: string | null
+  installed_version: string | null
+  ecosystem: string | null
+  os: string | null
+  fixed_versions: string[]
+  cves: { vuln_id: string; severity: Severity; title: string | null; fixed_version: string | null }[]
+}
+
+export const FIX_STATUSES = ['verified', 'unverified', 'no_version_suggested', 'no_fix_available'] as const
+export type FixStatus = (typeof FIX_STATUSES)[number]
+
+// /api/fix answer (backend/fixes.py FixAdvice). The code, not the model,
+// set `status`: target_version is set only when it is one of Trivy's.
+export interface FixAdvice {
+  status: FixStatus
+  target_version: string | null
+  unverified_version: string | null
+  trivy_fixed_versions: string[]
+  mitigation_only: boolean
+  cves_without_fix: number
+  summary: string
+  recommended_action: string
+  commands: string[]
+  risk_notes: string
+  disclaimer: string
+}
