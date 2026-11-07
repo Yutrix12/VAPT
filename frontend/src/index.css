@@ -18,3 +18,16 @@
 body {
   margin: 0;
 }
+
+:root {
+  --critical-bg: #fdebec;
+  --critical-text: #9f2f2d;
+  --high-bg: #fbecdd;
+  --high-text: #8a4b14;
+  --medium-bg: #fbf3db;
+  --medium-text: #7a5a00;
+  --low-bg: #e1f3fe;
+  --low-text: #1f5f8b;
+  --unknown-bg: #f1f1ef;
+  --unknown-text: #5b5b58;
+}

@@ -1,0 +1,62 @@
+import { useState, type FormEvent } from 'react'
+import { analyzeReport } from '../api'
+import { checkFileBeforeUpload } from '../reportLogic'
+import type { AnalyzeResult } from '../types'
+
+interface Props {
+  onResult: (result: AnalyzeResult) => void // only called on success
+}
+
+/** Pick one Trivy JSON report and send it to the backend. */
+export function UploadForm({ onResult }: Props) {
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (file === null) {
+      setError('Choose a Trivy JSON report first.')
+      return
+    }
+    const problem = checkFileBeforeUpload(file.name, file.size)
+    if (problem !== null) {
+      setError(problem)
+      return
+    }
+    // The current results stay on screen until a new report succeeds.
+    setBusy(true)
+    setError(null)
+    const result = await analyzeReport(file)
+    setBusy(false)
+    if (result.ok) onResult(result.data)
+    else setError(result.message)
+  }
+
+  return (
+    <form className="upload" onSubmit={handleSubmit}>
+      <label htmlFor="report-file">Trivy JSON report</label>
+      <input
+        id="report-file"
+        name="report"
+        type="file"
+        accept=".json,application/json"
+        // Clear the old choice, so picking the same file again (e.g. after
+        // fixing it) still counts as a change.
+        onClick={(event) => {
+          event.currentTarget.value = ''
+        }}
+        onChange={(event) => {
+          setFile(event.target.files?.[0] ?? null)
+          setError(null)
+        }}
+      />
+      <button type="submit" disabled={busy}>
+        {busy ? 'Analyzing…' : 'Analyze report'}
+      </button>
+      <p className="form-error" role="alert">
+        {error}
+      </p>
+    </form>
+  )
+}

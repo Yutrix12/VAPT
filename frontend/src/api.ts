@@ -1,35 +1,74 @@
 // Calls to our backend. The Vite dev proxy forwards /api/ to FastAPI.
+import { isAnalyzeResult, isObject, showHiddenCharacters } from './reportLogic'
+import type { AnalyzeResult } from './types'
 
 export type Health =
   | { state: 'checking' }
   | { state: 'ok' }
   | { state: 'error'; message: string }
 
-const TIMEOUT_MS = 5000
+export type ApiResult<T> = { ok: true; data: T } | { ok: false; message: string }
+
+const HEALTH_TIMEOUT_MS = 5000
+const ANALYZE_TIMEOUT_MS = 60000
 const NOT_RUNNING = 'Cannot reach the backend. Start it as described in README.md.'
 
-/** Ask the backend if it is running. Never rejects: problems become an error state. */
-export async function checkHealth(): Promise<Health> {
+function isTimeout(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'TimeoutError'
+}
+
+/**
+ * Call our backend; every problem becomes one readable message. The answer
+ * is checked with `isExpected`, and its text is cleaned once here.
+ */
+async function callBackend<T>(
+  path: string,
+  init: RequestInit,
+  timeoutMs: number,
+  isExpected: (body: unknown) => body is T,
+): Promise<ApiResult<T>> {
   let response: Response
+  let body: unknown
   try {
-    response = await fetch('/api/health', { signal: AbortSignal.timeout(TIMEOUT_MS) })
+    response = await fetch(path, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+    // The timeout also covers reading the answer; invalid JSON becomes null.
+    body = await response.json().catch((error: unknown) => {
+      if (isTimeout(error)) throw error
+      return null
+    })
   } catch (error) {
-    // fetch rejects only when no answer arrived: timeout or no connection.
-    if (error instanceof DOMException && error.name === 'TimeoutError') {
-      return { state: 'error', message: `The backend did not answer within ${TIMEOUT_MS / 1000} seconds.` }
-    }
-    return { state: 'error', message: NOT_RUNNING }
+    // No (complete) answer arrived: timeout or no connection.
+    return isTimeout(error)
+      ? { ok: false, message: `The backend did not answer within ${timeoutMs / 1000} seconds.` }
+      : { ok: false, message: NOT_RUNNING }
   }
-  // The Vite proxy answers 502-504 itself when the backend is not running.
-  if (response.status >= 502 && response.status <= 504) {
-    return { state: 'error', message: NOT_RUNNING }
+  if (response.ok) {
+    return isExpected(body)
+      ? { ok: true, data: showHiddenCharacters(body) }
+      : { ok: false, message: 'The backend sent an unexpected answer.' }
   }
-  if (!response.ok) {
-    return { state: 'error', message: `The backend answered with HTTP ${response.status}.` }
+  // Our backend always sends {"detail": "one line"}; the Vite proxy answers
+  // 502-504 without a body when the backend is not running.
+  if (isObject(body) && typeof body.detail === 'string') {
+    return { ok: false, message: showHiddenCharacters(body.detail) }
   }
-  const body: unknown = await response.json().catch(() => null)
-  if (typeof body === 'object' && body !== null && 'status' in body && body.status === 'ok') {
-    return { state: 'ok' }
-  }
-  return { state: 'error', message: 'The backend sent an unexpected answer.' }
+  if (response.status >= 502 && response.status <= 504) return { ok: false, message: NOT_RUNNING }
+  return { ok: false, message: `The backend answered with HTTP ${response.status}.` }
+}
+
+function isHealthy(body: unknown): body is { status: 'ok' } {
+  return isObject(body) && body.status === 'ok'
+}
+
+/** Ask the backend if it is running. Never rejects. */
+export async function checkHealth(): Promise<Health> {
+  const result = await callBackend('/api/health', {}, HEALTH_TIMEOUT_MS, isHealthy)
+  return result.ok ? { state: 'ok' } : { state: 'error', message: result.message }
+}
+
+/** Upload one report to /api/analyze. Never rejects. */
+export function analyzeReport(file: File): Promise<ApiResult<AnalyzeResult>> {
+  const form = new FormData()
+  form.append('file', file)
+  return callBackend('/api/analyze', { method: 'POST', body: form }, ANALYZE_TIMEOUT_MS, isAnalyzeResult)
 }

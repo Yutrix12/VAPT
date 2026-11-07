@@ -41,3 +41,13 @@ when both are up.
 ```powershell
 .venv\Scripts\python -m unittest discover -s tests -t .
 ```
+
+The tests that need the real reports read them from the folder in the
+`TRIVY_REPORTS_DIR` environment variable (default: the folder that contains
+this project) and are skipped if `image.json` and `fs.json` are not there.
+
+**Run the frontend tests** (from `frontend`):
+
+```powershell
+npm test
+```
