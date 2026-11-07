@@ -4,7 +4,7 @@ import dataclasses
 import json
 import unittest
 
-import httpx
+import httpx2
 from fastapi.testclient import TestClient
 
 from main import (MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES, PackageGroupOut,
@@ -13,7 +13,7 @@ from tests.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
 from trivy_parser import PackageGroup, Report
 
 
-def upload(client: TestClient, name: str, content: bytes) -> httpx.Response:
+def upload(client: TestClient, name: str, content: bytes) -> httpx2.Response:
     """POST one file the way the browser form will send it."""
     return client.post("/api/analyze",
                        files={"file": (name, content, "application/json")})
