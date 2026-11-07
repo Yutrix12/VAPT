@@ -3,13 +3,15 @@
 ## Before the demo
 
 1. Start Ollama (the Ollama app, or `ollama serve`). Make sure the model is
-   there: `ollama list` should show `llama3.2`.
+   there: `ollama list` should show it. Recommended: `qwen3:8b` (better
+   advice, about 20-25 seconds per group); `llama3.2` is faster (about
+   10-17 seconds) but its advice is weaker.
 2. Start the backend and the frontend as in README.md ("Run").
 3. Open http://localhost:5173 and check the green "Ready: backend is
    running".
-4. In **LLM settings**, type the model `llama3.2` and click **Test
-   connection**. It should say "Connected: Ollama has … models.
-   "llama3.2" is available."
+4. In **LLM settings**, click **Test connection**, then pick the model
+   (for example `qwen3:8b`) from the list. Testing again should say
+   "… is available."
 5. Optional warm-up: explain one small group once, so the model is loaded
    before the real demo (the first answer can take a minute).
 
@@ -29,7 +31,7 @@
    severity, status, fixed version, CVSS score and a link to the advisory.
 5. Show **Trivy's fix** in the row: the fixed versions straight from the
    report. This is always shown, with or without AI.
-6. Click **Explain with AI** (local llama3.2: around 30 seconds). Point out:
+6. Click **Explain with AI** (qwen3:8b: around 25 seconds). Point out:
    - "AI suggestion: verify before applying" at the top.
    - The verdict is made by our code, not by the model. A version is shown
      as the recommended upgrade only if it is one of Trivy's fixed

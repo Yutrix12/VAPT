@@ -118,7 +118,7 @@ class ChatJsonTest(unittest.TestCase):
         self.assertEqual(sent["model"], "llama3.2")
         self.assertIs(sent["stream"], False)
         self.assertEqual(sent["format"], SCHEMA)
-        self.assertLessEqual(sent["options"]["temperature"], 0.2)
+        self.assertEqual(sent["options"]["temperature"], 0)  # docs suggest 0
 
     def test_answer_that_is_not_json_is_an_error(self) -> None:
         for behaviour in ["chat-not-json", "chat-no-content"]:

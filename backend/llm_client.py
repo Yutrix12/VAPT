@@ -18,7 +18,7 @@ TAGS_TIMEOUT = 10.0  # seconds; listing models is quick
 CHAT_TIMEOUT = 120.0  # seconds; a local model on a CPU can be slow
 MAX_ANSWER_BYTES = 5 * 1024 * 1024
 READ_CHUNK_BYTES = 64 * 1024
-TEMPERATURE = 0.1  # low: factual, repeatable answers
+TEMPERATURE = 0  # factual, repeatable answers (the Ollama docs suggest 0)
 MAX_ERROR_TEXT = 200
 
 

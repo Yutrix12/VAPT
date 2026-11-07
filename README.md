@@ -49,10 +49,11 @@ npm install
 ```
 
 For "Explain with AI" you also need [Ollama](https://ollama.com) and one
-model, for example:
+model. `qwen3:8b` gives the better advice; `llama3.2` is smaller and
+faster:
 
 ```powershell
-ollama pull llama3.2
+ollama pull qwen3:8b
 ```
 
 ## Run
@@ -147,7 +148,8 @@ cd backend
   but always read the AI text and commands critically.
 - Ollama's hosted cloud does not support structured outputs yet, so its
   answers may be refused.
-- A local model needs time: about 30 seconds per group with llama3.2.
+- A local model needs time: about 20-25 seconds per group with qwen3:8b
+  (better advice) or 10-17 seconds with llama3.2.
 - The backend keeps no state, so it checks the AI's version against the
   fixed versions the page sends back from the upload.
 - While an upload is read, Starlette keeps files over 1 MB in a temporary
