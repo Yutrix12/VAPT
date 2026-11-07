@@ -26,6 +26,12 @@ class LLMError(Exception):
     """The LLM could not be reached or gave an unusable answer."""
 
 
+def strip_control_chars(text: str, keep: str = "") -> str:
+    """Keep printable characters only (plus those in `keep`, e.g. "\\n")."""
+    return "".join(char for char in text
+                   if char.isprintable() or char in keep)
+
+
 def normalize_base_url(url: str) -> str:
     """Return the base URL without a trailing slash; only http(s) allowed."""
     url = url.strip().rstrip("/")
@@ -116,8 +122,7 @@ def _ollama_error_text(error: urllib.error.HTTPError) -> str:
     if not isinstance(text, str):
         return ""
     # Untrusted text: keep printable characters only, and keep it short.
-    text = "".join(char for char in text if char.isprintable())
-    return text[:MAX_ERROR_TEXT]
+    return strip_control_chars(text)[:MAX_ERROR_TEXT]
 
 
 def _http_error_message(error: urllib.error.HTTPError) -> str:

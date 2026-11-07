@@ -9,7 +9,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from llm_client import LLMError, LLMSettings, list_models
+from fixes import (FIX_SCHEMA, FixAdvice, FixError, FixGroup, build_messages,
+                   validate_answer)
+from llm_client import LLMError, LLMSettings, chat_json, list_models
 from trivy_parser import (
     Finding,
     ReportError,
@@ -209,3 +211,26 @@ def llm_test(settings: LLMSettingsIn) -> LLMTestResult:
     model = client_settings.model
     found = model in models or f"{model}:latest" in models
     return LLMTestResult(ok=True, models=models, model_found=found)
+
+
+class FixRequest(BaseModel):
+    """One package group plus the LLM settings to explain it with."""
+
+    settings: LLMSettingsIn
+    group: FixGroup
+
+
+@app.post("/api/fix")
+def fix(request: FixRequest) -> FixAdvice:
+    """Ask the LLM to explain the fix for one group, then check the answer.
+
+    The page always shows Trivy's own fixed versions; this only adds the
+    explanation. A version counts as a fix only if Trivy lists it.
+    """
+    settings = request.settings.to_client()
+    try:
+        answer = chat_json(settings, build_messages(request.group),
+                           FIX_SCHEMA)
+        return validate_answer(answer, request.group)
+    except (LLMError, FixError) as error:
+        raise HTTPException(status_code=502, detail=str(error)) from None

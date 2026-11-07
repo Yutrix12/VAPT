@@ -74,7 +74,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         self._record()
-        content: Any = json.dumps(CHAT_ANSWER)
+        content: Any = json.dumps(self.server.chat_answer)
         if self.server.behaviour == "chat-not-json":
             content = "Sure! Here is my advice: upgrade."
         elif self.server.behaviour == "chat-no-content":
@@ -90,9 +90,11 @@ class FakeOllama(ThreadingHTTPServer):
     daemon_threads = True
     block_on_close = False
 
-    def __init__(self, behaviour: str = "ok") -> None:
+    def __init__(self, behaviour: str = "ok",
+                 chat_answer: dict[str, Any] | None = None) -> None:
         super().__init__(("127.0.0.1", 0), _Handler)
         self.behaviour = behaviour
+        self.chat_answer = CHAT_ANSWER if chat_answer is None else chat_answer
         self.requests: list[dict[str, Any]] = []
         self.base_url = f"http://127.0.0.1:{self.server_address[1]}"
         # serve_forever checks for shutdown every poll_interval (default
