@@ -17,6 +17,8 @@ from typing import Any, NoReturn
 
 SUPPORTED_SCHEMA_VERSION = 2
 SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")
+# Personal data in repository scans: dropped as soon as the JSON is loaded.
+GIT_PERSONAL_FIELDS = ("CommitMsg", "Author", "Committer")
 MAX_SHOWN_FIXED_VERSIONS = 3
 MAX_TARGET_WIDTH = 30
 
@@ -133,6 +135,19 @@ def to_report_dict(data: Any) -> dict[str, Any]:
     )
 
 
+def drop_git_personal_data(data: Any) -> None:
+    """Remove the git author, committer and commit message (rule l).
+
+    Changes `data` in place. Called right after the JSON is parsed, before
+    any other check, so nothing later can see or keep these fields.
+    """
+    if isinstance(data, dict):
+        metadata = data.get("Metadata")
+        if isinstance(metadata, dict):
+            for key in GIT_PERSONAL_FIELDS:
+                metadata.pop(key, None)
+
+
 def reject_json_constant(name: str) -> NoReturn:
     """Reject NaN, Infinity and -Infinity, which are not valid JSON."""
     raise ReportError(f"not valid JSON ({name} is not allowed)")
@@ -199,6 +214,7 @@ def decode_report_json(raw: bytes) -> dict[str, Any]:
         raise ReportError(f"not valid JSON ({error})") from error
     except RecursionError as error:
         raise ReportError("JSON is nested too deeply") from error
+    drop_git_personal_data(data)
     return to_report_dict(data)
 
 
