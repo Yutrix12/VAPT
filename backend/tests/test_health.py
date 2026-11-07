@@ -11,7 +11,7 @@ class HealthTest(unittest.TestCase):
     """The frontend uses /api/health to show that the backend is running."""
 
     def setUp(self) -> None:
-        self.client = TestClient(app)
+        self.client = TestClient(app, base_url="http://localhost")
 
     def test_health_returns_ok(self) -> None:
         response = self.client.get("/api/health")

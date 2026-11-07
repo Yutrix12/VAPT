@@ -6,8 +6,10 @@ from pathlib import PureWindowsPath
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from llm_client import LLMError, LLMSettings, list_models
 from trivy_parser import (
     Finding,
     ReportError,
@@ -22,8 +24,14 @@ MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 # A multipart request is a little bigger than the file inside it.
 MAX_REQUEST_BYTES = MAX_UPLOAD_BYTES + 64 * 1024
 TOO_LARGE = "The request is larger than 50 MB."
+# Only this computer may use the backend: by host name (stops DNS
+# rebinding) and, when a browser sends one, by page origin (stops other
+# websites from posting here). The Vite dev page is the only page.
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_ORIGINS = {"http://localhost:5173", "http://127.0.0.1:5173"}
 
 app = FastAPI(title="Trivy report prototype")
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
 
 
 class ReportDetails(BaseModel):
@@ -82,15 +90,46 @@ class AnalyzeResponse(BaseModel):
     package_groups: list[PackageGroupOut]
 
 
+class LLMSettingsIn(BaseModel):
+    """LLM settings sent by the page. SecretStr hides the key in logs."""
+
+    base_url: str = Field(max_length=500)
+    model: str = Field(max_length=200)
+    api_key: SecretStr | None = Field(default=None, max_length=500)
+
+    def to_client(self) -> LLMSettings:
+        """Checked settings for llm_client; bad settings give a 422.
+
+        LLMSettings does every check (URL, model, key) in one place.
+        """
+        key = self.api_key.get_secret_value() if self.api_key else None
+        try:
+            return LLMSettings(self.base_url, self.model, api_key=key)
+        except LLMError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from None
+
+
+class LLMTestResult(BaseModel):
+    """Answer of "Test connection"."""
+
+    ok: bool
+    models: list[str]
+    model_found: bool
+
+
 @app.middleware("http")
-async def limit_request_size(
+async def check_request(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
-    """Refuse an oversized POST before its body is read.
+    """Refuse foreign pages and oversized POSTs before the body is read.
 
     FastAPI has no upload limit, and Starlette saves a file part to disk
     before the endpoint runs, so the size is checked from the header first.
     """
+    origin = request.headers.get("origin")
+    if origin is not None and origin not in ALLOWED_ORIGINS:
+        return JSONResponse(
+            {"detail": "Requests are only accepted from the local page."}, 403)
     if request.method == "POST":
         length = request.headers.get("content-length")
         if length is None:
@@ -116,7 +155,9 @@ async def one_line_validation_error(
     """
     first = error.errors()[0]
     field = ".".join(str(part) for part in first["loc"] if part != "body")
-    return JSONResponse({"detail": f"{field}: {first['msg']}"}, 422)
+    # Pydantic puts "Value error, " in front of our own validator messages.
+    message = first["msg"].removeprefix("Value error, ")
+    return JSONResponse({"detail": f"{field}: {message}"}, 422)
 
 
 @app.get("/api/health")
@@ -151,3 +192,20 @@ def analyze(file: UploadFile) -> AnalyzeResponse:
         summary=Summary(**summarize(report)),
         package_groups=groups,
     )
+
+
+@app.post("/api/llm/test")
+def llm_test(settings: LLMSettingsIn) -> LLMTestResult:
+    """Check that Ollama answers, and whether the chosen model exists.
+
+    Uses GET /api/tags, which is cheap: nothing is generated. A model name
+    without a tag (e.g. "llama3.2") means its ":latest" tag in Ollama.
+    """
+    client_settings = settings.to_client()
+    try:
+        models = list_models(client_settings)
+    except LLMError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from None
+    model = client_settings.model
+    found = model in models or f"{model}:latest" in models
+    return LLMTestResult(ok=True, models=models, model_found=found)

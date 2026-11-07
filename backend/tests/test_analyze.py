@@ -37,7 +37,7 @@ class AnalyzeErrorsTest(unittest.TestCase):
     """Bad uploads get one clear 4xx JSON error and no crash."""
 
     def setUp(self) -> None:
-        self.client = TestClient(app)
+        self.client = TestClient(app, base_url="http://localhost")
 
     def test_non_json_file_is_skipped(self) -> None:
         response = upload(self.client, "report.html", b"<html></html>")
@@ -98,7 +98,7 @@ class AnalyzeContentTest(unittest.TestCase):
     """The response shape and the personal-data rule (rule l)."""
 
     def setUp(self) -> None:
-        self.client = TestClient(app)
+        self.client = TestClient(app, base_url="http://localhost")
 
     def test_groups_carry_their_findings(self) -> None:
         body = upload(self.client, "r.json", tiny_report()).json()
@@ -128,7 +128,7 @@ class AnalyzeRealReportsTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        client = TestClient(app)
+        client = TestClient(app, base_url="http://localhost")
         cls.image = upload(client, "image.json", IMAGE_JSON.read_bytes())
         cls.fs = upload(client, "fs.json", FS_JSON.read_bytes())
 
