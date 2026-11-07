@@ -1,0 +1,35 @@
+.page {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem;
+}
+
+.page h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  margin: 0 0 2rem;
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.badge-ok {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+
+.badge-error {
+  background: var(--error-bg);
+  color: var(--error-text);
+}

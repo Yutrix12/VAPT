@@ -1,0 +1,20 @@
+/* Base styles: warm off-white page, charcoal text, system fonts (no web fonts). */
+:root {
+  --text: #2f3437;
+  --muted: #787774;
+  --border: #eaeaea;
+  --canvas: #fbfbfa;
+  --ok-bg: #edf3ec;
+  --ok-text: #346538;
+  --error-bg: #fdebec;
+  --error-text: #9f2f2d;
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--canvas);
+}
+
+body {
+  margin: 0;
+}
