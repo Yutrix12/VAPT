@@ -142,6 +142,36 @@ class LlmTestEndpointTest(unittest.TestCase):
             "ok": True, "models": ["llama3.2:latest", "qwen3:8b"],
             "model_found": True})
 
+    def test_without_a_model_lists_the_models(self) -> None:
+        with FakeOllama() as fake:
+            response = self.client.post("/api/llm/test", json={
+                "base_url": fake.base_url, "model": "   "})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["models"],
+                         ["llama3.2:latest", "qwen3:8b"])
+        self.assertIs(response.json()["model_found"], False)
+
+    def test_deeply_nested_answer_gives_one_clear_error(self) -> None:
+        with FakeOllama("deep-json") as fake:
+            response = self.client.post("/api/llm/test", json={
+                "base_url": fake.base_url, "model": "x"})
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("invalid JSON", response.json()["detail"])
+
+    def test_broken_request_bodies_give_clear_lines(self) -> None:
+        no_body = self.client.post(
+            "/api/llm/test", content=b"",
+            headers={"Content-Type": "application/json"})
+        self.assertEqual(no_body.json()["detail"],
+                         "request body: Field required")
+        empty = self.client.post("/api/llm/test", json={})
+        self.assertEqual(empty.json()["detail"], "base_url: Field required")
+        broken = self.client.post(
+            "/api/llm/test", content=b"{bad",
+            headers={"Content-Type": "application/json"})
+        self.assertEqual(broken.json()["detail"],
+                         "The request body is not valid JSON.")
+
     def test_model_not_found(self) -> None:
         with FakeOllama() as fake:
             response = self.client.post("/api/llm/test", json={
@@ -166,8 +196,6 @@ class LlmTestEndpointTest(unittest.TestCase):
 
     def test_bad_settings_give_422_without_the_key(self) -> None:
         cases = {
-            "blank model": {"base_url": "http://localhost:11434",
-                            "model": "   "},
             # These settings are refused before any request is sent, so the
             # .invalid host names (never real) are not contacted.
             "key with line break": {"base_url": "https://ollama.invalid",

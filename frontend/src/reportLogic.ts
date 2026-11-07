@@ -25,6 +25,10 @@ export function groupKey(group: PackageGroup): string {
   return JSON.stringify([group.target, group.pkg_name, group.installed_version])
 }
 
+/** The status filter value for "all statuses". A real status is never
+ * empty (the parser writes "unknown"), so it cannot clash with one. */
+export const ALL_STATUSES = ''
+
 export interface ShownGroup {
   group: PackageGroup
   findings: Finding[] // only the findings that match the filters
@@ -35,12 +39,12 @@ export interface ShownGroup {
 export function filterGroups(
   groups: PackageGroup[],
   severities: ReadonlySet<Severity>,
-  status: string, // 'all' or one status value
+  status: string, // ALL_STATUSES or one status value
 ): ShownGroup[] {
   const shown: ShownGroup[] = []
   for (const group of groups) {
     const findings = group.findings.filter(
-      (f) => severities.has(f.severity) && (status === 'all' || f.status === status),
+      (f) => severities.has(f.severity) && (status === ALL_STATUSES || f.status === status),
     )
     if (findings.length > 0) {
       const worstRank = Math.min(...findings.map((f) => SEVERITIES.indexOf(f.severity)))
@@ -68,7 +72,8 @@ export function showHiddenCharacters<T>(value: T): T {
   if (Array.isArray(value)) return value.map(showHiddenCharacters) as T
   if (typeof value === 'object' && value !== null) {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, showHiddenCharacters(item)]),
+      // Keys too: status names, for example, are keys of by_status.
+      Object.entries(value).map(([key, item]) => [showHiddenCharacters(key), showHiddenCharacters(item)]),
     ) as T
   }
   return value

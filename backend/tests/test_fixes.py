@@ -60,6 +60,11 @@ class BuildMessagesTest(unittest.TestCase):
         self.assertEqual(data["installed_version"], "3.5.1-1+deb13u1")
         self.assertEqual(data["trivy_fixed_versions"], FIXED)
         self.assertEqual(data["os"], "debian 13.1")
+        # Exactly the fields the project rules list; no target or path.
+        self.assertEqual(set(data), {
+            "package", "installed_version", "ecosystem", "os",
+            "trivy_fixed_versions", "vulnerabilities",
+            "more_vulnerabilities_not_listed", "vulnerabilities_without_fix"})
 
     def test_at_most_15_cves_worst_first_with_short_titles(self) -> None:
         group = make_group(cves=40, title="x" * 500)
@@ -247,9 +252,33 @@ class FixEndpointTest(unittest.TestCase):
             response = self.post(fake, make_group(), key=KEY)
         self.assertNotIn(KEY, response.text)
 
+    def test_blank_model_is_refused_for_explain(self) -> None:
+        response = self.client.post("/api/fix", json={
+            "settings": {"base_url": "http://localhost:9", "model": "  "},
+            "group": make_group().model_dump()})
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("model", response.json()["detail"])
+
+    def test_large_real_groups_are_accepted(self) -> None:
+        group = make_group(fixed=[f"1.{i}" for i in range(500)]).model_dump()
+        group["pkg_name"] = "p" * 214  # npm allows names up to 214 chars
+        with FakeOllama(chat_answer=answer(target_version="1.7")) as fake:
+            response = self.client.post("/api/fix", json={
+                "settings": {"base_url": fake.base_url, "model": "x"},
+                "group": group})
+        self.assertEqual(response.json()["status"], "verified")
+
+    def test_very_long_fixed_version_is_refused(self) -> None:
+        group = make_group().model_dump()
+        group["fixed_versions"] = ["x" * 100_000]
+        response = self.client.post("/api/fix", json={
+            "settings": {"base_url": "http://localhost:9", "model": "x"},
+            "group": group})
+        self.assertEqual(response.status_code, 422)
+
     def test_oversized_group_is_refused(self) -> None:
         group = make_group().model_dump()
-        group["fixed_versions"] = ["1.0"] * 1000
+        group["fixed_versions"] = ["1.0"] * 5000
         response = self.client.post("/api/fix", json={
             "settings": {"base_url": "http://localhost:9", "model": "x"},
             "group": group})

@@ -60,6 +60,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(404, b'{"error": "model \'x\' not found\\u001b[31m"}')
         elif behaviour == "invalid-json":
             self._send(200, b"this is not json")
+        elif behaviour == "deep-json":
+            self._send(200, b"[" * 100_000)
         elif behaviour == "redirect":
             self.send_response(302)
             self.send_header("Location", "http://127.0.0.2:9/elsewhere")

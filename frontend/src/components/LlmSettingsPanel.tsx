@@ -42,12 +42,15 @@ export function LlmSettingsPanel({ settings, onChange }: Props) {
     }
     setModels(result.data.models)
     const model = settings.model.trim()
-    const found = result.data.model_found
-      ? `"${model}" is available.`
-      : `"${model}" is not among them: pick one from the list.`
+    let found = 'Pick a model from the list.'
+    if (model) {
+      found = result.data.model_found
+        ? `"${model}" is available.`
+        : `"${model}" is not among them: pick one from the list.`
+    }
     setTest({
       state: 'done',
-      ok: result.data.model_found,
+      ok: result.data.model_found || !model,
       message: `Connected: Ollama has ${countText(result.data.models.length, 'model')}. ${found}`,
     })
   }
@@ -108,9 +111,8 @@ export function LlmSettingsPanel({ settings, onChange }: Props) {
       {leavesThisComputer && (
         <p className="notice">
           This address is not this computer. When you click "Explain with AI", this leaves the machine
-          for that group: the package name and installed version, Trivy’s fixed versions, the target
-          (image name or file path), the ecosystem and OS, and up to 15 CVE IDs with severities and
-          short titles.
+          for that group: the package name and installed version, Trivy’s fixed versions, the
+          ecosystem and OS, and up to 15 CVE IDs with severities and short titles.
         </p>
       )}
       <p className={test.state === 'done' && !test.ok ? 'form-error' : 'muted'} role="status" aria-live="polite">

@@ -11,7 +11,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from fixes import (FIX_SCHEMA, FixAdvice, FixError, FixGroup, build_messages,
                    validate_answer)
-from llm_client import LLMError, LLMSettings, chat_json, list_models
+from llm_client import (LLMError, LLMSettings, chat_json, list_models,
+                        require_model)
 from trivy_parser import (
     Finding,
     ReportError,
@@ -156,7 +157,11 @@ async def one_line_validation_error(
     the field name and the reason are sent back here.
     """
     first = error.errors()[0]
-    field = ".".join(str(part) for part in first["loc"] if part != "body")
+    if first["type"] == "json_invalid":
+        return JSONResponse(
+            {"detail": "The request body is not valid JSON."}, 422)
+    parts = [str(part) for part in first["loc"] if part != "body"]
+    field = ".".join(parts) or "request body"
     # Pydantic puts "Value error, " in front of our own validator messages.
     message = first["msg"].removeprefix("Value error, ")
     return JSONResponse({"detail": f"{field}: {message}"}, 422)
@@ -228,6 +233,10 @@ def fix(request: FixRequest) -> FixAdvice:
     explanation. A version counts as a fix only if Trivy lists it.
     """
     settings = request.settings.to_client()
+    try:
+        require_model(settings)
+    except LLMError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
     try:
         answer = chat_json(settings, build_messages(request.group),
                            FIX_SCHEMA)

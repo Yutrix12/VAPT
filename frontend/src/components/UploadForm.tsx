@@ -43,8 +43,10 @@ export function UploadForm({ onResult }: Props) {
         accept=".json,application/json"
         // Clear the old choice, so picking the same file again (e.g. after
         // fixing it) still counts as a change.
+        // If the dialog is then cancelled, no file stays chosen unseen.
         onClick={(event) => {
           event.currentTarget.value = ''
+          setFile(null)
         }}
         onChange={(event) => {
           setFile(event.target.files?.[0] ?? null)

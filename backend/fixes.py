@@ -7,7 +7,7 @@ a version counts as a fix only if it exactly equals one of Trivy's.
 
 import json
 import secrets
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -32,7 +32,8 @@ class CveIn(BaseModel):
 
     vuln_id: str = Field(max_length=100)
     severity: str
-    title: str | None = Field(default=None, max_length=2000)
+    # Long enough for real titles; the prompt cuts them to 120 anyway.
+    title: str | None = Field(default=None, max_length=10_000)
     fixed_version: str | None = Field(default=None, max_length=500)
 
     @field_validator("severity")
@@ -47,12 +48,15 @@ class CveIn(BaseModel):
 class FixGroup(BaseModel):
     """One package group, as the page got it from /api/analyze."""
 
-    target: str = Field(max_length=2000)
-    pkg_name: str | None = Field(default=None, max_length=200)
+    target: str = Field(max_length=2000)  # not sent to the LLM
+    pkg_name: str | None = Field(default=None, max_length=500)
     installed_version: str | None = Field(default=None, max_length=200)
     ecosystem: str | None = Field(default=None, max_length=100)
     os: str | None = Field(default=None, max_length=100)
-    fixed_versions: list[str] = Field(max_length=100)
+    # A Go stdlib group can have hundreds of fixed versions; each one is
+    # short, so long strings are refused.
+    fixed_versions: list[Annotated[str, Field(max_length=500)]] = Field(
+        max_length=1000)
     cves: list[CveIn] = Field(max_length=5000)
 
 
@@ -123,7 +127,6 @@ def prompt_data(group: FixGroup) -> dict[str, Any]:
         "installed_version": group.installed_version,
         "ecosystem": group.ecosystem,
         "os": group.os,
-        "target": group.target,
         "trivy_fixed_versions": group.fixed_versions,
         "vulnerabilities": [
             {"id": cve.vuln_id, "severity": cve.severity,

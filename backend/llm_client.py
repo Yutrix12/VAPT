@@ -87,8 +87,6 @@ class LLMSettings:
 
     def __post_init__(self) -> None:
         base_url = normalize_base_url(self.base_url)
-        if not self.model.strip():
-            raise LLMError("Enter a model name, e.g. llama3.2")
         key = (self.api_key or "").strip() or None
         if key is not None:
             check_api_key(key, base_url)
@@ -191,8 +189,15 @@ def _send(settings: LLMSettings, path: str, body: dict[str, Any] | None,
                        f"failed ({type(error).__name__}).") from None
     try:
         return json.loads(raw)
-    except ValueError:
+    except (ValueError, RecursionError):
+        # RecursionError: JSON nested too deeply for Python to read.
         raise LLMError("Ollama answered with invalid JSON.") from None
+
+
+def require_model(settings: LLMSettings) -> None:
+    """Chatting needs a model name (listing models does not)."""
+    if not settings.model:
+        raise LLMError("Enter a model name, e.g. llama3.2")
 
 
 def list_models(settings: LLMSettings,
@@ -215,6 +220,7 @@ def chat_json(settings: LLMSettings, messages: list[dict[str, str]],
     Returns the parsed JSON object. It is not trusted: the caller validates
     every field.
     """
+    require_model(settings)
     answer = _send(settings, "/api/chat", {
         "model": settings.model,
         "messages": messages,
@@ -228,7 +234,7 @@ def chat_json(settings: LLMSettings, messages: list[dict[str, str]],
         raise LLMError("Ollama's answer has no message content.")
     try:
         parsed = json.loads(content)
-    except ValueError:
+    except (ValueError, RecursionError):
         raise LLMError("The model's answer is not valid JSON.") from None
     if not isinstance(parsed, dict):
         raise LLMError("The model's answer is not a JSON object.")

@@ -1,15 +1,44 @@
 # Trivy report prototype
 
-Upload a Trivy JSON vulnerability report in the browser, see the
-vulnerabilities grouped by package, and see how to fix them.
+Upload a Trivy vulnerability report (JSON) in the browser. The app shows
+what was scanned, counts the vulnerabilities by severity, groups them by
+package (worst first) and shows how to fix each package: always Trivy's own
+fixed versions, and on request an explanation from a local LLM (Ollama).
 
-> Work in progress. This README is completed in the last step.
+This is a prototype: the smallest thing that works end to end. Everything
+runs on your own computer. Nothing is saved.
 
-## How to run (Windows, PowerShell)
+## What it does
 
-Needs Python 3.11+ and Node.js 20.19+ or 22.12+.
+- **Upload** one Trivy JSON report. Other files get "only Trivy JSON reports
+  are supported right now".
+- **Report details**: what was scanned, Trivy version, scan date, and the
+  operating system or the git repository, branch and commit.
+- **Counts** by severity (CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN).
+- **Package groups**, worst first, with filters for severity and status.
+  Each group shows Trivy's fix and opens to the list of its CVEs.
+- **Explain with AI** for one group: the LLM explains the fix and suggests
+  commands. The code, not the LLM, decides what counts as a fix: a version
+  is shown as the recommended upgrade only if it is one of Trivy's fixed
+  versions. Every answer says "AI suggestion: verify before applying", and
+  commands are only shown, never run.
+- The app works fully without an LLM; only "Explain with AI" needs one.
 
-**First time only**
+## How it is built
+
+| Part | What it is |
+|---|---|
+| `backend/` | Python 3.11, FastAPI. `trivy_parser.py` (parse, group, count), `llm_client.py` (Ollama client), `fixes.py` (LLM request and answer check), `main.py` (the API) |
+| `frontend/` | React + Vite + TypeScript. Upload, results, LLM settings, fix panel |
+
+API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/test`
+(Test connection), `POST /api/fix` (Explain with AI). The browser talks only
+to the backend; the backend talks to Ollama.
+
+## Install (first time only)
+
+Needs Python 3.11+ and Node.js 20.19+ or 22.12+. Commands are for Windows
+PowerShell, run from the project folder.
 
 ```powershell
 cd backend
@@ -19,24 +48,59 @@ cd ..\frontend
 npm install
 ```
 
-**Start the backend** (terminal 1, from the project folder):
+For "Explain with AI" you also need [Ollama](https://ollama.com) and one
+model, for example:
+
+```powershell
+ollama pull llama3.2
+```
+
+## Run
+
+**Terminal 1, backend:**
 
 ```powershell
 cd backend
 .venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-**Start the frontend** (terminal 2, from the project folder):
+**Terminal 2, frontend:**
 
 ```powershell
 cd frontend
 npm run dev
 ```
 
-Then open http://localhost:5173. The page shows "Ready: backend is running"
-when both are up.
+Open http://localhost:5173. The page shows "Ready: backend is running" when
+both are up. Stop each with Ctrl+C.
 
-**Run the backend tests** (from `backend`):
+For "Explain with AI", Ollama must be running (the Ollama app, or
+`ollama serve` in a third terminal).
+
+## Use
+
+1. Choose a Trivy JSON report and click **Analyze report**.
+2. Read the report details and the counts. Use the filters to narrow the
+   package groups.
+3. Click **+** next to a package to see its CVEs and the **Explain with AI**
+   button.
+4. Before the first explanation, fill in **LLM settings**: the base URL
+   (default `http://localhost:11434`) and a model name. **Test connection**
+   checks Ollama and fills the model list.
+
+**Hosted Ollama** (ollama.com): use the base URL `https://ollama.com` and an
+API key from https://ollama.com/settings/keys. The page warns that the
+group's package data will leave your computer. The Ollama docs say their
+cloud does not support structured outputs yet, so answers from it may be
+refused as "did not match the expected format".
+
+The API key stays in the page's memory only: it is not saved, not put in
+any URL, and the backend never logs request bodies. A key is only sent over
+https (or to this computer).
+
+## Tests
+
+Backend (from `backend`):
 
 ```powershell
 .venv\Scripts\python -m unittest discover -s tests -t .
@@ -45,9 +109,60 @@ when both are up.
 The tests that need the real reports read them from the folder in the
 `TRIVY_REPORTS_DIR` environment variable (default: the folder that contains
 this project) and are skipped if `image.json` and `fs.json` are not there.
+The reports are not in the repository: `fs.json` holds personal git data.
 
-**Run the frontend tests** (from `frontend`):
+Frontend (from `frontend`):
 
 ```powershell
 npm test
 ```
+
+## Command line
+
+The parser also runs on its own and prints the same summary:
+
+```powershell
+cd backend
+.venv\Scripts\python trivy_parser.py ..\..\image.json ..\..\fs.json --limit 5
+```
+
+`--json OUT.json` writes everything to a file.
+
+## Security in short
+
+- Uploaded files and every text in them are treated as untrusted: they are
+  never run, never shown as HTML, limited to 50 MB, and invisible or
+  right-to-left characters are shown as visible codes.
+- The backend listens on 127.0.0.1 only and accepts only the local page
+  (Host and Origin checks).
+- Git author, committer and commit message are dropped as soon as a report
+  is loaded.
+- Only one package group is ever sent to the LLM, as clearly marked data,
+  and the model is told to ignore instructions inside it.
+
+## Known limitations
+
+- The AI text can be wrong (a small local model may misstate risks or
+  suggest poor commands). The verdict about the version is made by code,
+  but always read the AI text and commands critically.
+- Ollama's hosted cloud does not support structured outputs yet, so its
+  answers may be refused.
+- A local model needs time: about 30 seconds per group with llama3.2.
+- The backend keeps no state, so it checks the AI's version against the
+  fixed versions the page sends back from the upload.
+- While an upload is read, Starlette keeps files over 1 MB in a temporary
+  file, deleted after the request.
+- Versions are never compared (Trivy's fixed versions are listed as text),
+  and CVSS v4-only scores are not shown.
+
+## Future scope
+
+Not built in this prototype:
+
+- A database with upload history.
+- Tracking defects over time (new, still open, fixed, back again) and
+  comparing reports. The `fingerprint` of each finding and the
+  `file_sha256` of each report are kept for this.
+- Several users and login.
+- Report formats other than Trivy JSON.
+- Agents or MCP integration.

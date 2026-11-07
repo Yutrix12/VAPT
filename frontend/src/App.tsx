@@ -8,7 +8,7 @@ import { ReportDetails } from './components/ReportDetails'
 import { SeverityCounts } from './components/SeverityCounts'
 import { UploadForm } from './components/UploadForm'
 import { DEFAULT_BASE_URL, fixCacheKey, toFixGroup } from './llmLogic'
-import { filterGroups } from './reportLogic'
+import { ALL_STATUSES, filterGroups } from './reportLogic'
 import { SEVERITIES, type AnalyzeResult, type LlmSettings, type PackageGroup, type Severity } from './types'
 import './App.css'
 
@@ -22,7 +22,7 @@ function App() {
   const [health, setHealth] = useState<Health>({ state: 'checking' })
   const [result, setResult] = useState<AnalyzeResult | null>(null)
   const [severities, setSeverities] = useState<Set<Severity>>(() => new Set(SEVERITIES))
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState(ALL_STATUSES)
   const [llm, setLlm] = useState<LlmSettings>({ baseUrl: DEFAULT_BASE_URL, model: '', apiKey: '' })
   // AI answers per group and model, in React state only (gone on reload).
   const [fixes, setFixes] = useState<ReadonlyMap<string, FixState>>(new Map())
@@ -51,7 +51,7 @@ function App() {
   function showResult(next: AnalyzeResult) {
     setResult(next)
     setSeverities(new Set(SEVERITIES))
-    setStatus('all')
+    setStatus(ALL_STATUSES)
     // A new report starts without AI answers: an old answer could belong
     // to a group whose fixed versions have changed.
     reportNumber.current += 1

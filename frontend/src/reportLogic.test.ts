@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  checkFileBeforeUpload, countText, filterGroups, formatScanDate, isAnalyzeResult, safeLink,
+  ALL_STATUSES, checkFileBeforeUpload, countText, filterGroups, formatScanDate, isAnalyzeResult, safeLink,
   showHiddenCharacters,
 } from './reportLogic'
 import type { Finding, PackageGroup, Severity } from './types'
@@ -49,14 +49,19 @@ describe('filterGroups', () => {
   const all = new Set<Severity>(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'])
 
   it('keeps everything without a filter', () => {
-    const shown = filterGroups(groups, all, 'all')
+    const shown = filterGroups(groups, all, ALL_STATUSES)
     expect(shown.map((g) => g.findings.length)).toEqual([2, 1])
   })
 
   it('keeps only groups and findings that match', () => {
-    const shown = filterGroups(groups, new Set<Severity>(['CRITICAL']), 'all')
+    const shown = filterGroups(groups, new Set<Severity>(['CRITICAL']), ALL_STATUSES)
     expect(shown.map((g) => g.group.pkg_name)).toEqual(['openssl'])
     expect(shown[0].findings.map((f) => f.vuln_id)).toEqual(['A'])
+  })
+
+  it('never mixes up "all statuses" with a status called all', () => {
+    const odd = [group('x', [finding('LOW', 'all', 'Z')]), group('y', [finding('LOW', 'fixed', 'Y')])]
+    expect(filterGroups(odd, all, 'all').map((g) => g.group.pkg_name)).toEqual(['x'])
   })
 
   it('filters by status', () => {
@@ -65,9 +70,9 @@ describe('filterGroups', () => {
   })
 
   it('gives the worst severity of the shown findings', () => {
-    const shown = filterGroups(groups, new Set<Severity>(['LOW']), 'all')
+    const shown = filterGroups(groups, new Set<Severity>(['LOW']), ALL_STATUSES)
     expect(shown.map((g) => g.worst)).toEqual(['LOW', 'LOW'])
-    expect(filterGroups(groups, all, 'all')[0].worst).toBe('CRITICAL')
+    expect(filterGroups(groups, all, ALL_STATUSES)[0].worst).toBe('CRITICAL')
   })
 })
 
@@ -76,6 +81,11 @@ describe('showHiddenCharacters', () => {
     expect(showHiddenCharacters('openssl\u202Elmth.exe')).toBe('openssl\\u202Elmth.exe')
     expect(showHiddenCharacters('3.5.4\u200B')).toBe('3.5.4\\u200B')
     expect(showHiddenCharacters('a\u001b[31mb')).toBe('a\\u001B[31mb')
+  })
+
+  it('cleans object keys too, e.g. status names', () => {
+    const hidden = 'fixed' + String.fromCharCode(0x200b)
+    expect(Object.keys(showHiddenCharacters({ [hidden]: 1 }))).toEqual(['fixed\\u200B'])
   })
 
   it('cleans every string in a nested answer and leaves the rest', () => {
