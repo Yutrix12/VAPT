@@ -1,4 +1,4 @@
-import { ALL_STATUSES } from '../reportLogic'
+import { ALL_STATUSES, visibleText } from '../reportLogic'
 import { SEVERITIES, type Severity } from '../types'
 
 interface Props {
@@ -37,8 +37,9 @@ export function Filters({ severities, onSeveritiesChange, status, statuses, onSt
         <select name="status" value={status} onChange={(event) => onStatusChange(event.target.value)}>
           <option value={ALL_STATUSES}>all</option>
           {statuses.map((value) => (
+            // The value stays the real status, so the filter matches it.
             <option key={value} value={value}>
-              {value}
+              {visibleText(value)}
             </option>
           ))}
         </select>

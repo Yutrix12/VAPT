@@ -57,26 +57,30 @@ export function filterGroups(
 // Characters that are invisible or change the text direction: control
 // characters, zero-width marks, bidi overrides and isolates, the BOM.
 // eslint-disable-next-line no-control-regex -- matching them is the point
-const HIDDEN_CHARACTERS = /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202E\u2060-\u2069\uFEFF]/g
+// Control, format (invisible, direction-changing), line/paragraph separator
+// and unassigned characters; Python's isprintable(), used on the backend,
+// refuses these too. The u flag also matches characters above U+FFFF.
+const HIDDEN_CHARACTERS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Cn}]/gu
+
+/** Line breaks and tabs, which the backend keeps in the AI's text. */
+export const KEEP_LINE_BREAKS = '\n\t'
 
 /**
- * Report text is untrusted: an invisible or right-to-left character could
- * make a package or version look like something else. They are shown as
- * visible codes (e.g. \u202E), in every string of the value.
+ * Report and AI text is untrusted: an invisible or right-to-left character
+ * could make a package or version look like something else. Wrap such text
+ * in this where it is shown: those characters appear as visible codes (a
+ * backslash, "u" and the hex number), except those in `keep`. The data
+ * itself stays exactly as Trivy wrote it, so filters, keys and /api/fix
+ * use the real values.
  */
-export function showHiddenCharacters<T>(value: T): T {
-  if (typeof value === 'string') {
-    return value.replace(HIDDEN_CHARACTERS, (char) =>
-      `\\u${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`) as T
-  }
-  if (Array.isArray(value)) return value.map(showHiddenCharacters) as T
-  if (typeof value === 'object' && value !== null) {
-    return Object.fromEntries(
-      // Keys too: status names, for example, are keys of by_status.
-      Object.entries(value).map(([key, item]) => [showHiddenCharacters(key), showHiddenCharacters(item)]),
-    ) as T
-  }
-  return value
+export function visibleText(text: string, keep = ''): string {
+  return text.replace(HIDDEN_CHARACTERS, (char) => {
+    if (keep.includes(char)) return char
+    const code = char.codePointAt(0) ?? 0
+    const hex = code.toString(16).toUpperCase()
+    // Braces above U+FFFF, so "\u{E0041}" is not read as \uE004 plus "1".
+    return code > 0xffff ? `\\u{${hex}}` : `\\u${hex.padStart(4, '0')}`
+  })
 }
 
 /** True for a plain JSON object (not null, not an array). */

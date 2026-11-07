@@ -1,4 +1,4 @@
-import { countText } from '../reportLogic'
+import { countText, KEEP_LINE_BREAKS, visibleText } from '../reportLogic'
 import type { FixAdvice } from '../types'
 
 export type FixState =
@@ -17,14 +17,14 @@ function VersionVerdict({ advice }: { advice: FixAdvice }) {
     case 'verified':
       return (
         <p className="verdict verdict-ok">
-          Recommended upgrade: <span translate="no" className="nowrap">{advice.target_version}</span>{' '}
+          Recommended upgrade: <span translate="no" className="nowrap">{visibleText(advice.target_version ?? '')}</span>{' '}
           (one of Trivy’s fixed versions).
         </p>
       )
     case 'unverified':
       return (
         <p className="verdict verdict-warn">
-          The AI suggested <span translate="no" className="nowrap">{advice.unverified_version}</span>, which
+          The AI suggested <span translate="no" className="nowrap">{visibleText(advice.unverified_version ?? '')}</span>, which
           is not one of Trivy’s fixed versions, so it is not shown as a fix. Use Trivy’s fix above.
         </p>
       )
@@ -55,7 +55,7 @@ export function FixPanel({ fix, onExplain }: Props) {
           </button>
           {fix?.state === 'error' && (
             <p className="form-error" role="alert">
-              {fix.message} Trivy’s fix above is still valid.
+              {visibleText(fix.message)} Trivy’s fix above is still valid.
             </p>
           )}
         </>
@@ -68,7 +68,7 @@ export function FixPanel({ fix, onExplain }: Props) {
 function Advice({ advice }: { advice: FixAdvice }) {
   return (
     <>
-      <p className="disclaimer">{advice.disclaimer}</p>
+      <p className="disclaimer">{visibleText(advice.disclaimer)}</p>
       <VersionVerdict advice={advice} />
       {advice.cves_without_fix > 0 && (
         <p className="verdict verdict-warn">
@@ -78,11 +78,11 @@ function Advice({ advice }: { advice: FixAdvice }) {
       )}
       <dl className="advice">
         <dt>Summary</dt>
-        <dd>{advice.summary}</dd>
+        <dd>{visibleText(advice.summary, KEEP_LINE_BREAKS)}</dd>
         <dt>{advice.mitigation_only ? 'Mitigation' : 'What to do'}</dt>
-        <dd>{advice.recommended_action}</dd>
+        <dd>{visibleText(advice.recommended_action, KEEP_LINE_BREAKS)}</dd>
         <dt>Risks</dt>
-        <dd>{advice.risk_notes}</dd>
+        <dd>{visibleText(advice.risk_notes, KEEP_LINE_BREAKS)}</dd>
       </dl>
       {advice.commands.length > 0 && (
         // Kept apart from the verdict: these come from the AI and are untrusted.
@@ -92,7 +92,7 @@ function Advice({ advice }: { advice: FixAdvice }) {
           </p>
           {advice.commands.map((command, index) => (
             <pre key={index} translate="no">
-              <code>{command}</code>
+              <code>{visibleText(command, KEEP_LINE_BREAKS)}</code>
             </pre>
           ))}
         </div>

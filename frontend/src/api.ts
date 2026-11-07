@@ -1,6 +1,6 @@
 // Calls to our backend. The Vite dev proxy forwards /api/ to FastAPI.
 import { isFixAdvice, isLlmTestResult, toSettingsBody } from './llmLogic'
-import { isAnalyzeResult, isObject, showHiddenCharacters } from './reportLogic'
+import { isAnalyzeResult, isObject } from './reportLogic'
 import type { AnalyzeResult, FixAdvice, FixGroupRequest, LlmSettings, LlmTestResult } from './types'
 
 export type Health =
@@ -24,7 +24,8 @@ function isTimeout(error: unknown): boolean {
 
 /**
  * Call our backend; every problem becomes one readable message. The answer
- * is checked with `isExpected`, and its text is cleaned once here.
+ * is checked with `isExpected` and returned unchanged: hidden characters
+ * are made visible only where text is shown (visibleText).
  */
 async function callBackend<T>(
   path: string,
@@ -49,13 +50,13 @@ async function callBackend<T>(
   }
   if (response.ok) {
     return isExpected(body)
-      ? { ok: true, data: showHiddenCharacters(body) }
+      ? { ok: true, data: body }
       : { ok: false, message: 'The backend sent an unexpected answer.' }
   }
   // Our backend always sends {"detail": "one line"}; the Vite proxy answers
   // 502-504 without a body when the backend is not running.
   if (isObject(body) && typeof body.detail === 'string') {
-    return { ok: false, message: showHiddenCharacters(body.detail) }
+    return { ok: false, message: body.detail }
   }
   if (response.status >= 502 && response.status <= 504) return { ok: false, message: NOT_RUNNING }
   return { ok: false, message: `The backend answered with HTTP ${response.status}.` }

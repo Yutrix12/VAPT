@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ALL_STATUSES, checkFileBeforeUpload, countText, filterGroups, formatScanDate, isAnalyzeResult, safeLink,
-  showHiddenCharacters,
+  ALL_STATUSES, checkFileBeforeUpload, countText, filterGroups, formatScanDate, isAnalyzeResult,
+  KEEP_LINE_BREAKS, safeLink, visibleText,
 } from './reportLogic'
 import type { Finding, PackageGroup, Severity } from './types'
 
@@ -76,21 +76,27 @@ describe('filterGroups', () => {
   })
 })
 
-describe('showHiddenCharacters', () => {
+describe('visibleText', () => {
   it('makes invisible and direction-changing characters visible', () => {
-    expect(showHiddenCharacters('openssl\u202Elmth.exe')).toBe('openssl\\u202Elmth.exe')
-    expect(showHiddenCharacters('3.5.4\u200B')).toBe('3.5.4\\u200B')
-    expect(showHiddenCharacters('a\u001b[31mb')).toBe('a\\u001B[31mb')
+    expect(visibleText('openssl\u202Elmth.exe')).toBe('openssl\\u202Elmth.exe')
+    expect(visibleText('3.5.4\u200B')).toBe('3.5.4\\u200B')
+    expect(visibleText('a\u001b[31mb')).toBe('a\\u001B[31mb')
   })
 
-  it('cleans object keys too, e.g. status names', () => {
-    const hidden = 'fixed' + String.fromCharCode(0x200b)
-    expect(Object.keys(showHiddenCharacters({ [hidden]: 1 }))).toEqual(['fixed\\u200B'])
+  it('also catches other invisible characters, above U+FFFF too', () => {
+    const arabicMark = String.fromCodePoint(0x061c)
+    const softHyphen = String.fromCodePoint(0x00ad)
+    const tagA = String.fromCodePoint(0xe0041)
+    expect(visibleText(`a${arabicMark}b${softHyphen}c${tagA}1`)).toBe('a\\u061Cb\\u00ADc\\u{E0041}1')
   })
 
-  it('cleans every string in a nested answer and leaves the rest', () => {
-    expect(showHiddenCharacters({ a: ['x\u202Ey', 3, null], b: { c: 'ok' } })).toEqual(
-      { a: ['x\\u202Ey', 3, null], b: { c: 'ok' } })
+  it('keeps line breaks and tabs only when asked (AI text)', () => {
+    expect(visibleText('a\nb\tc', KEEP_LINE_BREAKS)).toBe('a\nb\tc')
+    expect(visibleText('a\nb')).toBe('a\\u000Ab')
+  })
+
+  it('leaves ordinary text exactly as it is', () => {
+    expect(visibleText('libssl3t64 3.5.7-1~deb13u3: Ünïcode, 日本')).toBe('libssl3t64 3.5.7-1~deb13u3: Ünïcode, 日本')
   })
 })
 

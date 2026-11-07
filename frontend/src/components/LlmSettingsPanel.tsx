@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { testLlm } from '../api'
 import { isThisComputer } from '../llmLogic'
-import { countText } from '../reportLogic'
+import { countText, visibleText } from '../reportLogic'
 import type { LlmSettings } from '../types'
 
 interface Props {
@@ -86,7 +86,9 @@ export function LlmSettingsPanel({ settings, onChange }: Props) {
           />
           <datalist id="ollama-models">
             {models.map((name) => (
-              <option key={name} value={name} />
+              // The value is the real name (picking it must work); the
+              // label shows any hidden characters in it as codes.
+              <option key={name} value={name} label={visibleText(name)} />
             ))}
           </datalist>
         </label>
@@ -116,7 +118,7 @@ export function LlmSettingsPanel({ settings, onChange }: Props) {
         </p>
       )}
       <p className={test.state === 'done' && !test.ok ? 'form-error' : 'muted'} role="status" aria-live="polite">
-        {test.state === 'done' ? test.message : ''}
+        {test.state === 'done' ? visibleText(test.message) : ''}
       </p>
     </section>
   )

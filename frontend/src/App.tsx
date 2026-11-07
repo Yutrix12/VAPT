@@ -8,14 +8,14 @@ import { ReportDetails } from './components/ReportDetails'
 import { SeverityCounts } from './components/SeverityCounts'
 import { UploadForm } from './components/UploadForm'
 import { DEFAULT_BASE_URL, fixCacheKey, toFixGroup } from './llmLogic'
-import { ALL_STATUSES, filterGroups } from './reportLogic'
+import { ALL_STATUSES, filterGroups, visibleText } from './reportLogic'
 import { SEVERITIES, type AnalyzeResult, type LlmSettings, type PackageGroup, type Severity } from './types'
 import './App.css'
 
 function HealthBadge({ health }: { health: Health }) {
   if (health.state === 'checking') return <span className="badge">Checking the backend…</span>
   if (health.state === 'ok') return <span className="badge badge-ok">Ready: backend is running</span>
-  return <span className="badge badge-error">Not ready: {health.message}</span>
+  return <span className="badge badge-error">Not ready: {visibleText(health.message)}</span>
 }
 
 function App() {

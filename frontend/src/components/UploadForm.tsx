@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { analyzeReport } from '../api'
-import { checkFileBeforeUpload } from '../reportLogic'
+import { checkFileBeforeUpload, visibleText } from '../reportLogic'
 import type { AnalyzeResult } from '../types'
 
 interface Props {
@@ -57,7 +57,7 @@ export function UploadForm({ onResult }: Props) {
         {busy ? 'Analyzing…' : 'Analyze report'}
       </button>
       <p className="form-error" role="alert">
-        {error}
+        {visibleText(error ?? '')}
       </p>
     </form>
   )

@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react'
-import { groupKey, safeLink, type ShownGroup } from '../reportLogic'
+import { groupKey, safeLink, visibleText, type ShownGroup } from '../reportLogic'
 import { FixPanel, type FixState } from './FixPanel'
 import type { Finding, PackageGroup, Severity } from '../types'
 
@@ -17,7 +17,7 @@ function TrivyFix({ group }: { group: PackageGroup }) {
         // may break at the ", " between versions, so it stays outside.
         <Fragment key={version}>
           {index > 0 && ', '}
-          <span className="nowrap">{version}</span>
+          <span className="nowrap">{visibleText(version)}</span>
         </Fragment>
       ))}
       {group.has_unfixed && <span className="muted"> (some CVEs have no fix yet)</span>}
@@ -42,7 +42,7 @@ function CveList({ findings }: { findings: Finding[] }) {
       <tbody>
         {findings.map((finding, index) => {
           const link = safeLink(finding.primary_url)
-          const id = finding.vuln_id ?? 'unknown ID'
+          const id = visibleText(finding.vuln_id ?? 'unknown ID')
           return (
             // Fingerprints repeat for duplicate rows, so the index is part of the key.
             <tr key={`${finding.fingerprint}-${index}`}>
@@ -56,10 +56,10 @@ function CveList({ findings }: { findings: Finding[] }) {
                 )}
               </td>
               <td><SeverityBadge severity={finding.severity} /></td>
-              <td>{finding.status}</td>
-              <td translate="no" className="nowrap">{finding.fixed_version ?? 'no fix yet'}</td>
+              <td>{visibleText(finding.status)}</td>
+              <td translate="no" className="nowrap">{visibleText(finding.fixed_version ?? 'no fix yet')}</td>
               <td className="number">{finding.cvss_score ?? '–'}</td>
-              <td>{finding.title ?? ''}</td>
+              <td>{visibleText(finding.title ?? '')}</td>
             </tr>
           )
         })}
@@ -134,7 +134,7 @@ interface RowProps {
 /** One group row, plus its AI advice and CVE list underneath when it is open. */
 function GroupRows({ item, listId, isOpen, onToggle, fix, onExplain }: RowProps) {
   const { group, findings, worst } = item
-  const name = group.pkg_name ?? 'unknown package'
+  const name = visibleText(group.pkg_name ?? 'unknown package')
   const count =
     findings.length === group.finding_count
       ? String(group.finding_count)
@@ -156,8 +156,8 @@ function GroupRows({ item, listId, isOpen, onToggle, fix, onExplain }: RowProps)
           </button>
         </td>
         <td translate="no">{name}</td>
-        <td translate="no" className="nowrap">{group.installed_version ?? 'unknown'}</td>
-        <td translate="no" className="target">{group.target}</td>
+        <td translate="no" className="nowrap">{visibleText(group.installed_version ?? 'unknown')}</td>
+        <td translate="no" className="target">{visibleText(group.target)}</td>
         <td className="number">{count}</td>
         <td><SeverityBadge severity={worst} /></td>
         <td><TrivyFix group={group} /></td>

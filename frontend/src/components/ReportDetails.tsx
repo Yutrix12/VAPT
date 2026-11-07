@@ -1,4 +1,4 @@
-import { countText, formatScanDate } from '../reportLogic'
+import { countText, formatScanDate, visibleText } from '../reportLogic'
 import type { ReportDetails as Details } from '../types'
 
 /** What was scanned: artifact, Trivy version, date, and OS or repository. */
@@ -12,32 +12,32 @@ export function ReportDetails({ report }: { report: Details }) {
       <h2 id="details-heading">Report</h2>
       <dl className="details">
         <dt>File</dt>
-        <dd translate="no">{report.file_name}</dd>
+        <dd translate="no">{visibleText(report.file_name)}</dd>
         <dt>Scanned</dt>
         <dd translate="no">
-          {report.artifact_name ?? 'unknown'} ({report.artifact_type ?? 'unknown type'})
+          {visibleText(report.artifact_name ?? 'unknown')} ({visibleText(report.artifact_type ?? 'unknown type')})
         </dd>
         <dt>Trivy version</dt>
-        <dd translate="no">{report.trivy_version ?? 'unknown'}</dd>
+        <dd translate="no">{visibleText(report.trivy_version ?? 'unknown')}</dd>
         <dt>Scan date</dt>
-        <dd>{formatScanDate(report.created_at)}</dd>
+        <dd>{visibleText(formatScanDate(report.created_at))}</dd>
         {isRepository ? (
           <>
             <dt>Repository</dt>
-            <dd translate="no">{hasGit ? (report.repo_url ?? 'unknown') : 'no git details in report'}</dd>
+            <dd translate="no">{hasGit ? visibleText(report.repo_url ?? 'unknown') : 'no git details in report'}</dd>
             {hasGit && (
               <>
                 <dt>Branch</dt>
-                <dd translate="no">{report.branch ?? 'unknown'}</dd>
+                <dd translate="no">{visibleText(report.branch ?? 'unknown')}</dd>
                 <dt>Commit</dt>
-                <dd translate="no">{report.commit ?? 'unknown'}</dd>
+                <dd translate="no">{visibleText(report.commit ?? 'unknown')}</dd>
               </>
             )}
           </>
         ) : (
           <>
             <dt>Operating system</dt>
-            <dd translate="no">{os || 'unknown'}</dd>
+            <dd translate="no">{visibleText(os || 'unknown')}</dd>
           </>
         )}
         <dt>Also found</dt>
