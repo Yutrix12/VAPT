@@ -1,18 +1,15 @@
 """Tests for trivy_parser: loading, parsing, summarize and group_by_package.
 
-The real reports (image.json, fs.json) are not in the repository: fs.json
-holds personal git data. Point TRIVY_REPORTS_DIR at the folder that holds
-them; by default the folder that contains this project is used. The tests
-that need them are skipped with a reason when the files are missing.
-Expected numbers come from the trivy-report-format skill.
+The real-report tests need image.json and fs.json (see tests/reports.py)
+and are skipped with a reason when they are missing. Expected numbers come
+from the trivy-report-format skill.
 """
 
 import codecs
 import json
-import os
 import unittest
-from pathlib import Path
 
+from tests.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
 from trivy_parser import (
     ReportError,
     decode_report_json,
@@ -22,10 +19,6 @@ from trivy_parser import (
     summarize,
 )
 
-PROJECT_DIR = Path(__file__).resolve().parents[2]
-REPORTS_DIR = Path(os.environ.get("TRIVY_REPORTS_DIR", PROJECT_DIR.parent))
-IMAGE_JSON = REPORTS_DIR / "image.json"
-FS_JSON = REPORTS_DIR / "fs.json"
 DEBIAN_TARGET = "python:3.9-slim (debian 13.1)"
 
 
@@ -158,9 +151,7 @@ class RulesTest(unittest.TestCase):
             ("https://example.invalid/repo.git", "main", "abc123"))
 
 
-@unittest.skipUnless(IMAGE_JSON.exists() and FS_JSON.exists(),
-                     f"real reports not found in {REPORTS_DIR} "
-                     "(set TRIVY_REPORTS_DIR)")
+@unittest.skipUnless(REAL_REPORTS_FOUND, SKIP_REASON)
 class RealReportsTest(unittest.TestCase):
     """Every expected number for image.json and fs.json."""
 

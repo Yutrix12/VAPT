@@ -83,6 +83,13 @@ class PackageGroup:
 
 # One parsed report together with its summary and package groups.
 AnalysedReport = tuple[Report, dict[str, Any], list[PackageGroup]]
+# What makes one package group: (target, package name, installed version).
+GroupKey = tuple[str, str | None, str | None]
+
+
+def group_key(item: Finding | PackageGroup) -> GroupKey:
+    """The package group of a finding (or the key of a group itself)."""
+    return (item.target, item.pkg_name, item.installed_version)
 
 
 def is_result_list(items: Any) -> bool:
@@ -424,7 +431,7 @@ def summarize(report: Report) -> dict[str, Any]:
     severity_counts = dict.fromkeys(SEVERITIES, 0)
     status_counts: Counter[str] = Counter()
     vuln_ids: set[str] = set()
-    packages: set[tuple[str, str, str | None]] = set()
+    packages: set[GroupKey] = set()
     fingerprints: set[str] = set()
     without_fixed_version = 0
     for finding in report.findings:
@@ -433,9 +440,7 @@ def summarize(report: Report) -> dict[str, Any]:
         if finding.vuln_id is not None:
             vuln_ids.add(finding.vuln_id)
         if finding.pkg_name is not None:
-            packages.add(
-                (finding.target, finding.pkg_name, finding.installed_version)
-            )
+            packages.add(group_key(finding))
         fingerprints.add(finding.fingerprint)
         if finding.fixed_version is None:
             without_fixed_version += 1
@@ -485,17 +490,22 @@ def group_sort_key(group: PackageGroup) -> tuple[int, int, str, str, str]:
     )
 
 
+def findings_by_group(report: Report) -> dict[GroupKey, list[Finding]]:
+    """The findings of each package group, in report order."""
+    grouped: dict[GroupKey, list[Finding]] = {}
+    for finding in report.findings:
+        grouped.setdefault(group_key(finding), []).append(finding)
+    return grouped
+
+
 def group_by_package(report: Report) -> list[PackageGroup]:
     """Group findings by (target, package name, installed version).
 
     Sorted worst severity first, then by most findings. Ties are sorted by
     target, name and version so the order is always the same.
     """
-    grouped: dict[tuple[str, str | None, str | None], list[Finding]] = {}
-    for finding in report.findings:
-        key = (finding.target, finding.pkg_name, finding.installed_version)
-        grouped.setdefault(key, []).append(finding)
-    groups = [make_group(findings) for findings in grouped.values()]
+    grouped = findings_by_group(report).values()
+    groups = [make_group(findings) for findings in grouped]
     return sorted(groups, key=group_sort_key)
 
 
