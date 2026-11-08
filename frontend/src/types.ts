@@ -68,9 +68,15 @@ export interface AnalyzeResult {
 // LLM settings as the page keeps them (React state only; the key is never stored).
 export interface LlmSettings {
   baseUrl: string
-  model: string
   apiKey: string
 }
+
+/** Whether AI explanations can run: Ollama answers and has the model. */
+export type AiConnection =
+  | { state: 'checking' }
+  | { state: 'unchecked' } // the settings changed and were not checked yet
+  | { state: 'ready' }
+  | { state: 'error'; message: string }
 
 // /api/llm/test answer.
 export interface LlmTestResult {

@@ -3,7 +3,8 @@
 Upload a Trivy vulnerability report (JSON) in the browser. The app shows
 what was scanned, counts the vulnerabilities by severity, groups them by
 package (worst first) and shows how to fix each package: always Trivy's own
-fixed versions, and on request an explanation from a local LLM (Ollama).
+fixed versions, and an explanation from a local LLM (Ollama) when you
+open a package.
 
 This is a prototype: the smallest thing that works end to end. Everything
 runs on your own computer. Nothing is saved.
@@ -17,12 +18,13 @@ runs on your own computer. Nothing is saved.
 - **Counts** by severity (CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN).
 - **Package groups**, worst first, with filters for severity and status.
   Each group shows Trivy's fix and opens to the list of its CVEs.
-- **Explain with AI** for one group: the LLM explains the fix and suggests
+- **AI explanation** when a group is opened: the LLM (`qwen3:8b`) explains
+  the fix and suggests
   commands. The code, not the LLM, decides what counts as a fix: a version
   is shown as the recommended upgrade only if it is one of Trivy's fixed
   versions. Every answer says "AI suggestion: verify before applying", and
   commands are only shown, never run.
-- The app works fully without an LLM; only "Explain with AI" needs one.
+- The app works fully without an LLM; only the AI explanation needs one.
 
 ## How it is built
 
@@ -32,7 +34,7 @@ runs on your own computer. Nothing is saved.
 | `frontend/` | React + Vite + TypeScript. Upload, results, LLM settings, fix panel |
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/test`
-(Test connection), `POST /api/fix` (Explain with AI). The browser talks only
+(Check connection), `POST /api/fix` (AI explanation). The browser talks only
 to the backend; the backend talks to Ollama.
 
 ## Install (first time only)
@@ -48,9 +50,8 @@ cd ..\frontend
 npm install
 ```
 
-For "Explain with AI" you also need [Ollama](https://ollama.com) and one
-model. `qwen3:8b` gives the better advice; `llama3.2` is smaller and
-faster:
+For the AI explanation you also need [Ollama](https://ollama.com) and the
+model the app uses, `qwen3:8b`:
 
 ```powershell
 ollama pull qwen3:8b
@@ -75,7 +76,7 @@ npm run dev
 Open http://localhost:5173. The page shows "Ready: backend is running" when
 both are up. Stop each with Ctrl+C.
 
-For "Explain with AI", Ollama must be running (the Ollama app, or
+For the AI explanation, Ollama must be running (the Ollama app, or
 `ollama serve` in a third terminal).
 
 ## Use
@@ -83,15 +84,17 @@ For "Explain with AI", Ollama must be running (the Ollama app, or
 1. Choose a Trivy JSON report and click **Analyze report**.
 2. Read the report details and the counts. Use the filters to narrow the
    package groups.
-3. Click **+** next to a package to see its CVEs and the **Explain with AI**
-   button.
-4. Before the first explanation, fill in **LLM settings**: the base URL
-   (default `http://localhost:11434`) and a model name. **Test connection**
-   checks Ollama and fills the model list.
+3. Click **+** next to a package: its CVEs show, and the AI explanation
+   starts by itself (about 25 seconds; one package at a time, the others
+   wait their turn). Answers are kept until the next upload.
+4. **AI settings** shows whether `qwen3:8b` is ready; the page checks this
+   when it opens. After changing the base URL or key, click **Check
+   connection**.
 
 **Hosted Ollama** (ollama.com): use the base URL `https://ollama.com` and an
-API key from https://ollama.com/settings/keys. The page warns that the
-group's package data will leave your computer. The Ollama docs say their
+API key from https://ollama.com/settings/keys. This only works if that
+service offers the model `qwen3:8b`. The page warns that the group's
+package data will leave your computer. The Ollama docs say their
 cloud does not support structured outputs yet, so answers from it may be
 refused as "did not match the expected format".
 
@@ -148,8 +151,9 @@ cd backend
   but always read the AI text and commands critically.
 - Ollama's hosted cloud does not support structured outputs yet, so its
   answers may be refused.
-- A local model needs time: about 20-25 seconds per group with qwen3:8b
-  (better advice) or 10-17 seconds with llama3.2.
+- A local model needs time: about 20-25 seconds per group with qwen3:8b.
+- Answers are kept per Ollama address: after switching the base URL,
+  open groups are explained again by the new address.
 - The backend keeps no state, so it checks the AI's version against the
   fixed versions the page sends back from the upload.
 - While an upload is read, Starlette keeps files over 1 MB in a temporary

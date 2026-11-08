@@ -83,12 +83,12 @@ function jsonPost(body: unknown): RequestInit {
   return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
 }
 
-/** "Test connection": does Ollama answer, and does it have the model? Never rejects. */
+/** "Check connection": does Ollama answer, and does it have the model? Never rejects. */
 export function testLlm(settings: LlmSettings): Promise<ApiResult<LlmTestResult>> {
   return callBackend('/api/llm/test', jsonPost(toSettingsBody(settings)), LLM_TEST_TIMEOUT_MS, isLlmTestResult)
 }
 
-/** "Explain with AI" for one group; the API key travels only in this request body. */
+/** The AI explanation for one group; the API key travels only in this request body. */
 export function explainFix(settings: LlmSettings, group: FixGroupRequest): Promise<ApiResult<FixAdvice>> {
   const body = { settings: toSettingsBody(settings), group }
   return callBackend('/api/fix', jsonPost(body), FIX_TIMEOUT_MS, isFixAdvice)

@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { groupKey, safeLink, visibleText, type ShownGroup } from '../reportLogic'
 import { FixPanel, type FixState } from './FixPanel'
-import type { Finding, PackageGroup, Severity } from '../types'
+import type { AiConnection, Finding, PackageGroup, Severity } from '../types'
 
 function SeverityBadge({ severity }: { severity: Severity }) {
   return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severity}</span>
@@ -70,12 +70,13 @@ function CveList({ findings }: { findings: Finding[] }) {
 
 interface TableProps {
   shown: ShownGroup[]
+  connection: AiConnection
   fixFor: (group: PackageGroup) => FixState | undefined
   onExplain: (group: PackageGroup) => void
 }
 
-/** Package groups, worst first, each expandable to its AI advice and CVEs. */
-export function GroupTable({ shown, fixFor, onExplain }: TableProps) {
+/** Package groups, worst first; opening one shows its AI explanation and CVEs. */
+export function GroupTable({ shown, connection, fixFor, onExplain }: TableProps) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
 
   function toggle(key: string) {
@@ -112,6 +113,7 @@ export function GroupTable({ shown, fixFor, onExplain }: TableProps) {
               listId={`cves-${index}`}
               isOpen={open.has(key)}
               onToggle={() => toggle(key)}
+              connection={connection}
               fix={fixFor(item.group)}
               onExplain={() => onExplain(item.group)}
             />
@@ -127,12 +129,13 @@ interface RowProps {
   listId: string
   isOpen: boolean
   onToggle: () => void
+  connection: AiConnection
   fix: FixState | undefined
   onExplain: () => void
 }
 
 /** One group row, plus its AI advice and CVE list underneath when it is open. */
-function GroupRows({ item, listId, isOpen, onToggle, fix, onExplain }: RowProps) {
+function GroupRows({ item, listId, isOpen, onToggle, connection, fix, onExplain }: RowProps) {
   const { group, findings, worst } = item
   const name = visibleText(group.pkg_name ?? 'unknown package')
   const count =
@@ -165,7 +168,7 @@ function GroupRows({ item, listId, isOpen, onToggle, fix, onExplain }: RowProps)
       {isOpen && (
         <tr id={listId} className="cve-row">
           <td colSpan={7}>
-            <FixPanel fix={fix} onExplain={onExplain} />
+            <FixPanel fix={fix} connection={connection} onExplain={onExplain} />
             <CveList findings={findings} />
           </td>
         </tr>

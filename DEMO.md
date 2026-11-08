@@ -3,16 +3,13 @@
 ## Before the demo
 
 1. Start Ollama (the Ollama app, or `ollama serve`). Make sure the model is
-   there: `ollama list` should show it. Recommended: `qwen3:8b` (better
-   advice, about 20-25 seconds per group); `llama3.2` is faster (about
-   10-17 seconds) but its advice is weaker.
+   there: `ollama list` should show `qwen3:8b`.
 2. Start the backend and the frontend as in README.md ("Run").
 3. Open http://localhost:5173 and check the green "Ready: backend is
    running".
-4. In **LLM settings**, click **Test connection**, then pick the model
-   (for example `qwen3:8b`) from the list. Testing again should say
-   "… is available."
-5. Optional warm-up: explain one small group once, so the model is loaded
+4. **AI settings** should say "Connected: qwen3:8b is ready." (checked
+   when the page opens).
+5. Optional warm-up: open one small group once, so the model is loaded
    before the real demo (the first answer can take a minute).
 
 ## 1. A container image: image.json
@@ -29,9 +26,10 @@
    Tick everything again.
 4. Click **+** next to **libssl3t64**: the list of its 57 CVEs, each with
    severity, status, fixed version, CVSS score and a link to the advisory.
+   The AI explanation starts by itself ("Asking the AI… 5 s").
 5. Show **Trivy's fix** in the row: the fixed versions straight from the
    report. This is always shown, with or without AI.
-6. Click **Explain with AI** (qwen3:8b: around 25 seconds). Point out:
+6. When the answer arrives (around 25 seconds), point out:
    - "AI suggestion: verify before applying" at the top.
    - The verdict is made by our code, not by the model. A version is shown
      as the recommended upgrade only if it is one of Trivy's fixed
@@ -49,15 +47,15 @@
    - **Counts**: 18 findings in 1 package: 10 HIGH, 7 MEDIUM, 1 LOW.
    - One group: **pypdf 6.19.0**, with 7 fixed versions from 6.20.0 to
      6.21.4.
-3. Click **+** and **Explain with AI** for pypdf.
+3. Click **+** for pypdf: its AI explanation starts by itself.
 
 ## 3. When something goes wrong
 
 1. Upload any file that is not JSON (for example an .html file): "only
    Trivy JSON reports are supported right now".
-2. Change the LLM base URL to `http://127.0.0.1:9` and click **Explain with
-   AI** on another group: one clear error, and Trivy's fix is still there.
-   The app works without the LLM.
+2. Change the base URL to `http://127.0.0.1:9`, click **Check
+   connection** and open another group: one clear error, and Trivy's fix
+   is still there. The app works without the LLM.
 3. Type `https://ollama.com` as the base URL: the page warns which data
    would leave this computer.
 

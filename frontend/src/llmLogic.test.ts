@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { fixCacheKey, isFixAdvice, isLlmTestResult, isThisComputer, toFixGroup } from './llmLogic'
+import {
+  AI_MODEL, connectionFromTest, fixCacheKey, isFixAdvice, isLlmTestResult, isThisComputer, serialQueue, toFixGroup,
+  toSettingsBody,
+} from './llmLogic'
 import type { Finding, PackageGroup, ReportDetails } from './types'
 
 function finding(id: string | null, fixed: string | null): Finding {
@@ -52,10 +55,72 @@ describe('isThisComputer', () => {
 })
 
 describe('fixCacheKey', () => {
-  it('differs per group and per model, and ignores surrounding spaces', () => {
-    const key = fixCacheKey(group, { baseUrl: 'http://localhost:11434', model: 'llama3.2', apiKey: '' })
-    expect(fixCacheKey(group, { baseUrl: 'http://localhost:11434/ ', model: ' llama3.2', apiKey: 'x' })).toBe(key)
-    expect(fixCacheKey(group, { baseUrl: 'http://localhost:11434', model: 'qwen3:8b', apiKey: '' })).not.toBe(key)
+  it('differs per group and per Ollama address, and ignores surrounding spaces', () => {
+    const key = fixCacheKey(group, { baseUrl: 'http://localhost:11434', apiKey: '' })
+    expect(fixCacheKey(group, { baseUrl: 'http://localhost:11434/ ', apiKey: 'x' })).toBe(key)
+    expect(fixCacheKey(group, { baseUrl: 'https://ollama.com', apiKey: '' })).not.toBe(key)
+    expect(fixCacheKey({ ...group, pkg_name: 'zlib' }, { baseUrl: 'http://localhost:11434', apiKey: '' })).not.toBe(key)
+  })
+})
+
+describe('toSettingsBody', () => {
+  it('always asks for the one model, and sends the key only when filled', () => {
+    expect(AI_MODEL).toBe('qwen3:8b')
+    expect(toSettingsBody({ baseUrl: ' http://localhost:11434 ', apiKey: ' ' })).toEqual(
+      { base_url: 'http://localhost:11434', model: 'qwen3:8b' })
+    expect(toSettingsBody({ baseUrl: 'https://ollama.com', apiKey: ' k ' })).toEqual(
+      { base_url: 'https://ollama.com', model: 'qwen3:8b', api_key: 'k' })
+  })
+})
+
+describe('connectionFromTest', () => {
+  it('is ready only when Ollama answers and has the model', () => {
+    expect(connectionFromTest({ ok: true, data: { ok: true, models: ['qwen3:8b'], model_found: true } }))
+      .toEqual({ state: 'ready' })
+  })
+
+  it('says how to install the model when it is missing', () => {
+    const connection = connectionFromTest({ ok: true, data: { ok: true, models: ['llama3.2'], model_found: false } })
+    expect(connection.state).toBe('error')
+    expect(connection.state === 'error' && connection.message).toContain('ollama pull qwen3:8b')
+  })
+
+  it('passes on the error of a failed check', () => {
+    expect(connectionFromTest({ ok: false, message: 'Cannot reach Ollama.' }))
+      .toEqual({ state: 'error', message: 'Cannot reach Ollama.' })
+  })
+})
+
+describe('serialQueue', () => {
+  it('runs one task at a time, in the order they were added', async () => {
+    const add = serialQueue()
+    const log: string[] = []
+    let running = 0
+    const task = (name: string, ms: number) => async () => {
+      running += 1
+      log.push(`start ${name} (${running} running)`)
+      await new Promise((resolve) => setTimeout(resolve, ms))
+      log.push(`end ${name}`)
+      running -= 1
+    }
+    await Promise.all([add(task('a', 20)), add(task('b', 1)), add(task('c', 1))])
+    expect(log).toEqual([
+      'start a (1 running)', 'end a', 'start b (1 running)', 'end b', 'start c (1 running)', 'end c',
+    ])
+  })
+
+  it('keeps going after a failed task, and its caller still sees the failure', async () => {
+    const add = serialQueue()
+    const failed = add(async () => {
+      throw new Error('boom')
+    })
+    let ranAfter = false
+    const next = add(async () => {
+      ranAfter = true
+    })
+    await expect(failed).rejects.toThrow('boom')
+    await next
+    expect(ranAfter).toBe(true)
   })
 })
 

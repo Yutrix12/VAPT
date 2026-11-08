@@ -1,13 +1,17 @@
+import { useEffect, useEffectEvent, useState } from 'react'
+import { AI_MODEL } from '../llmLogic'
 import { countText, KEEP_LINE_BREAKS, visibleText } from '../reportLogic'
-import type { FixAdvice } from '../types'
+import type { AiConnection, FixAdvice } from '../types'
 
 export type FixState =
-  | { state: 'loading' }
+  | { state: 'queued' } // waiting while another explanation runs
+  | { state: 'loading'; startedAt: number }
   | { state: 'done'; advice: FixAdvice }
   | { state: 'error'; message: string }
 
 interface Props {
   fix: FixState | undefined // undefined: not asked yet
+  connection: AiConnection
   onExplain: () => void
 }
 
@@ -39,29 +43,79 @@ function VersionVerdict({ advice }: { advice: FixAdvice }) {
   }
 }
 
+/** Seconds since `since`, updated every second while shown. */
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  // Hidden from screen readers: the live region would announce every second.
+  return (
+    <span className="elapsed" aria-hidden="true">
+      {Math.max(0, Math.round((now - since) / 1000))} s
+    </span>
+  )
+}
+
+/** Why there is no explanation yet, when the AI is not ready. */
+function notReadyText(connection: AiConnection): string {
+  switch (connection.state) {
+    case 'checking':
+      return 'Connecting to the AI…'
+    case 'unchecked':
+      return 'The AI settings changed: check the connection to get an explanation.'
+    case 'error':
+      return `No AI explanation: ${connection.message}`
+    case 'ready':
+      return 'Asking the AI…'
+  }
+}
+
 /**
- * "Explain with AI" for one group, and the checked answer. The live region
- * stays mounted in every state, so screen readers announce the answer.
+ * The AI explanation for one open group. It starts by itself once the AI
+ * is ready; answers are cached, so each group is asked once. The live
+ * region stays mounted in every state, so screen readers announce changes.
  */
-export function FixPanel({ fix, onExplain }: Props) {
+export function FixPanel({ fix, connection, onExplain }: Props) {
+  const shouldAsk = fix === undefined && connection.state === 'ready'
+  // Calls the latest onExplain without making the effect depend on it.
+  const ask = useEffectEvent(onExplain)
+  useEffect(() => {
+    // App ignores a second call for the same group (StrictMode runs this twice).
+    if (shouldAsk) ask()
+  }, [shouldAsk])
+
   return (
     <div className="fix-panel" aria-live="polite">
-      {fix?.state === 'done' ? (
-        <Advice advice={fix.advice} />
-      ) : (
-        <>
-          <button type="button" onClick={onExplain} disabled={fix?.state === 'loading'}>
-            {fix?.state === 'loading' ? 'Asking the AI…' : 'Explain with AI'}
-          </button>
-          {fix?.state === 'error' && (
-            <p className="form-error" role="alert">
-              {visibleText(fix.message)} Trivy’s fix above is still valid.
-            </p>
-          )}
-        </>
-      )}
+      <FixContent fix={fix} connection={connection} onExplain={onExplain} />
     </div>
   )
+}
+
+function FixContent({ fix, connection, onExplain }: Props) {
+  if (fix === undefined) return <p className="muted">{visibleText(notReadyText(connection))} Trivy’s fix above still applies.</p>
+  switch (fix.state) {
+    case 'queued':
+      return <p className="muted">Waiting for the AI: it is explaining another package first.</p>
+    case 'loading':
+      return (
+        <p className="muted">
+          Asking the AI ({AI_MODEL})… <Elapsed since={fix.startedAt} />
+        </p>
+      )
+    case 'error':
+      return (
+        <div className="form-error" role="alert">
+          <p>{visibleText(fix.message)} Trivy’s fix above is still valid.</p>
+          <button type="button" onClick={onExplain} disabled={connection.state !== 'ready'}>
+            Try again
+          </button>
+        </div>
+      )
+    case 'done':
+      return <Advice advice={fix.advice} />
+  }
 }
 
 /** The checked AI answer: verdict first, AI text below, commands apart. */

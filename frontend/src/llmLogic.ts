@@ -1,7 +1,9 @@
-// Plain functions behind the LLM settings and "Explain with AI" (no React).
+// Plain functions behind the AI settings and the AI explanations (no React).
+import type { ApiResult } from './api'
 import { groupKey, isObject } from './reportLogic'
 import {
   FIX_STATUSES,
+  type AiConnection,
   type FixAdvice,
   type FixGroupRequest,
   type LlmSettings,
@@ -11,6 +13,8 @@ import {
 } from './types'
 
 export const DEFAULT_BASE_URL = 'http://localhost:11434'
+/** The one model the app uses (owner's decision). */
+export const AI_MODEL = 'qwen3:8b'
 
 /** The body "group" for /api/fix: this group only, nothing else from the report. */
 export function toFixGroup(group: PackageGroup, report: ReportDetails): FixGroupRequest {
@@ -42,18 +46,43 @@ export function isThisComputer(url: string): boolean {
   return hostname === 'localhost' || hostname === '[::1]' || /^127(\.\d{1,3}){3}$/.test(hostname)
 }
 
-/** One cached AI answer per group and per Ollama address and model. */
+/** One cached AI answer per group and per Ollama address. */
 export function fixCacheKey(group: PackageGroup, settings: LlmSettings): string {
   const baseUrl = settings.baseUrl.trim().replace(/\/+$/, '')
-  return JSON.stringify([groupKey(group), baseUrl, settings.model.trim()])
+  return JSON.stringify([groupKey(group), baseUrl])
 }
 
 /** The settings as the backend expects them; the key only when filled. */
 export function toSettingsBody(settings: LlmSettings): Record<string, string> {
-  const body: Record<string, string> = { base_url: settings.baseUrl.trim(), model: settings.model.trim() }
+  const body: Record<string, string> = { base_url: settings.baseUrl.trim(), model: AI_MODEL }
   const key = settings.apiKey.trim()
   if (key) body.api_key = key
   return body
+}
+
+/** The result of a connection check, as the page shows it. */
+export function connectionFromTest(result: ApiResult<LlmTestResult>): AiConnection {
+  if (!result.ok) return { state: 'error', message: result.message }
+  if (result.data.model_found) return { state: 'ready' }
+  return {
+    state: 'error',
+    message: `Ollama answers, but it does not have the model ${AI_MODEL}. On this computer, install it with: ollama pull ${AI_MODEL}`,
+  }
+}
+
+/**
+ * Runs the added tasks one after another, never two at once, so a local
+ * model is never asked several things at the same time.
+ */
+export function serialQueue(): (task: () => Promise<void>) => Promise<void> {
+  let last = Promise.resolve()
+  return (task) => {
+    const run = last.then(task)
+    // A failed task must not stop the ones after it; its caller still
+    // gets the failure through `run`.
+    last = run.catch(() => undefined)
+    return run
+  }
 }
 
 function isStringArray(value: unknown): value is string[] {
