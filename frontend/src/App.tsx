@@ -19,10 +19,34 @@ import {
 } from './types'
 import './App.css'
 
+/** A small status line with a coloured dot; the words carry the meaning. */
 function HealthBadge({ health }: { health: Health }) {
-  if (health.state === 'checking') return <span className="badge">Checking the backend…</span>
-  if (health.state === 'ok') return <span className="badge badge-ok">Ready: backend is running</span>
-  return <span className="badge badge-error">Not ready: {visibleText(health.message)}</span>
+  const tone = health.state === 'ok' ? 'ok' : health.state === 'error' ? 'error' : 'busy'
+  const text =
+    health.state === 'checking'
+      ? 'Checking the backend…'
+      : health.state === 'ok'
+        ? 'Backend running'
+        : `Backend not ready: ${visibleText(health.message)}`
+  return (
+    <p className={`status-line status-${tone}`} aria-live="polite">
+      <span className="dot" aria-hidden="true" />
+      {text}
+    </p>
+  )
+}
+
+/** What the main area shows before the first report. */
+function EmptyState() {
+  return (
+    <section className="empty" aria-labelledby="empty-heading">
+      <h2 id="empty-heading">No report yet</h2>
+      <p>
+        Drop a Trivy JSON report on the Report panel, or click it to choose one. You will see what was
+        scanned, how severe the findings are, and how to fix each package.
+      </p>
+    </section>
+  )
 }
 
 const INITIAL_SETTINGS: LlmSettings = { baseUrl: DEFAULT_BASE_URL, apiKey: '' }
@@ -131,46 +155,60 @@ function App() {
   }
 
   return (
-    <main className="page">
-      <h1>Trivy report prototype</h1>
-      <p className="lead">Upload a Trivy JSON report to see its vulnerabilities and how to fix them.</p>
-      <p className="status" aria-live="polite">
-        <HealthBadge health={health} />
-      </p>
-      <UploadForm onResult={showResult} />
-      <LlmSettingsPanel
-        settings={llm}
-        onChange={changeSettings}
-        connection={connection}
-        onCheck={() => void checkConnection()}
-      />
-      {result && (
-        <>
-          <ReportDetails report={result.report} />
-          <SeverityCounts summary={result.summary} />
-          <section aria-labelledby="groups-heading">
-            <h2 id="groups-heading">Packages, worst first</h2>
-            <Filters
-              severities={severities}
-              onSeveritiesChange={setSeverities}
-              status={status}
-              statuses={Object.keys(result.summary.by_status)}
-              onStatusChange={setStatus}
-            />
-            <p className="muted" aria-live="polite">
-              Showing {shown.length} of {result.package_groups.length} package groups.
-            </p>
-            <GroupTable
-              key={tableKey}
-              shown={shown}
-              connection={connection}
-              fixFor={(group) => fixes.get(fixCacheKey(group, llm))}
-              onExplain={explain}
-            />
-          </section>
-        </>
-      )}
-    </main>
+    <div className="shell">
+      <a className="skip-link" href="#results">
+        Skip to results
+      </a>
+      <aside className="sidebar">
+        <header className="brand">
+          <h1>Trivy report</h1>
+          <p className="muted">Upload a scan and see what to fix first.</p>
+          <HealthBadge health={health} />
+        </header>
+        <UploadForm onResult={showResult} />
+        <LlmSettingsPanel
+          settings={llm}
+          onChange={changeSettings}
+          connection={connection}
+          onCheck={() => void checkConnection()}
+        />
+        {result && (
+          <Filters
+            severities={severities}
+            onSeveritiesChange={setSeverities}
+            counts={result.summary.by_severity}
+            status={status}
+            statuses={Object.keys(result.summary.by_status)}
+            onStatusChange={setStatus}
+          />
+        )}
+      </aside>
+      <main className="main" id="results">
+        {result ? (
+          <>
+            <ReportDetails report={result.report} />
+            <SeverityCounts summary={result.summary} />
+            <section aria-labelledby="groups-heading">
+              <div className="section-head">
+                <h2 id="groups-heading">Packages, worst first</h2>
+                <p className="muted" aria-live="polite">
+                  Showing {shown.length} of {result.package_groups.length}
+                </p>
+              </div>
+              <GroupTable
+                key={tableKey}
+                shown={shown}
+                connection={connection}
+                fixFor={(group) => fixes.get(fixCacheKey(group, llm))}
+                onExplain={explain}
+              />
+            </section>
+          </>
+        ) : (
+          <EmptyState />
+        )}
+      </main>
+    </div>
   )
 }
 

@@ -31,7 +31,7 @@ runs on your own computer. Nothing is saved.
 | Part | What it is |
 |---|---|
 | `backend/` | Python 3.11, FastAPI. `trivy_parser.py` (parse, group, count), `llm_client.py` (Ollama client), `fixes.py` (LLM request and answer check), `main.py` (the API) |
-| `frontend/` | React + Vite + TypeScript. Upload, results, LLM settings, fix panel |
+| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status and settings, filters) and the results (report, severity rail, packages with AI explanations) |
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/test`
 (Check connection), `POST /api/fix` (AI explanation). The browser talks only
@@ -73,22 +73,24 @@ cd frontend
 npm run dev
 ```
 
-Open http://localhost:5173. The page shows "Ready: backend is running" when
-both are up. Stop each with Ctrl+C.
+Open http://localhost:5173. The sidebar shows "Backend running" when both
+are up. Stop each with Ctrl+C.
 
 For the AI explanation, Ollama must be running (the Ollama app, or
 `ollama serve` in a third terminal).
 
 ## Use
 
-1. Choose a Trivy JSON report and click **Analyze report**.
-2. Read the report details and the counts. Use the filters to narrow the
-   package groups.
-3. Click **+** next to a package: its CVEs show, and the AI explanation
+1. Drop a Trivy JSON report on the **Report** panel in the sidebar (or
+   click it to choose one) and click **Analyze report**.
+2. Read the report details and the severity rail. Use the severity chips
+   and the status list under **Filter** to narrow the packages.
+3. Click a package name: its CVEs show, and the AI explanation
    starts by itself (about 25 seconds; one package at a time, the others
    wait their turn). Answers are kept until the next upload.
-4. **AI settings** shows whether `qwen3:8b` is ready; the page checks this
-   when it opens. After changing the base URL or key, click **Check
+4. **AI explanations** in the sidebar shows whether `qwen3:8b` is ready;
+   the page checks this when it opens. The base URL and key are under
+   **Connection settings**; after changing them, click **Check
    connection**.
 
 **Hosted Ollama** (ollama.com): use the base URL `https://ollama.com` and an

@@ -1,10 +1,19 @@
 import { Fragment, useState } from 'react'
-import { groupKey, safeLink, visibleText, type ShownGroup } from '../reportLogic'
+import { groupKey, safeLink, severityLabel, visibleText, type ShownGroup } from '../reportLogic'
 import { FixPanel, type FixState } from './FixPanel'
 import type { AiConnection, Finding, PackageGroup, Severity } from '../types'
 
 function SeverityBadge({ severity }: { severity: Severity }) {
-  return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severity}</span>
+  return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severityLabel(severity)}</span>
+}
+
+/** A small arrow that turns when the row opens (CSS does the turning). */
+function Chevron() {
+  return (
+    <svg className="chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
 }
 
 /** Trivy's own fix for a group: its fixed versions, or "no fix available yet". */
@@ -17,7 +26,7 @@ function TrivyFix({ group }: { group: PackageGroup }) {
         // may break at the ", " between versions, so it stays outside.
         <Fragment key={version}>
           {index > 0 && ', '}
-          <span className="nowrap">{visibleText(version)}</span>
+          <span className="nowrap code">{visibleText(version)}</span>
         </Fragment>
       ))}
       {group.has_unfixed && <span className="muted"> (some CVEs have no fix yet)</span>}
@@ -28,43 +37,45 @@ function TrivyFix({ group }: { group: PackageGroup }) {
 /** The CVEs of one group (only those that match the filters). */
 function CveList({ findings }: { findings: Finding[] }) {
   return (
-    <table className="cves">
-      <thead>
-        <tr>
-          <th scope="col">ID</th>
-          <th scope="col">Severity</th>
-          <th scope="col">Status</th>
-          <th scope="col">Fixed in</th>
-          <th scope="col">CVSS</th>
-          <th scope="col">Title</th>
-        </tr>
-      </thead>
-      <tbody>
-        {findings.map((finding, index) => {
-          const link = safeLink(finding.primary_url)
-          const id = visibleText(finding.vuln_id ?? 'unknown ID')
-          return (
-            // Fingerprints repeat for duplicate rows, so the index is part of the key.
-            <tr key={`${finding.fingerprint}-${index}`}>
-              <td translate="no" className="nowrap">
-                {link ? (
-                  <a href={link} target="_blank" rel="noopener noreferrer">
-                    {id}
-                  </a>
-                ) : (
-                  id
-                )}
-              </td>
-              <td><SeverityBadge severity={finding.severity} /></td>
-              <td>{visibleText(finding.status)}</td>
-              <td translate="no" className="nowrap">{visibleText(finding.fixed_version ?? 'no fix yet')}</td>
-              <td className="number">{finding.cvss_score ?? '–'}</td>
-              <td>{visibleText(finding.title ?? '')}</td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+    <div className="table-scroll">
+      <table className="cves">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Severity</th>
+            <th scope="col">Status</th>
+            <th scope="col">Fixed in</th>
+            <th scope="col">CVSS</th>
+            <th scope="col">Title</th>
+          </tr>
+        </thead>
+        <tbody>
+          {findings.map((finding, index) => {
+            const link = safeLink(finding.primary_url)
+            const id = visibleText(finding.vuln_id ?? 'unknown ID')
+            return (
+              // Fingerprints repeat for duplicate rows, so the index is part of the key.
+              <tr key={`${finding.fingerprint}-${index}`}>
+                <td translate="no" className="nowrap">
+                  {link ? (
+                    <a href={link} target="_blank" rel="noopener noreferrer">
+                      {id}
+                    </a>
+                  ) : (
+                    id
+                  )}
+                </td>
+                <td><SeverityBadge severity={finding.severity} /></td>
+                <td>{visibleText(finding.status)}</td>
+                <td translate="no" className="nowrap code">{visibleText(finding.fixed_version ?? 'no fix yet')}</td>
+                <td className="number">{finding.cvss_score ?? '–'}</td>
+                <td>{visibleText(finding.title ?? '')}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -91,36 +102,39 @@ export function GroupTable({ shown, connection, fixFor, onExplain }: TableProps)
   if (shown.length === 0) return <p className="muted">No package group matches the filters.</p>
 
   return (
-    <table className="groups">
-      <thead>
-        <tr>
-          <th scope="col"><span className="visually-hidden">Show CVEs</span></th>
-          <th scope="col">Package</th>
-          <th scope="col">Installed</th>
-          <th scope="col">Target</th>
-          <th scope="col" className="number">Findings</th>
-          <th scope="col">Worst</th>
-          <th scope="col">Trivy’s fix</th>
-        </tr>
-      </thead>
-      <tbody>
-        {shown.map((item, index) => {
-          const key = groupKey(item.group)
-          return (
-            <GroupRows
-              key={key}
-              item={item}
-              listId={`cves-${index}`}
-              isOpen={open.has(key)}
-              onToggle={() => toggle(key)}
-              connection={connection}
-              fix={fixFor(item.group)}
-              onExplain={() => onExplain(item.group)}
-            />
-          )
-        })}
-      </tbody>
-    </table>
+    <div className="table-scroll">
+      {/* Explicit roles: the narrow-screen card layout changes display, which
+      would otherwise drop the table semantics. */}
+      <table className="groups" role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader" scope="col">Package</th>
+            <th role="columnheader" scope="col">Installed</th>
+            <th role="columnheader" scope="col">Target</th>
+            <th role="columnheader" scope="col" className="number">Findings</th>
+            <th role="columnheader" scope="col">Worst</th>
+            <th role="columnheader" scope="col">Trivy’s fix</th>
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          {shown.map((item, index) => {
+            const key = groupKey(item.group)
+            return (
+              <GroupRows
+                key={key}
+                item={item}
+                listId={`cves-${index}`}
+                isOpen={open.has(key)}
+                onToggle={() => toggle(key)}
+                connection={connection}
+                fix={fixFor(item.group)}
+                onExplain={() => onExplain(item.group)}
+              />
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -144,30 +158,40 @@ function GroupRows({ item, listId, isOpen, onToggle, connection, fix, onExplain 
       : `${findings.length} of ${group.finding_count}`
   return (
     <>
-      <tr>
-        <td>
+      <tr role="row" className={`group-row worst-${worst.toLowerCase()}${isOpen ? ' is-open' : ''}`}>
+        <td role="cell">
           <button
             type="button"
-            className="expand"
+            className="row-toggle"
             aria-expanded={isOpen}
-            // Points at the CVE list only while that list exists.
+            // Points at the details only while they exist.
             aria-controls={isOpen ? listId : undefined}
-            aria-label={`${isOpen ? 'Hide' : 'Show'} CVEs of ${name}`}
             onClick={onToggle}
           >
-            {isOpen ? '−' : '+'}
+            <Chevron />
+            <span translate="no">{name}</span>
           </button>
         </td>
-        <td translate="no">{name}</td>
-        <td translate="no" className="nowrap">{visibleText(group.installed_version ?? 'unknown')}</td>
-        <td translate="no" className="target">{visibleText(group.target)}</td>
-        <td className="number">{count}</td>
-        <td><SeverityBadge severity={worst} /></td>
-        <td><TrivyFix group={group} /></td>
+        {/* data-label names each cell when narrow screens show a row as a card. */}
+        <td role="cell" translate="no" className="nowrap code" data-label="Installed">
+          {visibleText(group.installed_version ?? 'unknown')}
+        </td>
+        <td role="cell" translate="no" className="target" data-label="Target">
+          {visibleText(group.target)}
+        </td>
+        <td role="cell" className="number" data-label="Findings">
+          {count}
+        </td>
+        <td role="cell" data-label="Worst">
+          <SeverityBadge severity={worst} />
+        </td>
+        <td role="cell" className="fix-cell" data-label="Trivy’s fix">
+          <TrivyFix group={group} />
+        </td>
       </tr>
       {isOpen && (
-        <tr id={listId} className="cve-row">
-          <td colSpan={7}>
+        <tr role="row" id={listId} className={`detail-row worst-${worst.toLowerCase()}`}>
+          <td role="cell" colSpan={6}>
             <FixPanel fix={fix} connection={connection} onExplain={onExplain} />
             <CveList findings={findings} />
           </td>

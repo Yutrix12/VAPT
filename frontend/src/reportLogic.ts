@@ -15,6 +15,20 @@ export function checkFileBeforeUpload(name: string, size: number): string | null
   return null
 }
 
+/** "Critical" for CRITICAL: calmer to read than all capitals. */
+export function severityLabel(severity: Severity): string {
+  return severity.charAt(0) + severity.slice(1).toLowerCase()
+}
+
+/** A file size for people: "512 bytes", "2 KB" or "1.5 MB" (no line break before the unit). */
+export function formatFileSize(bytes: number): string {
+  const nbsp = '\u00a0'
+  if (bytes < 1024) return countText(bytes, 'byte')
+  const kilobytes = Math.round(bytes / 1024)
+  if (kilobytes < 1024) return `${kilobytes}${nbsp}KB` // rounded first, so never "1024 KB"
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')}${nbsp}MB`
+}
+
 /** "1 package" or "2 packages": the word gets an "s" unless count is 1. */
 export function countText(count: number, word: string): string {
   return `${count} ${count === 1 ? word : `${word}s`}`

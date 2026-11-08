@@ -23,6 +23,13 @@ function connectionText(connection: AiConnection): string {
   }
 }
 
+const TONES: Record<AiConnection['state'], string> = {
+  checking: 'busy',
+  unchecked: 'busy',
+  ready: 'ok',
+  error: 'error',
+}
+
 /**
  * Where Ollama is and an optional API key; the model is always the same.
  * Everything lives in React state only: nothing is saved, and the key
@@ -32,26 +39,42 @@ export function LlmSettingsPanel({ settings, onChange, connection, onCheck }: Pr
   const leavesThisComputer = settings.baseUrl.trim() !== '' && !isThisComputer(settings.baseUrl.trim())
 
   return (
-    <section className="llm-settings" aria-labelledby="llm-heading">
-      <h2 id="llm-heading">AI settings</h2>
-      <p className="muted">
-        Model: <span translate="no">{AI_MODEL}</span>. Opening a package asks it for an explanation; everything
+    <section className="panel" aria-labelledby="llm-heading">
+      <h2 id="llm-heading" className="panel-title">
+        AI explanations
+      </h2>
+      <p className={`status-line status-${TONES[connection.state]}`} role="status" aria-live="polite">
+        <span className="dot" aria-hidden="true" />
+        <span>{visibleText(connectionText(connection))}</span>
+      </p>
+      {connection.state === 'error' && <p className="hint">After fixing this, click Check connection.</p>}
+      <p className="hint">
+        Model <code translate="no">{AI_MODEL}</code>. Opening a package asks it to explain the fix; everything
         else works without it.
       </p>
-      <div className="llm-fields">
-        <label>
+      {leavesThisComputer && (
+        <p className="notice">
+          This address is not this computer. Once it is connected, every package you open (and any that is
+          open already) sends this to it: the package name and installed version, Trivy’s fixed versions,
+          the ecosystem and OS, and up to 15 CVE IDs with severities and short titles.
+        </p>
+      )}
+      {/* Opens by itself while the connection fails, so the fields are at hand. */}
+      <details className="connection" open={connection.state === 'error' || undefined}>
+        <summary>Connection settings</summary>
+        <label className="field">
           Ollama base URL
           <input
             type="url"
             name="ollama-base-url"
             autoComplete="off"
             spellCheck={false}
-            placeholder="http://localhost:11434"
+            placeholder="http://localhost:11434…"
             value={settings.baseUrl}
             onChange={(event) => onChange({ ...settings, baseUrl: event.target.value })}
           />
         </label>
-        <label>
+        <label className="field">
           API key (optional)
           <input
             type="password"
@@ -65,20 +88,10 @@ export function LlmSettingsPanel({ settings, onChange, connection, onCheck }: Pr
             onChange={(event) => onChange({ ...settings, apiKey: event.target.value })}
           />
         </label>
-        <button type="button" onClick={onCheck} disabled={connection.state === 'checking'}>
-          {connection.state === 'checking' ? 'Checking…' : 'Check connection'}
-        </button>
-      </div>
-      {leavesThisComputer && (
-        <p className="notice">
-          This address is not this computer. Once it is connected, every package you open (and any that is
-          open already) sends this to it: the package name and installed version, Trivy’s fixed versions,
-          the ecosystem and OS, and up to 15 CVE IDs with severities and short titles.
-        </p>
-      )}
-      <p className={connection.state === 'error' ? 'form-error' : 'muted'} role="status" aria-live="polite">
-        {visibleText(connectionText(connection))}
-      </p>
+      </details>
+      <button type="button" className="secondary wide" onClick={onCheck} disabled={connection.state === 'checking'}>
+        {connection.state === 'checking' ? 'Checking…' : 'Check connection'}
+      </button>
     </section>
   )
 }

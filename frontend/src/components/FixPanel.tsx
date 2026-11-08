@@ -94,21 +94,31 @@ export function FixPanel({ fix, connection, onExplain }: Props) {
 }
 
 function FixContent({ fix, connection, onExplain }: Props) {
-  if (fix === undefined) return <p className="muted">{visibleText(notReadyText(connection))} Trivy’s fix above still applies.</p>
+  if (fix === undefined) {
+    return <p className="muted">{visibleText(notReadyText(connection))} Trivy’s fix above still applies.</p>
+  }
   switch (fix.state) {
     case 'queued':
-      return <p className="muted">Waiting for the AI: it is explaining another package first.</p>
+      return (
+        <p className="ai-wait">
+          <span className="pulse is-still" aria-hidden="true" />
+          <span>Waiting for the AI: it is explaining another package first.</span>
+        </p>
+      )
     case 'loading':
       return (
-        <p className="muted">
-          Asking the AI ({AI_MODEL})… <Elapsed since={fix.startedAt} />
+        <p className="ai-wait">
+          <span className="pulse" aria-hidden="true" />
+          <span>
+            Asking the AI (<span translate="no">{AI_MODEL}</span>)… <Elapsed since={fix.startedAt} />
+          </span>
         </p>
       )
     case 'error':
       return (
-        <div className="form-error" role="alert">
+        <div className="ai-error" role="alert">
           <p>{visibleText(fix.message)} Trivy’s fix above is still valid.</p>
-          <button type="button" onClick={onExplain} disabled={connection.state !== 'ready'}>
+          <button type="button" className="secondary" onClick={onExplain} disabled={connection.state !== 'ready'}>
             Try again
           </button>
         </div>
@@ -122,7 +132,9 @@ function FixContent({ fix, connection, onExplain }: Props) {
 function Advice({ advice }: { advice: FixAdvice }) {
   return (
     <>
-      <p className="disclaimer">{visibleText(advice.disclaimer)}</p>
+      <p className="disclaimer">
+        {visibleText(advice.disclaimer)} <span className="muted">({AI_MODEL})</span>
+      </p>
       <VersionVerdict advice={advice} />
       {advice.cves_without_fix > 0 && (
         <p className="verdict verdict-warn">
@@ -142,7 +154,8 @@ function Advice({ advice }: { advice: FixAdvice }) {
         // Kept apart from the verdict: these come from the AI and are untrusted.
         <div className="commands">
           <p className="commands-heading">
-            Suggested commands (AI). They are only shown, never run: check each one before you use it.
+            Suggested commands from the AI. They are only shown, never run: check each one before you use it.
+            One click selects a whole command.
           </p>
           {advice.commands.map((command, index) => (
             <pre key={index} translate="no">

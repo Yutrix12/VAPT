@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ALL_STATUSES, checkFileBeforeUpload, countText, filterGroups, formatScanDate, isAnalyzeResult,
-  KEEP_LINE_BREAKS, safeLink, visibleText,
+  formatFileSize, KEEP_LINE_BREAKS, safeLink, severityLabel, visibleText,
 } from './reportLogic'
 import type { Finding, PackageGroup, Severity } from './types'
 
@@ -139,5 +139,22 @@ describe('formatScanDate', () => {
       .toBe('6 Nov 2026, 04:15')
     expect(formatScanDate('not a date', 'en-GB', 'UTC')).toBe('not a date')
     expect(formatScanDate(null, 'en-GB', 'UTC')).toBe('unknown')
+  })
+})
+
+describe('severityLabel', () => {
+  it('writes each severity in sentence case', () => {
+    expect(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'].map((s) => severityLabel(s as Severity)))
+      .toEqual(['Critical', 'High', 'Medium', 'Low', 'Unknown'])
+  })
+})
+
+describe('formatFileSize', () => {
+  it('uses bytes, KB or MB, whichever reads best', () => {
+    expect(formatFileSize(512)).toBe('512 bytes')
+    expect(formatFileSize(1)).toBe('1 byte')
+    expect(formatFileSize(2048)).toBe('2\u00a0KB')
+    expect(formatFileSize(1_572_864)).toBe('1.5\u00a0MB')
+    expect(formatFileSize(1_048_400)).toBe('1\u00a0MB') // just under 1 MiB: not "1024 KB"
   })
 })
