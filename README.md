@@ -26,6 +26,12 @@ runs on your own computer. Nothing is saved.
   is shown as the recommended upgrade only if it is one of Trivy's fixed
   versions. Every answer says "AI suggestion: verify before applying", and
   commands are only shown, never run.
+- **Download fix summary**: a Markdown file (`fix-summary-<report>.md`) of
+  what the page shows (the filters apply): the report, the counts, and per
+  package Trivy's fix plus the AI verdict, advice and commands for every
+  package explained so far. It is built in the browser; nothing is sent.
+  Report and AI text in it are escaped, so it cannot contain links, HTML or
+  hidden characters.
 - The app works fully without an LLM; only the AI explanation needs one.
 
 ## How it is built

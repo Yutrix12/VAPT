@@ -1,12 +1,6 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import { countText, KEEP_LINE_BREAKS, visibleText } from '../reportLogic'
-import type { AiConnection, FixAdvice } from '../types'
-
-export type FixState =
-  | { state: 'queued' } // waiting while another explanation runs
-  | { state: 'loading'; startedAt: number }
-  | { state: 'done'; advice: FixAdvice }
-  | { state: 'error'; message: string }
+import type { AiConnection, FixAdvice, FixState } from '../types'
 
 interface Props {
   fix: FixState | undefined // undefined: not asked yet

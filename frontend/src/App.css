@@ -482,6 +482,13 @@ button:disabled {
   font-size: 0.87rem;
 }
 
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
 .table-scroll {
   overflow-x: auto;
   border: 1px solid var(--line);

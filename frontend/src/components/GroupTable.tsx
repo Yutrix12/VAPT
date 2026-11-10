@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { groupKey, safeLink, severityLabel, visibleText, type ShownGroup } from '../reportLogic'
-import { FixPanel, type FixState } from './FixPanel'
-import type { AiConnection, Finding, PackageGroup, Severity } from '../types'
+import { FixPanel } from './FixPanel'
+import type { AiConnection, Finding, FixState, PackageGroup, Severity } from '../types'
 
 function SeverityBadge({ severity }: { severity: Severity }) {
   return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severityLabel(severity)}</span>

@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { checkHealth, checkLlm, explainFix, type Health } from './api'
 import { Filters } from './components/Filters'
-import type { FixState } from './components/FixPanel'
 import { GroupTable } from './components/GroupTable'
 import { AiStatusPanel } from './components/AiStatusPanel'
 import { ReportDetails } from './components/ReportDetails'
 import { SeverityCounts } from './components/SeverityCounts'
 import { UploadForm } from './components/UploadForm'
+import { downloadText } from './download'
+import { buildFixSummary, summaryFileName } from './fixSummary'
 import { connectionFromStatus, serialQueue, toFixGroup } from './llmLogic'
 import { ALL_STATUSES, filterGroups, groupKey, visibleText } from './reportLogic'
 import {
   SEVERITIES,
   type AiConnection,
   type AnalyzeResult,
+  type FixState,
   type PackageGroup,
   type Severity,
 } from './types'
@@ -100,6 +102,11 @@ function App() {
     return JSON.stringify([groupKey(group), aiModel])
   }
 
+  // One lookup for the table and the fix summary, so both always agree.
+  function fixFor(group: PackageGroup): FixState | undefined {
+    return fixes.get(fixKey(group))
+  }
+
   const shown = useMemo(
     () => (result ? filterGroups(result.package_groups, severities, status) : []),
     [result, severities, status],
@@ -119,6 +126,20 @@ function App() {
 
   function setFix(key: string, fix: FixState) {
     setFixes((current) => new Map(current).set(key, fix))
+  }
+
+  /** The fix summary of what the page shows now, as a Markdown file. */
+  function downloadSummary() {
+    if (result === null) return
+    const text = buildFixSummary({
+      result,
+      shown,
+      severities,
+      status,
+      fixFor,
+      model: aiModel,
+    })
+    downloadText(summaryFileName(result.report.file_name), text, 'text/markdown;charset=utf-8')
   }
 
   function explain(group: PackageGroup) {
@@ -172,15 +193,20 @@ function App() {
             <section aria-labelledby="groups-heading">
               <div className="section-head">
                 <h2 id="groups-heading">Packages, worst first</h2>
-                <p className="muted" aria-live="polite">
-                  Showing {shown.length} of {result.package_groups.length}
-                </p>
+                <div className="section-actions">
+                  <p className="muted" aria-live="polite">
+                    Showing {shown.length} of {result.package_groups.length}
+                  </p>
+                  <button type="button" className="secondary" onClick={downloadSummary}>
+                    Download fix summary
+                  </button>
+                </div>
               </div>
               <GroupTable
                 key={tableKey}
                 shown={shown}
                 connection={connection}
-                fixFor={(group) => fixes.get(fixKey(group))}
+                fixFor={fixFor}
                 onExplain={explain}
               />
             </section>

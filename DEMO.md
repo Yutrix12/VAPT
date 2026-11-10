@@ -38,6 +38,10 @@
    - The commands are shown apart and are never run.
 7. Close and open the group again: the answer is still there, with no
    second call to the LLM.
+8. Click **Download fix summary**: a Markdown file with every package,
+   Trivy's fix and, for libssl3t64, the AI's advice. Open it in VS Code
+   (Ctrl+Shift+V shows the preview). With only **Critical** on, it lists
+   just those 4 packages.
 
 ## 2. A source repository: fs.json
 

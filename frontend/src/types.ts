@@ -67,6 +67,13 @@ export interface AnalyzeResult {
   package_groups: PackageGroup[]
 }
 
+/** The AI explanation of one package group in the page; undefined means not asked yet. */
+export type FixState =
+  | { state: 'queued' } // waiting while another explanation runs
+  | { state: 'loading'; startedAt: number }
+  | { state: 'done'; advice: FixAdvice }
+  | { state: 'error'; message: string }
+
 /** Whether AI explanations can run: the backend's LLM answers and has its model. */
 export type AiConnection =
   | { state: 'checking' }
