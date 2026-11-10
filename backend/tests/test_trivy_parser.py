@@ -16,6 +16,8 @@ from trivy_parser import (
     group_by_package,
     parse_report,
     parse_report_bytes,
+    severity_level,
+    severity_sort_key,
     summarize,
 )
 
@@ -47,6 +49,41 @@ def small_report(**metadata: object) -> dict:
 def as_bytes(report: object) -> bytes:
     """Encode a report the way Trivy writes it (UTF-8 JSON)."""
     return json.dumps(report).encode("utf-8")
+
+
+class SeverityLevelTest(unittest.TestCase):
+    """A higher level is more severe; UNKNOWN is not rated at all."""
+
+    def test_higher_number_is_more_severe(self) -> None:
+        self.assertEqual(
+            [severity_level(s) for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")],
+            [4, 3, 2, 1])
+
+    def test_unknown_has_no_level(self) -> None:
+        self.assertIsNone(severity_level("UNKNOWN"))
+
+    def test_unknown_comes_after_every_rated_severity(self) -> None:
+        mixed = ["UNKNOWN", "LOW", "CRITICAL", "MEDIUM", "HIGH"]
+        self.assertEqual(sorted(mixed, key=severity_sort_key),
+                         ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"])
+
+    def test_groups_rank_rated_findings_before_unknown_ones(self) -> None:
+        report = small_report()
+        vulns = report["Results"][0]["Vulnerabilities"]
+        template = vulns[0]
+        vulns[:] = [
+            # "demo": one LOW and one UNKNOWN finding -> its worst is LOW.
+            {**template, "VulnerabilityID": "CVE-1", "Severity": "LOW"},
+            {**template, "VulnerabilityID": "CVE-2", "Severity": "UNKNOWN"},
+            # "other": three UNKNOWN findings -> listed after "demo",
+            # although it has more findings.
+            *({**template, "PkgName": "other", "VulnerabilityID": f"CVE-{i}",
+               "Severity": "UNKNOWN"} for i in (3, 4, 5)),
+        ]
+        groups = group_by_package(parse_report_bytes("r.json",
+                                                     as_bytes(report)))
+        self.assertEqual([(g.pkg_name, g.worst_severity) for g in groups],
+                         [("demo", "LOW"), ("other", "UNKNOWN")])
 
 
 class EncodingTest(unittest.TestCase):
@@ -200,12 +237,12 @@ class RealReportsTest(unittest.TestCase):
                 self.assertEqual(counts[pkg], want)
 
     def test_image_groups_worst_first_then_most_findings(self) -> None:
-        rank = {s: i for i, s in enumerate(
-            ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"))}
-        order = [(rank[g.worst_severity], -g.finding_count)
-                 for g in group_by_package(self.image)]
+        groups = group_by_package(self.image)
+        order = [(severity_sort_key(g.worst_severity), -g.finding_count)
+                 for g in groups]
         self.assertEqual(order, sorted(order))
-        self.assertEqual(order[0], (rank["CRITICAL"], -57))
+        self.assertEqual((groups[0].worst_severity, groups[0].finding_count),
+                         ("CRITICAL", 57))
 
     def test_image_duplicate_row_is_kept(self) -> None:
         duplicate = ("Python", "wheel", "0.45.1", "CVE-2026-24049")

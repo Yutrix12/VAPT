@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   ALL_STATUSES, checkFileBeforeUpload, countText, filterGroups, formatScanDate, isAnalyzeResult,
-  formatFileSize, KEEP_LINE_BREAKS, safeLink, severityLabel, visibleText,
+  formatFileSize, KEEP_LINE_BREAKS, RATED_SEVERITIES, safeLink, severityLabel, severityLevel, visibleText,
+  worstSeverity,
 } from './reportLogic'
 import type { Finding, PackageGroup, Severity } from './types'
 
@@ -67,6 +68,20 @@ describe('filterGroups', () => {
   it('filters by status', () => {
     const shown = filterGroups(groups, all, 'affected')
     expect(shown.map((g) => g.findings.map((f) => f.vuln_id))).toEqual([['B'], ['C']])
+  })
+
+  it('keeps the shown groups worst first after filtering, with UNKNOWN last', () => {
+    const mixed = [
+      group('a', [finding('CRITICAL', 'fixed', 'A1'), finding('LOW', 'fixed', 'A2'), finding('LOW', 'fixed', 'A3')]),
+      group('b', [finding('HIGH', 'fixed', 'B1')]),
+      group('c', [finding('UNKNOWN', 'fixed', 'C1'), finding('UNKNOWN', 'fixed', 'C2')]),
+      group('d', [finding('LOW', 'fixed', 'D1')]),
+    ]
+    const noCritical = new Set<Severity>(['HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'])
+    // Without its CRITICAL finding, "a" is a LOW group: after "b", and
+    // before "d" because it shows more findings; UNKNOWN-only "c" comes last.
+    expect(filterGroups(mixed, noCritical, ALL_STATUSES).map((g) => `${g.group.pkg_name}:${g.worst}`))
+      .toEqual(['b:HIGH', 'a:LOW', 'd:LOW', 'c:UNKNOWN'])
   })
 
   it('gives the worst severity of the shown findings', () => {
@@ -139,6 +154,23 @@ describe('formatScanDate', () => {
       .toBe('6 Nov 2026, 04:15')
     expect(formatScanDate('not a date', 'en-GB', 'UTC')).toBe('not a date')
     expect(formatScanDate(null, 'en-GB', 'UTC')).toBe('unknown')
+  })
+})
+
+describe('severity levels', () => {
+  it('gives a higher number to a more severe level', () => {
+    expect(RATED_SEVERITIES.map(severityLevel)).toEqual([4, 3, 2, 1])
+  })
+
+  it('gives UNKNOWN no level: it is not part of the ranking', () => {
+    expect(severityLevel('UNKNOWN')).toBeNull()
+    expect(RATED_SEVERITIES).not.toContain('UNKNOWN')
+  })
+
+  it('takes the most severe rated level, and UNKNOWN only when nothing is rated', () => {
+    expect(worstSeverity(['LOW', 'UNKNOWN', 'HIGH'])).toBe('HIGH')
+    expect(worstSeverity(['UNKNOWN', 'LOW'])).toBe('LOW')
+    expect(worstSeverity(['UNKNOWN'])).toBe('UNKNOWN')
   })
 })
 

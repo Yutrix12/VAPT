@@ -12,7 +12,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from llm_client import strip_control_chars
-from trivy_parser import SEVERITIES
+from trivy_parser import SEVERITIES, severity_sort_key
 
 MAX_CVES_IN_PROMPT = 15
 MAX_TITLE_CHARS = 120
@@ -124,15 +124,15 @@ Rules:
 
 def prompt_data(group: FixGroup) -> dict[str, Any]:
     """The facts sent to the model: this group only, CVEs worst first."""
-    rank = {severity: index for index, severity in enumerate(SEVERITIES)}
     worst: dict[str, CveIn] = {}  # one entry per ID, its worst severity
     fixed_in = fixed_version_per_cve(group)
     for cve in group.cves:
         kept = worst.get(cve.vuln_id)
-        if kept is None or rank[cve.severity] < rank[kept.severity]:
+        if kept is None or (severity_sort_key(cve.severity)
+                            < severity_sort_key(kept.severity)):
             worst[cve.vuln_id] = cve
     ordered = sorted(worst.values(),
-                     key=lambda c: (rank[c.severity], c.vuln_id))
+                     key=lambda c: (severity_sort_key(c.severity), c.vuln_id))
     shown = ordered[:MAX_CVES_IN_PROMPT]
     return {
         "package": group.pkg_name,

@@ -15,7 +15,9 @@ runs on your own computer. Nothing is saved.
   are supported right now".
 - **Report details**: what was scanned, Trivy version, scan date, and the
   operating system or the git repository, branch and commit.
-- **Counts** by severity (CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN).
+- **Counts** by severity: Critical, High, Medium and Low are ranked (levels
+  4 to 1, higher is more severe); Unknown is shown apart, because Trivy
+  could not rate it, and always comes after the rated ones.
 - **Package groups**, worst first, with filters for severity and status.
   Each group shows Trivy's fix and opens to the list of its CVEs.
 - **AI explanation** when a group is opened: the LLM (`qwen3:8b`) explains

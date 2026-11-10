@@ -1,8 +1,10 @@
 // The shapes /api/analyze returns. They mirror the Pydantic models in
 // backend/main.py (ReportDetails, Summary, PackageGroupOut, AnalyzeResponse).
 
-export const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] as const
+export const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] as const // display order
 export type Severity = (typeof SEVERITIES)[number]
+/** The severities Trivy could rate; UNKNOWN is kept outside the ranking. */
+export type RatedSeverity = Exclude<Severity, 'UNKNOWN'>
 
 export interface Finding {
   fingerprint: string

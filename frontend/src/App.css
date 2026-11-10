@@ -309,6 +309,16 @@ button:disabled {
   outline-offset: 2px;
 }
 
+.chips-apart {
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.chips-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .chip-count {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -374,8 +384,15 @@ button:disabled {
   font-size: 1.15rem;
 }
 
+.rails {
+  display: flex;
+  gap: 0.6rem; /* the wider gap sets UNKNOWN apart from the rated bar */
+}
+
 .rail {
   display: flex;
+  flex-basis: 0;
+  min-width: 6px;
   gap: 2px;
   height: 0.85rem;
   overflow: hidden;
@@ -427,6 +444,12 @@ button:disabled {
   width: 0.65rem;
   height: 0.65rem;
   border-radius: 2px;
+}
+
+.legend-apart {
+  padding-left: 1.25rem;
+  border-left: 1px solid var(--line-strong);
+  color: var(--muted);
 }
 
 .legend-count {

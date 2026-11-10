@@ -19,7 +19,8 @@
    - **Report**: python:3.9-slim, a container image, scanned by Trivy
      0.76.2, Debian 13.1.
    - **Severity rail**: 492 findings in 54 packages: 6 Critical, 126 High,
-     193 Medium, 158 Low, 9 Unknown. The bar shows the mix at a glance.
+     193 Medium, 158 Low, and apart from them 9 Unknown (not rated by
+     Trivy, so not part of the ranking). The bar shows the mix at a glance.
    - **Package groups, worst first**: libssl3t64, openssl and
      openssl-provider-legacy, 57 findings each, all Critical (red stripe).
 3. Under **Filter**, switch off every chip except **Critical**: 4 groups

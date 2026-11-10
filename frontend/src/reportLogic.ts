@@ -1,6 +1,6 @@
 // Plain functions behind the results page (no React here), so they are easy
 // to test.
-import { SEVERITIES, type AnalyzeResult, type Finding, type PackageGroup, type Severity } from './types'
+import { SEVERITIES, type AnalyzeResult, type Finding, type PackageGroup, type RatedSeverity, type Severity } from './types'
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
@@ -13,6 +13,31 @@ export function checkFileBeforeUpload(name: string, size: number): string | null
     return `Skipped ${name}: the file is larger than 50 MB`
   }
   return null
+}
+
+// Severity levels: a higher number is more severe. UNKNOWN has no level:
+// Trivy could not rate it, so it stays outside the ranking (same as the backend).
+const SEVERITY_LEVELS: Record<RatedSeverity, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+
+/** The rated severities, most severe first. */
+export const RATED_SEVERITIES = SEVERITIES.filter((s): s is RatedSeverity => s !== 'UNKNOWN')
+
+/** 4 for CRITICAL down to 1 for LOW; null for UNKNOWN (not rated). */
+export function severityLevel(severity: Severity): number | null {
+  return severity === 'UNKNOWN' ? null : SEVERITY_LEVELS[severity]
+}
+
+/** Below 0 when a is more severe than b; UNKNOWN comes after every rated severity. */
+export function compareSeverity(a: Severity, b: Severity): number {
+  const levelA = severityLevel(a)
+  const levelB = severityLevel(b)
+  if (levelA === null || levelB === null) return (levelA === null ? 1 : 0) - (levelB === null ? 1 : 0)
+  return levelB - levelA
+}
+
+/** The most severe rated severity; UNKNOWN only when nothing is rated. */
+export function worstSeverity(severities: readonly Severity[]): Severity {
+  return severities.reduce<Severity>((worst, s) => (compareSeverity(s, worst) < 0 ? s : worst), 'UNKNOWN')
 }
 
 /** "Critical" for CRITICAL: calmer to read than all capitals. */
@@ -61,16 +86,15 @@ export function filterGroups(
       (f) => severities.has(f.severity) && (status === ALL_STATUSES || f.status === status),
     )
     if (findings.length > 0) {
-      const worstRank = Math.min(...findings.map((f) => SEVERITIES.indexOf(f.severity)))
-      shown.push({ group, findings, worst: SEVERITIES[worstRank] })
+      shown.push({ group, findings, worst: worstSeverity(findings.map((f) => f.severity)) })
     }
   }
-  return shown
+  // Filtering can lower a group's worst severity, so sort again: worst
+  // first, then most shown findings. The sort is stable, so ties keep the
+  // backend's order.
+  return shown.sort((a, b) => compareSeverity(a.worst, b.worst) || b.findings.length - a.findings.length)
 }
 
-// Characters that are invisible or change the text direction: control
-// characters, zero-width marks, bidi overrides and isolates, the BOM.
-// eslint-disable-next-line no-control-regex -- matching them is the point
 // Control, format (invisible, direction-changing), line/paragraph separator
 // and unassigned characters; Python's isprintable(), used on the backend,
 // refuses these too. The u flag also matches characters above U+FFFF.

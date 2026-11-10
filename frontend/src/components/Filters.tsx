@@ -1,5 +1,5 @@
-import { ALL_STATUSES, severityLabel, visibleText } from '../reportLogic'
-import { SEVERITIES, type Severity } from '../types'
+import { ALL_STATUSES, RATED_SEVERITIES, severityLabel, visibleText } from '../reportLogic'
+import type { Severity } from '../types'
 
 interface Props {
   severities: ReadonlySet<Severity>
@@ -10,7 +10,7 @@ interface Props {
   onStatusChange: (next: string) => void
 }
 
-/** Severity chips (real checkboxes) and a status list that filter the package groups. */
+/** Severity chips (real checkboxes; UNKNOWN apart) and a status list that filter the package groups. */
 export function Filters({ severities, onSeveritiesChange, counts, status, statuses, onStatusChange }: Props) {
   function toggle(severity: Severity) {
     const next = new Set(severities)
@@ -19,23 +19,32 @@ export function Filters({ severities, onSeveritiesChange, counts, status, status
     onSeveritiesChange(next)
   }
 
+  function chip(severity: Severity) {
+    return (
+      <label key={severity} className={`chip severity-${severity.toLowerCase()}`}>
+        <input
+          className="visually-hidden"
+          type="checkbox"
+          name="severity"
+          checked={severities.has(severity)}
+          onChange={() => toggle(severity)}
+        />
+        <span>{severityLabel(severity)}</span>
+        <span className="chip-count">{counts[severity]}</span>
+      </label>
+    )
+  }
+
   return (
     <fieldset className="panel">
       <legend className="panel-title">Filter</legend>
-      <div className="chips">
-        {SEVERITIES.map((severity) => (
-          <label key={severity} className={`chip severity-${severity.toLowerCase()}`}>
-            <input
-              className="visually-hidden"
-              type="checkbox"
-              name="severity"
-              checked={severities.has(severity)}
-              onChange={() => toggle(severity)}
-            />
-            <span>{severityLabel(severity)}</span>
-            <span className="chip-count">{counts[severity]}</span>
-          </label>
-        ))}
+      <div className="chips">{RATED_SEVERITIES.map(chip)}</div>
+      {/* UNKNOWN is not part of the ranking, so its chip stands apart. */}
+      <div className="chips chips-apart" role="group" aria-labelledby="not-rated-label">
+        <span id="not-rated-label" className="chips-label">
+          Not rated
+        </span>
+        {chip('UNKNOWN')}
       </div>
       <label className="field">
         Status

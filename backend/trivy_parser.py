@@ -16,7 +16,10 @@ from typing import Any, NoReturn
 
 
 SUPPORTED_SCHEMA_VERSION = 2
-SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")
+SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")  # display order
+# Severity levels: a higher number is more severe. UNKNOWN has no level:
+# Trivy could not rate it, so it stays outside the ranking.
+SEVERITY_LEVELS = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
 # Personal data in repository scans: dropped as soon as the JSON is loaded.
 GIT_PERSONAL_FIELDS = ("CommitMsg", "Author", "Committer")
 MAX_SHOWN_FIXED_VERSIONS = 3
@@ -455,9 +458,17 @@ def summarize(report: Report) -> dict[str, Any]:
     }
 
 
-def severity_rank(severity: str) -> int:
-    """0 for CRITICAL up to 4 for UNKNOWN: a lower rank is more severe."""
-    return SEVERITIES.index(severity)
+def severity_level(severity: str) -> int | None:
+    """4 for CRITICAL down to 1 for LOW; None for UNKNOWN (not rated)."""
+    return SEVERITY_LEVELS.get(severity)
+
+
+def severity_sort_key(severity: str) -> tuple[int, int]:
+    """Sort key: most severe first, and UNKNOWN after every rated severity."""
+    level = severity_level(severity)
+    if level is None:
+        return (1, 0)  # not rated: after all rated severities
+    return (0, -level)  # rated: the higher level first
 
 
 def make_group(findings: list[Finding]) -> PackageGroup:
@@ -473,16 +484,19 @@ def make_group(findings: list[Finding]) -> PackageGroup:
         pkg_name=first.pkg_name,
         installed_version=first.installed_version,
         finding_count=len(findings),
-        worst_severity=min((f.severity for f in findings), key=severity_rank),
+        worst_severity=min((f.severity for f in findings),
+                           key=severity_sort_key),
         fixed_versions=tuple(fixed_versions),
         has_unfixed=any(f.fixed_version is None for f in findings),
     )
 
 
-def group_sort_key(group: PackageGroup) -> tuple[int, int, str, str, str]:
+def group_sort_key(
+    group: PackageGroup,
+) -> tuple[tuple[int, int], int, str, str, str]:
     """Sort key: worst severity, then most findings, then names for ties."""
     return (
-        severity_rank(group.worst_severity),
+        severity_sort_key(group.worst_severity),
         -group.finding_count,
         group.target,
         group.pkg_name or "",

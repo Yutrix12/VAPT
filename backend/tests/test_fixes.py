@@ -56,6 +56,17 @@ def data_block(messages: list[dict[str, str]]) -> dict:
 class BuildMessagesTest(unittest.TestCase):
     """Only this group is sent, as clearly delimited data."""
 
+    def test_cves_are_sent_most_severe_first_and_unknown_last(self) -> None:
+        group = make_group().model_dump()
+        group["cves"] = [
+            {"vuln_id": vuln_id, "severity": severity, "title": "t",
+             "fixed_version": None}
+            for vuln_id, severity in [("CVE-1", "UNKNOWN"), ("CVE-2", "LOW"),
+                                      ("CVE-3", "CRITICAL"), ("CVE-4", "HIGH")]]
+        data = data_block(build_messages(FixGroup.model_validate(group)))
+        self.assertEqual([v["id"] for v in data["vulnerabilities"]],
+                         ["CVE-3", "CVE-4", "CVE-2", "CVE-1"])
+
     def test_only_this_group_is_sent(self) -> None:
         data = data_block(build_messages(make_group()))
         self.assertEqual(data["package"], "openssl")
