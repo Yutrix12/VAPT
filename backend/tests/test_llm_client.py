@@ -1,4 +1,4 @@
-"""Tests for llm_client.py and POST /api/llm/test, against a fake Ollama."""
+"""Tests for llm_client.py and POST /api/llm/check, against a fake Ollama."""
 
 import json
 import unittest
@@ -9,6 +9,7 @@ from llm_client import (LLMError, LLMSettings, chat_json, list_models,
                         normalize_base_url)
 from main import app
 from tests.fake_ollama import CHAT_ANSWER, FakeOllama
+from tests.llm_override import backend_llm, clean_llm_environment
 
 KEY = "sk-test-0123456789-do-not-leak"
 SCHEMA = {"type": "object", "properties": {"summary": {"type": "string"}}}
@@ -127,88 +128,68 @@ class ChatJsonTest(unittest.TestCase):
                     chat_json(LLMSettings(f.base_url, "x"), [], SCHEMA)
 
 
-class LlmTestEndpointTest(unittest.TestCase):
-    """POST /api/llm/test: ok + models, or one clear error."""
+class LlmCheckEndpointTest(unittest.TestCase):
+    """POST /api/llm/check: the backend's own LLM, or one clear error."""
 
     def setUp(self) -> None:
         self.client = TestClient(app, base_url="http://localhost")
+        self.enterContext(clean_llm_environment())
 
-    def test_ok_with_model_found(self) -> None:
+    def status(self, fake: FakeOllama, model: str = "qwen3:8b",
+               key: str | None = None):
+        with backend_llm(LLMSettings(fake.base_url, model, api_key=key)):
+            return self.client.post("/api/llm/check")
+
+    def test_ready_with_the_model(self) -> None:
         with FakeOllama() as fake:
-            response = self.client.post("/api/llm/test", json={
-                "base_url": fake.base_url, "model": "llama3.2"})
+            response = self.status(fake)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {
-            "ok": True, "models": ["llama3.2:latest", "qwen3:8b"],
-            "model_found": True})
+            "model": "qwen3:8b", "model_found": True,
+            "leaves_this_computer": False})
 
-    def test_without_a_model_lists_the_models(self) -> None:
+    def test_model_without_tag_matches_latest(self) -> None:
         with FakeOllama() as fake:
-            response = self.client.post("/api/llm/test", json={
-                "base_url": fake.base_url, "model": "   "})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["models"],
-                         ["llama3.2:latest", "qwen3:8b"])
-        self.assertIs(response.json()["model_found"], False)
-
-    def test_deeply_nested_answer_gives_one_clear_error(self) -> None:
-        with FakeOllama("deep-json") as fake:
-            response = self.client.post("/api/llm/test", json={
-                "base_url": fake.base_url, "model": "x"})
-        self.assertEqual(response.status_code, 502)
-        self.assertIn("invalid JSON", response.json()["detail"])
-
-    def test_broken_request_bodies_give_clear_lines(self) -> None:
-        no_body = self.client.post(
-            "/api/llm/test", content=b"",
-            headers={"Content-Type": "application/json"})
-        self.assertEqual(no_body.json()["detail"],
-                         "request body: Field required")
-        empty = self.client.post("/api/llm/test", json={})
-        self.assertEqual(empty.json()["detail"], "base_url: Field required")
-        broken = self.client.post(
-            "/api/llm/test", content=b"{bad",
-            headers={"Content-Type": "application/json"})
-        self.assertEqual(broken.json()["detail"],
-                         "The request body is not valid JSON.")
+            self.assertIs(self.status(fake, "llama3.2").json()["model_found"],
+                          True)
 
     def test_model_not_found(self) -> None:
         with FakeOllama() as fake:
-            response = self.client.post("/api/llm/test", json={
-                "base_url": fake.base_url, "model": "mistral"})
-        self.assertIs(response.json()["model_found"], False)
+            self.assertIs(self.status(fake, "mistral").json()["model_found"],
+                          False)
 
     def test_failing_llm_gives_502_without_the_key(self) -> None:
-        with FakeOllama("http-500") as fake:
-            response = self.client.post("/api/llm/test", json={
-                "base_url": fake.base_url, "model": "x", "api_key": KEY})
-        self.assertEqual(response.status_code, 502)
-        self.assertIn("HTTP 500", response.json()["detail"])
-        self.assertNotIn(KEY, response.text)
+        for behaviour, message in {"http-500": "HTTP 500",
+                                   "deep-json": "invalid JSON"}.items():
+            with self.subTest(behaviour=behaviour), FakeOllama(behaviour) as f:
+                response = self.status(f, key=KEY)
+            self.assertEqual(response.status_code, 502)
+            self.assertIn(message, response.json()["detail"])
+            self.assertNotIn(KEY, response.text)
 
-    def test_bad_base_url_gives_one_line_422(self) -> None:
+    def test_misconfigured_backend_gives_503(self) -> None:
+        # No override: the real llm_config reads the environment.
+        with clean_llm_environment(LLM_MODE="api"):
+            response = self.client.post("/api/llm/check")
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("OLLAMA_API_KEY", response.json()["detail"])
+
+    def test_other_websites_cannot_trigger_a_check(self) -> None:
+        # A check may send the API key to ollama.com, so it is a POST: a
+        # browser always sends the Origin of a cross-site POST, and the
+        # middleware refuses foreign origins. A plain GET is not allowed.
+        with FakeOllama() as fake, backend_llm(LLMSettings(fake.base_url, "x")):
+            foreign = self.client.post(
+                "/api/llm/check", headers={"Origin": "https://evil.example"})
+            as_get = self.client.get("/api/llm/check")
+        self.assertEqual(foreign.status_code, 403)
+        self.assertEqual(as_get.status_code, 405)
+        self.assertEqual(fake.requests, [])
+
+    def test_the_page_can_no_longer_send_settings(self) -> None:
         response = self.client.post("/api/llm/test", json={
-            "base_url": "ftp://x", "model": "x", "api_key": KEY})
-        self.assertEqual(response.status_code, 422)
-        self.assertIn("base URL must start with http",
-                      response.json()["detail"])
-        self.assertNotIn(KEY, response.text)
-
-    def test_bad_settings_give_422_without_the_key(self) -> None:
-        cases = {
-            # These settings are refused before any request is sent, so the
-            # .invalid host names (never real) are not contacted.
-            "key with line break": {"base_url": "https://ollama.invalid",
-                                    "model": "x",
-                                    "api_key": KEY + "\r\nX: y"},
-            "key over http": {"base_url": "http://ollama.invalid",
-                              "model": "x", "api_key": KEY},
-        }
-        for label, body in cases.items():
-            with self.subTest(case=label):
-                response = self.client.post("/api/llm/test", json=body)
-                self.assertEqual(response.status_code, 422)
-                self.assertNotIn(KEY, response.text)
+            "base_url": "http://localhost:9", "model": "x"})
+        self.assertEqual(response.status_code, 404)
 
 
 if __name__ == "__main__":

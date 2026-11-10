@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  AI_MODEL, connectionFromTest, fixCacheKey, isFixAdvice, isLlmTestResult, isThisComputer, serialQueue, toFixGroup,
-  toSettingsBody,
-} from './llmLogic'
+import { connectionFromStatus, isFixAdvice, isLlmStatus, serialQueue, toFixGroup } from './llmLogic'
 import type { Finding, PackageGroup, ReportDetails } from './types'
 
 function finding(id: string | null, fixed: string | null): Finding {
@@ -40,53 +37,30 @@ describe('toFixGroup', () => {
   })
 })
 
-describe('isThisComputer', () => {
-  it('knows the local addresses', () => {
-    for (const url of ['http://localhost:11434', 'http://127.0.0.1:11434', 'http://[::1]:11434']) {
-      expect(isThisComputer(url)).toBe(true)
-    }
+describe('connectionFromStatus', () => {
+  const local = { model: 'qwen3:8b', model_found: true, leaves_this_computer: false }
+
+  it('is ready when the backend LLM answers and has its model', () => {
+    expect(connectionFromStatus({ ok: true, data: local })).toEqual(
+      { state: 'ready', model: 'qwen3:8b', leavesThisComputer: false })
+    expect(connectionFromStatus({ ok: true, data: { ...local, leaves_this_computer: true } })).toEqual(
+      { state: 'ready', model: 'qwen3:8b', leavesThisComputer: true })
   })
 
-  it('treats everything else as leaving this machine', () => {
-    for (const url of ['https://ollama.com', 'http://192.168.1.20:11434', 'http://localhost.evil.example', 'nonsense']) {
-      expect(isThisComputer(url)).toBe(false)
-    }
-  })
-})
-
-describe('fixCacheKey', () => {
-  it('differs per group and per Ollama address, and ignores surrounding spaces', () => {
-    const key = fixCacheKey(group, { baseUrl: 'http://localhost:11434', apiKey: '' })
-    expect(fixCacheKey(group, { baseUrl: 'http://localhost:11434/ ', apiKey: 'x' })).toBe(key)
-    expect(fixCacheKey(group, { baseUrl: 'https://ollama.com', apiKey: '' })).not.toBe(key)
-    expect(fixCacheKey({ ...group, pkg_name: 'zlib' }, { baseUrl: 'http://localhost:11434', apiKey: '' })).not.toBe(key)
-  })
-})
-
-describe('toSettingsBody', () => {
-  it('always asks for the one model, and sends the key only when filled', () => {
-    expect(AI_MODEL).toBe('qwen3:8b')
-    expect(toSettingsBody({ baseUrl: ' http://localhost:11434 ', apiKey: ' ' })).toEqual(
-      { base_url: 'http://localhost:11434', model: 'qwen3:8b' })
-    expect(toSettingsBody({ baseUrl: 'https://ollama.com', apiKey: ' k ' })).toEqual(
-      { base_url: 'https://ollama.com', model: 'qwen3:8b', api_key: 'k' })
-  })
-})
-
-describe('connectionFromTest', () => {
-  it('is ready only when Ollama answers and has the model', () => {
-    expect(connectionFromTest({ ok: true, data: { ok: true, models: ['qwen3:8b'], model_found: true } }))
-      .toEqual({ state: 'ready' })
-  })
-
-  it('says how to install the model when it is missing', () => {
-    const connection = connectionFromTest({ ok: true, data: { ok: true, models: ['llama3.2'], model_found: false } })
-    expect(connection.state).toBe('error')
+  it('says how to install a missing local model', () => {
+    const connection = connectionFromStatus({ ok: true, data: { ...local, model_found: false } })
     expect(connection.state === 'error' && connection.message).toContain('ollama pull qwen3:8b')
   })
 
+  it('does not suggest installing when the model is missing at a hosted API', () => {
+    const connection = connectionFromStatus({
+      ok: true, data: { ...local, model_found: false, leaves_this_computer: true },
+    })
+    expect(connection.state === 'error' && connection.message).not.toContain('ollama pull')
+  })
+
   it('passes on the error of a failed check', () => {
-    expect(connectionFromTest({ ok: false, message: 'Cannot reach Ollama.' }))
+    expect(connectionFromStatus({ ok: false, message: 'Cannot reach Ollama.' }))
       .toEqual({ state: 'error', message: 'Cannot reach Ollama.' })
   })
 })
@@ -126,8 +100,8 @@ describe('serialQueue', () => {
 
 describe('answer shape checks', () => {
   it('recognises the backend answers', () => {
-    expect(isLlmTestResult({ ok: true, models: ['a'], model_found: true })).toBe(true)
-    expect(isLlmTestResult({ ok: true })).toBe(false)
+    expect(isLlmStatus({ model: 'qwen3:8b', model_found: true, leaves_this_computer: false })).toBe(true)
+    expect(isLlmStatus({ model: 'qwen3:8b', model_found: true })).toBe(false)
     expect(isFixAdvice({
       status: 'verified', target_version: '1', unverified_version: null, trivy_fixed_versions: ['1'],
       mitigation_only: false, cves_without_fix: 0, summary: 's', recommended_action: 'a',

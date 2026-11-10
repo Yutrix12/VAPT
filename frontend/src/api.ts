@@ -1,7 +1,7 @@
 // Calls to our backend. The Vite dev proxy forwards /api/ to FastAPI.
-import { isFixAdvice, isLlmTestResult, toSettingsBody } from './llmLogic'
+import { isFixAdvice, isLlmStatus } from './llmLogic'
 import { isAnalyzeResult, isObject } from './reportLogic'
-import type { AnalyzeResult, FixAdvice, FixGroupRequest, LlmSettings, LlmTestResult } from './types'
+import type { AnalyzeResult, FixAdvice, FixGroupRequest, LlmStatus } from './types'
 
 export type Health =
   | { state: 'checking' }
@@ -14,7 +14,7 @@ const HEALTH_TIMEOUT_MS = 5000
 const ANALYZE_TIMEOUT_MS = 60000
 // A little longer than the backend's own limits (10 s and 120 s), so its
 // clearer message arrives first.
-const LLM_TEST_TIMEOUT_MS = 20000
+const LLM_CHECK_TIMEOUT_MS = 20000
 const FIX_TIMEOUT_MS = 150000
 const NOT_RUNNING = 'Cannot reach the backend. Start it as described in README.md.'
 
@@ -83,13 +83,13 @@ function jsonPost(body: unknown): RequestInit {
   return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
 }
 
-/** "Check connection": does Ollama answer, and does it have the model? Never rejects. */
-export function testLlm(settings: LlmSettings): Promise<ApiResult<LlmTestResult>> {
-  return callBackend('/api/llm/test', jsonPost(toSettingsBody(settings)), LLM_TEST_TIMEOUT_MS, isLlmTestResult)
+/** "Check connection": does the backend's LLM answer, and does it have its model? Never rejects. */
+export function checkLlm(): Promise<ApiResult<LlmStatus>> {
+  // A POST, so the backend can refuse other websites by their Origin.
+  return callBackend('/api/llm/check', { method: 'POST' }, LLM_CHECK_TIMEOUT_MS, isLlmStatus)
 }
 
-/** The AI explanation for one group; the API key travels only in this request body. */
-export function explainFix(settings: LlmSettings, group: FixGroupRequest): Promise<ApiResult<FixAdvice>> {
-  const body = { settings: toSettingsBody(settings), group }
-  return callBackend('/api/fix', jsonPost(body), FIX_TIMEOUT_MS, isFixAdvice)
+/** The AI explanation for one group. Only the group is sent: the backend chooses the LLM. */
+export function explainFix(group: FixGroupRequest): Promise<ApiResult<FixAdvice>> {
+  return callBackend('/api/fix', jsonPost(group), FIX_TIMEOUT_MS, isFixAdvice)
 }

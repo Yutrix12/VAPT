@@ -53,11 +53,10 @@
 
 1. Upload any file that is not JSON (for example an .html file): "only
    Trivy JSON reports are supported right now".
-2. Open **Connection settings**, change the base URL to
-   `http://127.0.0.1:9`, click **Check connection** and open another group: one clear error, and Trivy's fix
-   is still there. The app works without the LLM.
-3. Type `https://ollama.com` as the base URL: the page warns which data
-   would leave this computer.
+2. Stop Ollama (close the Ollama app, or Ctrl+C on `ollama serve`), click
+   **Check connection** and open another group: one clear error, and
+   Trivy's fix is still there. The app works without the LLM. Start Ollama
+   again and click **Check connection**.
 
 ## Talking points
 

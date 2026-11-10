@@ -1,0 +1,38 @@
+"""Point the backend's LLM at a test server, without touching the real setup."""
+
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+from unittest.mock import patch
+
+from llm_client import LLMSettings
+from main import app, llm_settings
+
+
+@contextmanager
+def backend_llm(settings: LLMSettings) -> Iterator[None]:
+    """Use `settings` instead of llm_config while the with-block runs.
+
+    FastAPI's dependency_overrides replaces the llm_settings dependency.
+    """
+    app.dependency_overrides[llm_settings] = lambda: settings
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(llm_settings, None)
+
+
+LLM_VARIABLES = ("LLM_MODE", "OLLAMA_API_KEY", "OLLAMA_API_MODEL")
+
+
+@contextmanager
+def clean_llm_environment(**variables: str) -> Iterator[None]:
+    """Run with only `variables` of the LLM setup set, whatever the shell has.
+
+    patch.dict puts the real environment back afterwards.
+    """
+    with patch.dict(os.environ):
+        for name in LLM_VARIABLES:
+            os.environ.pop(name, None)
+        os.environ.update(variables)
+        yield

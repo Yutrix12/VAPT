@@ -253,20 +253,6 @@ button:disabled {
   font-size: 0.85rem;
 }
 
-.connection {
-  margin-bottom: 0.75rem;
-  font-size: 0.9rem;
-}
-
-.connection summary {
-  cursor: pointer;
-  color: var(--muted);
-}
-
-.connection summary:hover {
-  color: var(--ink);
-}
-
 .field {
   display: flex;
   flex-direction: column;
@@ -276,7 +262,6 @@ button:disabled {
   font-weight: 600;
 }
 
-.field input,
 .field select {
   font: inherit;
   font-weight: 400;

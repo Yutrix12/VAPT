@@ -31,11 +31,13 @@ runs on your own computer. Nothing is saved.
 | Part | What it is |
 |---|---|
 | `backend/` | Python 3.11, FastAPI. `trivy_parser.py` (parse, group, count), `llm_client.py` (Ollama client), `fixes.py` (LLM request and answer check), `main.py` (the API) |
-| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status and settings, filters) and the results (report, severity rail, packages with AI explanations) |
+| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status, filters) and the results (report, severity rail, packages with AI explanations) |
 
-API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/test`
-(Check connection), `POST /api/fix` (AI explanation). The browser talks only
-to the backend; the backend talks to Ollama.
+API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/check`
+(Check connection), `POST /api/fix` (AI explanation; the body is one package
+group). The browser talks only to the backend; the backend talks to Ollama.
+The backend alone chooses the LLM (`backend/llm_config.py`): the page has no
+LLM settings and never sees a key.
 
 ## Install (first time only)
 
@@ -89,20 +91,38 @@ For the AI explanation, Ollama must be running (the Ollama app, or
    starts by itself (about 25 seconds; one package at a time, the others
    wait their turn). Answers are kept until the next upload.
 4. **AI explanations** in the sidebar shows whether `qwen3:8b` is ready;
-   the page checks this when it opens. The base URL and key are under
-   **Connection settings**; after changing them, click **Check
-   connection**.
+   the page checks this when it opens. **Check connection** checks again,
+   for example after starting Ollama.
 
-**Hosted Ollama** (ollama.com): use the base URL `https://ollama.com` and an
-API key from https://ollama.com/settings/keys. This only works if that
-service offers the model `qwen3:8b`. The page warns that the group's
-package data will leave your computer. The Ollama docs say their
-cloud does not support structured outputs yet, so answers from it may be
-refused as "did not match the expected format".
+## Which LLM: local now, hosted API later
 
-The API key stays in the page's memory only: it is not saved, not put in
-any URL, and the backend never logs request bodies. A key is only sent over
-https (or to this computer).
+The backend reads the `LLM_MODE` environment variable when it handles a
+request:
+
+| `LLM_MODE` | LLM | Key |
+|---|---|---|
+| `local` (default) | Ollama on this computer, `http://localhost:11434`, model `qwen3:8b` | none |
+| `api` | Ollama's hosted API, `https://ollama.com`; model `OLLAMA_API_MODEL` (default `qwen3:8b`) | `OLLAMA_API_KEY` (from https://ollama.com/settings/keys) |
+
+To use the hosted API, start the backend with the variables set, for
+example in PowerShell:
+
+```powershell
+$env:LLM_MODE = "api"; $env:OLLAMA_API_KEY = "<your key>"
+.venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+When the app has moved to the API for good, delete the "Local LLM" part of
+`backend/llm_config.py` and its branch in `current_settings()`.
+
+The key stays in the backend's environment only: it is never sent to the
+page, never logged, never put in a URL, and only sent over https. Nothing
+reads `.env` files: set the variables in the shell that starts the backend,
+and never write the key into a file in the repository. In `api` mode the page warns that the
+opened package's data leaves this computer. The Ollama docs say their cloud
+does not support structured outputs yet, so answers from it may be refused
+as "did not match the expected format"; it also only works if the service
+offers the chosen model.
 
 ## Tests
 
@@ -154,8 +174,6 @@ cd backend
 - Ollama's hosted cloud does not support structured outputs yet, so its
   answers may be refused.
 - A local model needs time: about 20-25 seconds per group with qwen3:8b.
-- Answers are kept per Ollama address: after switching the base URL,
-  open groups are explained again by the new address.
 - The backend keeps no state, so it checks the AI's version against the
   fixed versions the page sends back from the upload.
 - While an upload is read, Starlette keeps files over 1 MB in a temporary

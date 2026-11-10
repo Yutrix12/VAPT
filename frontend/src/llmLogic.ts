@@ -1,22 +1,17 @@
-// Plain functions behind the AI settings and the AI explanations (no React).
+// Plain functions behind the AI status and the AI explanations (no React).
 import type { ApiResult } from './api'
-import { groupKey, isObject } from './reportLogic'
+import { isObject } from './reportLogic'
 import {
   FIX_STATUSES,
   type AiConnection,
   type FixAdvice,
   type FixGroupRequest,
-  type LlmSettings,
-  type LlmTestResult,
+  type LlmStatus,
   type PackageGroup,
   type ReportDetails,
 } from './types'
 
-export const DEFAULT_BASE_URL = 'http://localhost:11434'
-/** The one model the app uses (owner's decision). */
-export const AI_MODEL = 'qwen3:8b'
-
-/** The body "group" for /api/fix: this group only, nothing else from the report. */
+/** The body of /api/fix: this group only, nothing else from the report. */
 export function toFixGroup(group: PackageGroup, report: ReportDetails): FixGroupRequest {
   const os = [report.os_family, report.os_name].filter(Boolean).join(' ')
   return {
@@ -35,38 +30,16 @@ export function toFixGroup(group: PackageGroup, report: ReportDetails): FixGroup
   }
 }
 
-/** True if the URL points at this computer (localhost or a loopback address). */
-export function isThisComputer(url: string): boolean {
-  let hostname: string
-  try {
-    hostname = new URL(url).hostname
-  } catch {
-    return false // not a valid URL: treat it as not local
-  }
-  return hostname === 'localhost' || hostname === '[::1]' || /^127(\.\d{1,3}){3}$/.test(hostname)
-}
-
-/** One cached AI answer per group and per Ollama address. */
-export function fixCacheKey(group: PackageGroup, settings: LlmSettings): string {
-  const baseUrl = settings.baseUrl.trim().replace(/\/+$/, '')
-  return JSON.stringify([groupKey(group), baseUrl])
-}
-
-/** The settings as the backend expects them; the key only when filled. */
-export function toSettingsBody(settings: LlmSettings): Record<string, string> {
-  const body: Record<string, string> = { base_url: settings.baseUrl.trim(), model: AI_MODEL }
-  const key = settings.apiKey.trim()
-  if (key) body.api_key = key
-  return body
-}
-
 /** The result of a connection check, as the page shows it. */
-export function connectionFromTest(result: ApiResult<LlmTestResult>): AiConnection {
+export function connectionFromStatus(result: ApiResult<LlmStatus>): AiConnection {
   if (!result.ok) return { state: 'error', message: result.message }
-  if (result.data.model_found) return { state: 'ready' }
+  const { model, model_found, leaves_this_computer } = result.data
+  if (model_found) return { state: 'ready', model, leavesThisComputer: leaves_this_computer }
   return {
     state: 'error',
-    message: `Ollama answers, but it does not have the model ${AI_MODEL}. On this computer, install it with: ollama pull ${AI_MODEL}`,
+    message: leaves_this_computer
+      ? `The hosted AI service does not offer the model ${model}.`
+      : `Ollama answers, but it does not have the model ${model}. Install it with: ollama pull ${model}`,
   }
 }
 
@@ -89,9 +62,12 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
 }
 
-export function isLlmTestResult(body: unknown): body is LlmTestResult {
+export function isLlmStatus(body: unknown): body is LlmStatus {
   return (
-    isObject(body) && body.ok === true && isStringArray(body.models) && typeof body.model_found === 'boolean'
+    isObject(body) &&
+    typeof body.model === 'string' &&
+    typeof body.model_found === 'boolean' &&
+    typeof body.leaves_this_computer === 'boolean'
   )
 }
 

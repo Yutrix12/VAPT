@@ -1,5 +1,4 @@
 import { useEffect, useEffectEvent, useState } from 'react'
-import { AI_MODEL } from '../llmLogic'
 import { countText, KEEP_LINE_BREAKS, visibleText } from '../reportLogic'
 import type { AiConnection, FixAdvice } from '../types'
 
@@ -63,8 +62,6 @@ function notReadyText(connection: AiConnection): string {
   switch (connection.state) {
     case 'checking':
       return 'Connecting to the AI…'
-    case 'unchecked':
-      return 'The AI settings changed: check the connection to get an explanation.'
     case 'error':
       return `No AI explanation: ${connection.message}`
     case 'ready':
@@ -78,7 +75,11 @@ function notReadyText(connection: AiConnection): string {
  * region stays mounted in every state, so screen readers announce changes.
  */
 export function FixPanel({ fix, connection, onExplain }: Props) {
-  const shouldAsk = fix === undefined && connection.state === 'ready'
+  // With a hosted AI the notice must be on screen before data is sent: a
+  // package opened before the AI was ready waits for a click instead.
+  const [openedWhileReady] = useState(connection.state === 'ready')
+  const needsClick = connection.state === 'ready' && connection.leavesThisComputer && !openedWhileReady
+  const shouldAsk = fix === undefined && connection.state === 'ready' && !needsClick
   // Calls the latest onExplain without making the effect depend on it.
   const ask = useEffectEvent(onExplain)
   useEffect(() => {
@@ -88,12 +89,25 @@ export function FixPanel({ fix, connection, onExplain }: Props) {
 
   return (
     <div className="fix-panel" aria-live="polite">
-      <FixContent fix={fix} connection={connection} onExplain={onExplain} />
+      <FixContent fix={fix} connection={connection} needsClick={needsClick} onExplain={onExplain} />
     </div>
   )
 }
 
-function FixContent({ fix, connection, onExplain }: Props) {
+function FixContent({ fix, connection, needsClick, onExplain }: Props & { needsClick: boolean }) {
+  if (fix === undefined && needsClick) {
+    return (
+      <div>
+        <p className="muted">
+          The AI runs on a hosted service (see the notice under AI explanations). Trivy’s fix above still
+          applies.
+        </p>
+        <button type="button" className="secondary" onClick={onExplain}>
+          Send this package to the hosted AI
+        </button>
+      </div>
+    )
+  }
   if (fix === undefined) {
     return <p className="muted">{visibleText(notReadyText(connection))} Trivy’s fix above still applies.</p>
   }
@@ -110,7 +124,7 @@ function FixContent({ fix, connection, onExplain }: Props) {
         <p className="ai-wait">
           <span className="pulse" aria-hidden="true" />
           <span>
-            Asking the AI (<span translate="no">{AI_MODEL}</span>)… <Elapsed since={fix.startedAt} />
+            Asking the AI… <Elapsed since={fix.startedAt} />
           </span>
         </p>
       )
@@ -133,7 +147,7 @@ function Advice({ advice }: { advice: FixAdvice }) {
   return (
     <>
       <p className="disclaimer">
-        {visibleText(advice.disclaimer)} <span className="muted">({AI_MODEL})</span>
+        {visibleText(advice.disclaimer)}
       </p>
       <VersionVerdict advice={advice} />
       {advice.cves_without_fix > 0 && (

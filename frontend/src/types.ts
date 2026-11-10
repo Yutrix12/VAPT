@@ -65,24 +65,17 @@ export interface AnalyzeResult {
   package_groups: PackageGroup[]
 }
 
-// LLM settings as the page keeps them (React state only; the key is never stored).
-export interface LlmSettings {
-  baseUrl: string
-  apiKey: string
-}
-
-/** Whether AI explanations can run: Ollama answers and has the model. */
+/** Whether AI explanations can run: the backend's LLM answers and has its model. */
 export type AiConnection =
   | { state: 'checking' }
-  | { state: 'unchecked' } // the settings changed and were not checked yet
-  | { state: 'ready' }
+  | { state: 'ready'; model: string; leavesThisComputer: boolean }
   | { state: 'error'; message: string }
 
-// /api/llm/test answer.
-export interface LlmTestResult {
-  ok: boolean
-  models: string[]
+/** POST /api/llm/check. The backend chooses the LLM; the page never sends settings. */
+export interface LlmStatus {
+  model: string
   model_found: boolean
+  leaves_this_computer: boolean
 }
 
 // /api/fix request body "group" (backend/fixes.py FixGroup).

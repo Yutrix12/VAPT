@@ -197,7 +197,7 @@ def _send(settings: LLMSettings, path: str, body: dict[str, Any] | None,
 def require_model(settings: LLMSettings) -> None:
     """Chatting needs a model name (listing models does not)."""
     if not settings.model:
-        raise LLMError("Enter a model name, e.g. llama3.2")
+        raise LLMError("No model is set for the LLM (see backend/llm_config.py).")
 
 
 def list_models(settings: LLMSettings,

@@ -2,17 +2,19 @@
 
 from collections.abc import Awaitable, Callable
 from pathlib import PureWindowsPath
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from fixes import (FIX_SCHEMA, FixAdvice, FixError, FixGroup, build_messages,
                    validate_answer)
-from llm_client import (LLMError, LLMSettings, chat_json, list_models,
-                        require_model)
+from llm_client import (LLMError, LLMSettings, chat_json, is_this_computer,
+                        list_models)
+from llm_config import current_settings
 from trivy_parser import (
     Finding,
     ReportError,
@@ -93,31 +95,27 @@ class AnalyzeResponse(BaseModel):
     package_groups: list[PackageGroupOut]
 
 
-class LLMSettingsIn(BaseModel):
-    """LLM settings sent by the page. SecretStr hides the key in logs."""
+class LLMStatus(BaseModel):
+    """Answer of "Check connection": the backend's own LLM, never its key."""
 
-    base_url: str = Field(max_length=500)
-    model: str = Field(max_length=200)
-    api_key: SecretStr | None = Field(default=None, max_length=500)
-
-    def to_client(self) -> LLMSettings:
-        """Checked settings for llm_client; bad settings give a 422.
-
-        LLMSettings does every check (URL, model, key) in one place.
-        """
-        key = self.api_key.get_secret_value() if self.api_key else None
-        try:
-            return LLMSettings(self.base_url, self.model, api_key=key)
-        except LLMError as error:
-            raise HTTPException(status_code=422, detail=str(error)) from None
-
-
-class LLMTestResult(BaseModel):
-    """Answer of "Test connection"."""
-
-    ok: bool
-    models: list[str]
+    model: str
     model_found: bool
+    leaves_this_computer: bool  # the page then warns which data is sent
+
+
+def llm_settings() -> LLMSettings:
+    """The LLM chosen in llm_config.py; a setup problem gives one 503 line.
+
+    A FastAPI dependency, so tests can swap in a fake Ollama with
+    app.dependency_overrides.
+    """
+    try:
+        return current_settings()
+    except LLMError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from None
+
+
+BackendLLM = Annotated[LLMSettings, Depends(llm_settings)]
 
 
 @app.middleware("http")
@@ -201,45 +199,38 @@ def analyze(file: UploadFile) -> AnalyzeResponse:
     )
 
 
-@app.post("/api/llm/test")
-def llm_test(settings: LLMSettingsIn) -> LLMTestResult:
-    """Check that Ollama answers, and whether the chosen model exists.
+@app.post("/api/llm/check")
+def llm_check(settings: BackendLLM) -> LLMStatus:
+    """Check that the backend's LLM answers and has its model.
 
-    Uses GET /api/tags, which is cheap: nothing is generated. A model name
-    without a tag (e.g. "llama3.2") means its ":latest" tag in Ollama.
+    A POST, not a GET: in api mode this sends the key to ollama.com, and a
+    browser always sends the Origin of a cross-site POST, so the middleware
+    can refuse other websites (a GET from an <img> carries no Origin).
+    Uses Ollama's GET /api/tags, which is cheap: nothing is generated. A
+    model name without a tag (e.g. "llama3.2") means its ":latest" tag.
     """
-    client_settings = settings.to_client()
     try:
-        models = list_models(client_settings)
+        models = list_models(settings)
     except LLMError as error:
         raise HTTPException(status_code=502, detail=str(error)) from None
-    model = client_settings.model
-    found = model in models or f"{model}:latest" in models
-    return LLMTestResult(ok=True, models=models, model_found=found)
-
-
-class FixRequest(BaseModel):
-    """One package group plus the LLM settings to explain it with."""
-
-    settings: LLMSettingsIn
-    group: FixGroup
+    model = settings.model
+    return LLMStatus(
+        model=model,
+        model_found=model in models or f"{model}:latest" in models,
+        leaves_this_computer=not is_this_computer(settings.base_url),
+    )
 
 
 @app.post("/api/fix")
-def fix(request: FixRequest) -> FixAdvice:
-    """Ask the LLM to explain the fix for one group, then check the answer.
+def fix(group: FixGroup, settings: BackendLLM) -> FixAdvice:
+    """Ask the backend's LLM to explain the fix for one group, then check it.
 
+    The body is the group only: the page cannot choose where it is sent.
     The page always shows Trivy's own fixed versions; this only adds the
     explanation. A version counts as a fix only if Trivy lists it.
     """
-    settings = request.settings.to_client()
     try:
-        require_model(settings)
-    except LLMError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from None
-    try:
-        answer = chat_json(settings, build_messages(request.group),
-                           FIX_SCHEMA)
-        return validate_answer(answer, request.group)
+        answer = chat_json(settings, build_messages(group), FIX_SCHEMA)
+        return validate_answer(answer, group)
     except (LLMError, FixError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from None

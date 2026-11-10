@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { checkHealth, explainFix, testLlm, type Health } from './api'
+import { checkHealth, checkLlm, explainFix, type Health } from './api'
 import { Filters } from './components/Filters'
 import type { FixState } from './components/FixPanel'
 import { GroupTable } from './components/GroupTable'
-import { LlmSettingsPanel } from './components/LlmSettingsPanel'
+import { AiStatusPanel } from './components/AiStatusPanel'
 import { ReportDetails } from './components/ReportDetails'
 import { SeverityCounts } from './components/SeverityCounts'
 import { UploadForm } from './components/UploadForm'
-import { connectionFromTest, DEFAULT_BASE_URL, fixCacheKey, serialQueue, toFixGroup } from './llmLogic'
-import { ALL_STATUSES, filterGroups, visibleText } from './reportLogic'
+import { connectionFromStatus, serialQueue, toFixGroup } from './llmLogic'
+import { ALL_STATUSES, filterGroups, groupKey, visibleText } from './reportLogic'
 import {
   SEVERITIES,
   type AiConnection,
   type AnalyzeResult,
-  type LlmSettings,
   type PackageGroup,
   type Severity,
 } from './types'
@@ -49,20 +48,18 @@ function EmptyState() {
   )
 }
 
-const INITIAL_SETTINGS: LlmSettings = { baseUrl: DEFAULT_BASE_URL, apiKey: '' }
-
 function App() {
   const [health, setHealth] = useState<Health>({ state: 'checking' })
   const [result, setResult] = useState<AnalyzeResult | null>(null)
   const [severities, setSeverities] = useState<Set<Severity>>(() => new Set(SEVERITIES))
   const [status, setStatus] = useState(ALL_STATUSES)
-  const [llm, setLlm] = useState(INITIAL_SETTINGS)
   const [connection, setConnection] = useState<AiConnection>({ state: 'checking' })
-  // Each settings edit makes earlier connection checks outdated; this counts the edits.
-  const settingsVersion = useRef(0)
+  // The model of the last successful check: answers are kept per model, so
+  // a backend switched to another model never shows an older model's advice.
+  const [aiModel, setAiModel] = useState<string | null>(null)
   // One AI request at a time; the lazy initializer makes one queue for the app's lifetime.
   const [enqueue] = useState(() => serialQueue())
-  // AI answers per group and Ollama address, in React state only (gone on reload).
+  // AI answers per group and model, in React state only (gone on reload).
   const [fixes, setFixes] = useState<ReadonlyMap<string, FixState>>(new Map())
   // Requests on their way right now, so a quick second click never calls the
   // LLM again, even before React has re-rendered.
@@ -73,6 +70,11 @@ function App() {
   // group stays open (and asks the AI) from the previous report.
   const [tableKey, setTableKey] = useState(0)
 
+  function applyCheck(next: AiConnection) {
+    setConnection(next)
+    if (next.state === 'ready') setAiModel(next.model)
+  }
+
   useEffect(() => {
     // Ignore a late answer if the component is gone (React StrictMode mounts twice).
     let active = true
@@ -80,26 +82,22 @@ function App() {
       if (active) setHealth(next)
     })
     // Check the AI once at the start, so opening a package can explain it.
-    // Its answer is dropped if the settings were edited meanwhile.
-    void testLlm(INITIAL_SETTINGS).then((result) => {
-      if (active && settingsVersion.current === 0) setConnection(connectionFromTest(result))
+    void checkLlm().then((result) => {
+      if (active) applyCheck(connectionFromStatus(result))
     })
     return () => {
       active = false
     }
   }, [])
 
-  function changeSettings(next: LlmSettings) {
-    settingsVersion.current += 1
-    setLlm(next)
-    setConnection({ state: 'unchecked' })
+  // The button is disabled while a check runs, so two checks never overlap.
+  async function checkConnection() {
+    setConnection({ state: 'checking' })
+    applyCheck(connectionFromStatus(await checkLlm()))
   }
 
-  async function checkConnection() {
-    const askedFor = settingsVersion.current
-    setConnection({ state: 'checking' })
-    const result = await testLlm(llm)
-    if (settingsVersion.current === askedFor) setConnection(connectionFromTest(result))
+  function fixKey(group: PackageGroup): string {
+    return JSON.stringify([groupKey(group), aiModel])
   }
 
   const shown = useMemo(
@@ -125,29 +123,17 @@ function App() {
 
   function explain(group: PackageGroup) {
     if (result === null) return
-    const key = fixCacheKey(group, llm)
+    const key = fixKey(group)
     // Already answered or on its way: no second call to the LLM.
     if (inFlight.current.has(key) || fixes.get(key)?.state === 'done') return
     inFlight.current.add(key)
     const askedFor = reportNumber.current
-    const settingsWhenAsked = settingsVersion.current
-    const settings = llm
     const body = toFixGroup(group, result.report)
     setFix(key, { state: 'queued' })
     void enqueue(async () => {
       if (reportNumber.current !== askedFor) return // a newer report is shown now
-      if (settingsVersion.current !== settingsWhenAsked) {
-        // The address or key changed while waiting: never send to the old one.
-        inFlight.current.delete(key)
-        setFixes((current) => {
-          const next = new Map(current)
-          next.delete(key)
-          return next
-        })
-        return
-      }
       setFix(key, { state: 'loading', startedAt: Date.now() })
-      const answer = await explainFix(settings, body)
+      const answer = await explainFix(body)
       if (reportNumber.current !== askedFor) return
       inFlight.current.delete(key)
       setFix(key, answer.ok ? { state: 'done', advice: answer.data } : { state: 'error', message: answer.message })
@@ -166,12 +152,7 @@ function App() {
           <HealthBadge health={health} />
         </header>
         <UploadForm onResult={showResult} />
-        <LlmSettingsPanel
-          settings={llm}
-          onChange={changeSettings}
-          connection={connection}
-          onCheck={() => void checkConnection()}
-        />
+        <AiStatusPanel connection={connection} onCheck={() => void checkConnection()} />
         {result && (
           <Filters
             severities={severities}
@@ -199,7 +180,7 @@ function App() {
                 key={tableKey}
                 shown={shown}
                 connection={connection}
-                fixFor={(group) => fixes.get(fixCacheKey(group, llm))}
+                fixFor={(group) => fixes.get(fixKey(group))}
                 onExplain={explain}
               />
             </section>
