@@ -28,3 +28,17 @@ export function isFiltering(filters: FilterState): boolean {
     SEVERITIES.some((severity) => !filters.severities.has(severity))
   )
 }
+
+/** Only vulnerabilities have a status, so a status filter makes sense for them (and for all kinds). */
+export function statusApplies(kind: FilterState['kind']): boolean {
+  return kind === ALL_KINDS || kind === 'vulnerability'
+}
+
+/**
+ * The filters with another kind. A status is cleared when the new kind has
+ * none, so no hidden filter stays on (it would come back when the kind changes
+ * again, and the fix summary would name a filter that was not applied).
+ */
+export function withKind(filters: FilterState, kind: FilterState['kind']): FilterState {
+  return { ...filters, kind, status: statusApplies(kind) ? filters.status : ALL_STATUSES }
+}

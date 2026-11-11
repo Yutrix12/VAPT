@@ -2,7 +2,7 @@ import type { Kind, Severity } from '../../api/types'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { visibleText } from '../../shared/text'
 import { ALL_STATUSES } from './filterGroups'
-import { ALL_KINDS, defaultFilters, isFiltering, type FilterState } from './filterState'
+import { ALL_KINDS, defaultFilters, isFiltering, statusApplies, withKind, type FilterState } from './filterState'
 
 interface Props {
   filters: FilterState
@@ -24,7 +24,7 @@ const KIND_CHOICES: { value: Kind; label: string }[] = [
  */
 export function FilterBar({ filters, onChange, counts, statuses }: Props) {
   // Only vulnerabilities have a status, so the list waits for a kind that has one.
-  const statusApplies = filters.kind === ALL_KINDS || filters.kind === 'vulnerability'
+  const hasStatus = statusApplies(filters.kind)
 
   function toggle(severity: Severity) {
     const next = new Set(filters.severities)
@@ -73,7 +73,7 @@ export function FilterBar({ filters, onChange, counts, statuses }: Props) {
           <select
             name="kind"
             value={filters.kind}
-            onChange={(event) => onChange({ ...filters, kind: event.target.value as FilterState['kind'] })}
+            onChange={(event) => onChange(withKind(filters, event.target.value as FilterState['kind']))}
           >
             <option value={ALL_KINDS}>All kinds</option>
             {KIND_CHOICES.map((choice) => (
@@ -88,8 +88,8 @@ export function FilterBar({ filters, onChange, counts, statuses }: Props) {
           <select
             name="status"
             value={filters.status}
-            disabled={!statusApplies}
-            aria-describedby={statusApplies ? undefined : 'status-hint'}
+            disabled={!hasStatus}
+            aria-describedby={hasStatus ? undefined : 'status-hint'}
             onChange={(event) => onChange({ ...filters, status: event.target.value })}
           >
             <option value={ALL_STATUSES}>All statuses</option>
@@ -119,7 +119,7 @@ export function FilterBar({ filters, onChange, counts, statuses }: Props) {
           Clear all
         </button>
       </div>
-      {!statusApplies && (
+      {!hasStatus && (
         <p id="status-hint" className="muted filter-hint">
           Status applies to vulnerabilities only.
         </p>
