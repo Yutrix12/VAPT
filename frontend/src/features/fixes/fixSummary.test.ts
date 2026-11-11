@@ -381,4 +381,25 @@ describe('buildFixSummary for every kind and the built commands', () => {
     expect(text).toContain('## 1. aws-access-key-id (AWS)')
     expect(text).not.toContain('DS-0002')
   })
+
+  it('names a license location once when the file is also the target', () => {
+    const fileLicense = { ...license, pkg_name: null, file_path: 'LICENSE', target: 'LICENSE' }
+    const text = build(new Map(), defaultFilters(), { ...everything, licenses: [fileLicense] })
+    expect(text).toContain('- Found in: LICENSE\n')
+    expect(text).not.toContain('LICENSE, LICENSE')
+    expect(build()).toContain('- Found in: org.a:a, Java') // a package in a target keeps both
+  })
+
+  it('keeps each package section one bullet list, with the code blocks after it', () => {
+    const lines = build(new Map(), defaultFilters(), everything).split('\n')
+    const start = lines.indexOf('## 1. openssl')
+    const end = lines.findIndex((line, index) => index > start && line.startsWith('## '))
+    const section = lines.slice(start, end)
+    const firstBlock = section.findIndex((line) => line.startsWith('```'))
+    const lastBullet = section.map((line) => line.startsWith('- ')).lastIndexOf(true)
+    expect(firstBlock).toBeGreaterThan(-1)
+    // no bullet comes after a code block: the list is not split by it
+    expect(lastBullet).toBeLessThan(firstBlock)
+  })
 })
+

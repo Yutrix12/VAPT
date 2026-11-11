@@ -172,15 +172,13 @@ function adviceLines(advice: FixAdvice): string[] {
   if (advice.unsafe_commands_removed > 0) {
     lines.push(`- ${countText(advice.unsafe_commands_removed, 'AI command')} not shown: it skips a safety check`)
   }
-  if (advice.commands.length > 0) {
-    lines.push(
-      '',
-      'AI-suggested, verify before running (this app never runs them):',
-      '',
-      codeBlock(advice.commands),
-    )
-  }
   return lines
+}
+
+/** The AI's own commands as a code block, after the bullet list (a block would split the list). */
+function aiCommandLines(fix: FixState | undefined): string[] {
+  if (fix?.state !== 'done' || fix.advice.commands.length === 0) return []
+  return ['', 'AI-suggested, verify before running (this app never runs them):', '', codeBlock(fix.advice.commands)]
 }
 
 function aiLines(fix: FixState | undefined): string[] {
@@ -197,10 +195,14 @@ function aiLines(fix: FixState | undefined): string[] {
 }
 
 /** The upgrade commands the backend built from Trivy's fixed versions, or why there are none. */
+function noCommandLines(group: PackageGroup): string[] {
+  if (group.fix_commands.length > 0) return []
+  return [`- Fix commands: ${escapeMarkdown(group.fix_commands_note ?? 'none in the report')}`]
+}
+
+/** The built commands as code blocks, after the bullet list (a block would split the list). */
 function builtCommandLines(group: PackageGroup): string[] {
-  if (group.fix_commands.length === 0) {
-    return [`- Fix commands: ${escapeMarkdown(group.fix_commands_note ?? 'none in the report')}`]
-  }
+  if (group.fix_commands.length === 0) return []
   return [
     '',
     "Fix commands, built by code from Trivy's fixed versions (this app never runs them):",
@@ -228,8 +230,10 @@ function groupSection(row: Extract<Row, { kind: 'vulnerability' }>, index: numbe
     `- Target: ${escapeMarkdown(group.target)}`,
     `- Findings: ${count} (highest severity: ${severityLabel(row.severity)})`,
     `- Fixed versions: ${trivyFixText(group)}`,
-    ...builtCommandLines(group),
+    ...noCommandLines(group),
     ...aiLines(fix),
+    ...builtCommandLines(group),
+    ...aiCommandLines(fix),
     '',
   ]
 }
@@ -258,6 +262,11 @@ function otherAiLines(fix: OtherFixState | undefined): string[] {
     case 'done':
       return otherAdviceLines(fix.advice)
   }
+}
+
+/** "pkg, target"; just the one when the file is also the target. */
+function foundIn(place: string, target: string): string {
+  return place === target ? place : `${place}, ${target}`
 }
 
 function whereText(target: string, start: number | null, end: number | null): string {
@@ -301,7 +310,7 @@ function otherSection(row: OtherRow, index: number, result: AnalyzeResult, fix: 
         ...head(item.name ?? 'unknown license'),
         severity,
         `- Category: ${escapeMarkdown(item.category ?? 'unknown')}`,
-        `- Found in: ${escapeMarkdown(item.pkg_name ?? item.file_path ?? 'unknown')}, ${escapeMarkdown(item.target)}`,
+        `- Found in: ${escapeMarkdown(foundIn(item.pkg_name ?? item.file_path ?? 'unknown', item.target))}`,
         '- Ask your legal or compliance team what this license means for you; this summary lists it and does not judge it.',
         ...otherAiLines(fix),
         '',
