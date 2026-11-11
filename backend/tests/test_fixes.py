@@ -5,10 +5,10 @@ import unittest
 
 from fastapi.testclient import TestClient
 
+from app.llm.client import LLMSettings
 from app.main import app
 from fixes import (DISCLAIMER, MAX_CVES_IN_PROMPT, MAX_TITLE_CHARS, FixError,
                    FixGroup, build_messages, validate_answer)
-from llm_client import LLMSettings
 from tests.fake_ollama import FakeOllama
 from tests.llm_override import backend_llm, clean_llm_environment
 

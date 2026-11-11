@@ -1,9 +1,9 @@
-"""Tests for llm_config.py: which LLM the backend uses."""
+"""Tests for app/llm/config.py: which LLM the backend uses."""
 
 import unittest
 
-from llm_client import LLMError
-from llm_config import current_settings
+from app.llm.client import LLMError
+from app.llm.config import current_settings
 
 KEY = "sk-test-0123456789-do-not-leak"
 

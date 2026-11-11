@@ -6,13 +6,13 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 from app.api.dependencies import llm_settings
+from app.llm.client import LLMSettings
 from app.main import app
-from llm_client import LLMSettings
 
 
 @contextmanager
 def backend_llm(settings: LLMSettings) -> Iterator[None]:
-    """Use `settings` instead of llm_config while the with-block runs.
+    """Use `settings` instead of app.llm.config while the with-block runs.
 
     FastAPI's dependency_overrides replaces the llm_settings dependency.
     """

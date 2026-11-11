@@ -4,12 +4,12 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException
 
-from llm_client import LLMError, LLMSettings
-from llm_config import current_settings
+from app.llm.client import LLMError, LLMSettings
+from app.llm.config import current_settings
 
 
 def llm_settings() -> LLMSettings:
-    """The LLM chosen in llm_config.py; a setup problem gives one 503 line.
+    """The LLM chosen in app/llm/config.py; a setup problem gives one 503 line.
 
     A FastAPI dependency, so tests can swap in a fake Ollama with
     app.dependency_overrides.

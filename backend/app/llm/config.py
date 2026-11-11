@@ -14,7 +14,7 @@ current_settings().
 import os
 from collections.abc import Mapping
 
-from llm_client import LLMError, LLMSettings
+from app.llm.client import LLMError, LLMSettings
 
 MODEL = "qwen3:8b"  # the one model the app uses (owner's decision)
 

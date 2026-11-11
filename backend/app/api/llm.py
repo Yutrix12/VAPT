@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.dependencies import BackendLLM
 from app.api.schemas import LLMStatus
-from llm_client import LLMError, is_this_computer, list_models
+from app.llm.client import LLMError, is_this_computer, list_models
 
 router = APIRouter()
 

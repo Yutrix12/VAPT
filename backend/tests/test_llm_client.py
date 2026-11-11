@@ -1,13 +1,13 @@
-"""Tests for llm_client.py and POST /api/llm/check, against a fake Ollama."""
+"""Tests for app/llm/client.py and POST /api/llm/check, against a fake Ollama."""
 
 import json
 import unittest
 
 from fastapi.testclient import TestClient
 
+from app.llm.client import (LLMError, LLMSettings, chat_json, list_models,
+                            normalize_base_url)
 from app.main import app
-from llm_client import (LLMError, LLMSettings, chat_json, list_models,
-                        normalize_base_url)
 from tests.fake_ollama import CHAT_ANSWER, FakeOllama
 from tests.llm_override import backend_llm, clean_llm_environment
 
@@ -168,7 +168,7 @@ class LlmCheckEndpointTest(unittest.TestCase):
             self.assertNotIn(KEY, response.text)
 
     def test_misconfigured_backend_gives_503(self) -> None:
-        # No override: the real llm_config reads the environment.
+        # No override: the real app.llm.config reads the environment.
         with clean_llm_environment(LLM_MODE="api"):
             response = self.client.post("/api/llm/check")
         self.assertEqual(response.status_code, 503)
