@@ -11,8 +11,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from app.parsers.common import SEVERITIES, severity_sort_key
 from llm_client import strip_control_chars
-from trivy_parser import SEVERITIES, severity_sort_key
 
 MAX_CVES_IN_PROMPT = 15
 MAX_TITLE_CHARS = 120
