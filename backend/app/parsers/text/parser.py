@@ -39,7 +39,7 @@ SEVERITY = "UNKNOWN|LOW|MEDIUM|HIGH|CRITICAL"
 CLASS_WORDS = ("secrets", "license", "license-file")
 
 HEADING_RULE = re.compile(r"^={3,}$")
-TOTAL = re.compile(rf"^Total: (\d+) \(UNKNOWN: (\d+), LOW: (\d+), MEDIUM: (\d+), HIGH: (\d+), CRITICAL: (\d+)\)$")
+TOTAL = re.compile(r"^Total: (\d+) \(UNKNOWN: (\d+), LOW: (\d+), MEDIUM: (\d+), HIGH: (\d+), CRITICAL: (\d+)\)$")
 TESTS = re.compile(r"^Tests: \d+ \(SUCCESSES: (\d+), FAILURES: (\d+)\)$")
 FAILURES = re.compile(r"^Failures: (\d+) \(UNKNOWN: (\d+), LOW: (\d+), MEDIUM: (\d+), HIGH: (\d+), CRITICAL: (\d+)\)$")
 MISCONFIG_HEAD = re.compile(rf"^(\S+) \(({SEVERITY})\): ?(.*)$")
@@ -48,6 +48,10 @@ LOCATION = re.compile(r"^\s*.+?:(\d+)(?:-(\d+))?(?: \(offset: \d+ bytes\))?\s*$"
 HEADING_BRACKET = re.compile(r"^(.*\S) \(([^()\s]+)\)$")
 LIBRARY_FILE = re.compile(r"^(.*\S) \([^()\s]+\)$")
 SEVERITY_ORDER = ("UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL")
+
+
+# One row of the Report Summary: target, type (None for "-") and the four counts.
+SummaryEntry = tuple[str, str | None, list[int]]
 
 
 @dataclass
@@ -82,21 +86,26 @@ def is_rule(lines: list[str], index: int, char: str) -> bool:
     return index < len(lines) and len(lines[index].strip()) >= 10 and set(lines[index].strip()) == {char}
 
 
-def heading_at(lines: list[str], index: int) -> bool:
-    """A result heading: a text line followed by a line of "=" (3 or more)."""
-    return (
-        index + 1 < len(lines)
-        and bool(lines[index].strip())
-        and not HEADING_RULE.match(lines[index].strip())
-        and bool(HEADING_RULE.match(lines[index + 1].strip()))
-    )
-
-
 def next_content(lines: list[str], index: int) -> int:
     """The index of the first non-blank line from `index` on (len(lines) if none)."""
     while index < len(lines) and not lines[index].strip():
         index += 1
     return index
+
+
+def heading_at(lines: list[str], index: int) -> bool:
+    """A result heading: a text line, a line of "=" (3 or more), then a Total or
+    Tests line. The last part keeps a "====" line inside a description or in
+    printed source from being taken for a heading."""
+    if not (
+        index + 1 < len(lines)
+        and bool(lines[index].strip())
+        and not HEADING_RULE.match(lines[index].strip())
+        and bool(HEADING_RULE.match(lines[index + 1].strip()))
+    ):
+        return False
+    first = next_content(lines, index + 2)
+    return first < len(lines) and lines[first].startswith(("Total: ", "Tests: "))
 
 
 def is_trivy_text(text: str) -> bool:
@@ -160,7 +169,7 @@ def parse_report_text(file_name: str, raw: bytes, text: str) -> Report:
     )
 
 
-def read_summary(lines: list[str]) -> tuple[list[tuple[str, str | None, list[int]]], int]:
+def read_summary(lines: list[str]) -> tuple[list[SummaryEntry], int]:
     """The "Report Summary" table (if any) and the index where the sections start.
 
     Each entry: target, type (None for "-") and the four counts (a "-" is 0).
@@ -189,7 +198,7 @@ def count(text: str) -> int:
     return int(text) if text.isdigit() else 0
 
 
-def resolve_heading(heading: str, summary: list[tuple[str, str | None, list[int]]]) -> Heading:
+def resolve_heading(heading: str, summary: list[SummaryEntry]) -> Heading:
     """Target, type and class of a result from its heading.
 
     The Report Summary gives them exactly. Without it, a bracket without
@@ -210,7 +219,7 @@ def resolve_heading(heading: str, summary: list[tuple[str, str | None, list[int]
     return Heading(target, bracket, None)
 
 
-def parse_section(lines: list[str], start: int, end: int, summary: list, parsed: Parsed) -> None:
+def parse_section(lines: list[str], start: int, end: int, summary: list[SummaryEntry], parsed: Parsed) -> None:
     """Parse one result section (heading at `start`, body up to `end`)."""
     title = lines[start].strip()
     heading = resolve_heading(title, summary)
@@ -388,7 +397,8 @@ def parse_secrets(
 ) -> None:
     items = []
     starts = block_starts(lines, first, end, SECRET_HEAD)
-    for start in starts:
+    for number, start in enumerate(starts):
+        stop = starts[number + 1] if number + 1 < len(starts) else end
         match = SECRET_HEAD.match(lines[start].strip())
         assert match is not None
         severity, category, rule_id = match.groups()
@@ -396,10 +406,11 @@ def parse_secrets(
         # The source lines after it are never read: they can hold the secret.
         index = start + 2
         title_lines = []
-        while index < end and not is_rule(lines, index, "─"):
+        while index < stop and not is_rule(lines, index, "─"):
             title_lines.append(lines[index].strip())
             index += 1
-        location = LOCATION.match(lines[index + 1]) if index + 1 < end and not is_rule(lines, index + 1, "─") else None
+        has_location = index + 1 < stop and not is_rule(lines, index + 1, "─")
+        location = LOCATION.match(lines[index + 1]) if has_location else None
         first_line = int(location.group(1)) if location else None
         last_line = (int(location.group(2)) if location.group(2) else first_line) if location else None
         items.append(
@@ -418,7 +429,7 @@ def parse_secrets(
     parsed.secrets.extend(items)
 
 
-def check_summary(summary: list[tuple[str, str | None, list[int]]], parsed: Parsed) -> None:
+def check_summary(summary: list[SummaryEntry], parsed: Parsed) -> None:
     """The Report Summary counts must match what the sections gave (a cut file shows here).
 
     Vulnerabilities may be fewer than listed, as in a section's own Total.

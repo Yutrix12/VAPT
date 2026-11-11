@@ -36,6 +36,18 @@ def parse(text: str, name: str = "report.txt"):
     return parse_report_text(name, text.encode("utf-8"), text)
 
 
+def shorten_wide(text: str) -> str:
+    """Draw wide (CJK) characters the way Trivy does: it pads by display width,
+    so a line with N wide characters has N fewer padding spaces."""
+    out = []
+    for line in text.split("\n"):
+        wide = sum(1 for char in line if "　" <= char <= "鿿")
+        if wide and line.endswith(" │"):
+            line = line[:-1 - wide] + "│"
+        out.append(line)
+    return "\n".join(out)
+
+
 MERGED = vulnerabilities(
     ["curl", "CVE-1", "HIGH", "fixed", "7.0", "7.1", ["curl: a bug", URL + "cve-1"]],
     [None, "CVE-2", None, None, None, None, ["curl: another bug", URL + "cve-2"]],
@@ -82,6 +94,18 @@ class VulnerabilityTableTest(unittest.TestCase):
         self.assertEqual(finding.fixed_version, "2.9.1+deb12u2, 2.9.1+deb12u3")
         self.assertEqual(finding.title, "a long title that Trivy cut ...")
         self.assertEqual(finding.primary_url, "https://security-tracker.example/tracker/CVE-5")
+
+    def test_wide_characters_do_not_shift_the_columns(self) -> None:
+        """Trivy pads by display width: a CJK character is 2 wide but 1 character."""
+        text = vulnerabilities(
+            ["curl", "CVE-1", "HIGH", "fixed", "7.0", "7.1", "漢字漢字 title"],
+            ["zlib", "CVE-2", "LOW", "fixed", "1.0", "1.1", "a considerably longer title than the first one"],
+            high=1, low=1,
+        )
+        shortened = shorten_wide(text)
+        self.assertNotEqual(shortened, text)  # the test really draws a shorter line
+        self.assertEqual([(f.pkg_name, f.title) for f in parse(shortened).findings],
+                         [("curl", "漢字漢字 title"), ("zlib", "a considerably longer title than the first one")])
 
     def test_os_heading_is_the_whole_target(self) -> None:
         text = vulnerabilities(["apt", "CVE-1", "HIGH", "fixed", "1", "2", "t"],
@@ -168,6 +192,12 @@ class OtherKindsTest(unittest.TestCase):
         self.assertEqual((item.title, item.description), (None, None))
         self.assertEqual(item.primary_url, "https://avd.aquasec.com/misconfig/ds-0026")
 
+    def test_a_line_of_equals_signs_inside_a_description_is_not_a_heading(self) -> None:
+        block = misconfig_block("DS-0002", "HIGH", "m", "Notes\n=========\nMore", "https://x.example/")
+        text = section("Dockerfile (dockerfile)", "Tests: 1 (SUCCESSES: 0, FAILURES: 1)\n", block)
+        (item,) = parse(text).misconfigurations
+        self.assertEqual(item.description, "Notes ========= More")
+
     def test_failure_count_must_match(self) -> None:
         text = section("Dockerfile (dockerfile)", "Tests: 2 (SUCCESSES: 0, FAILURES: 2)\n",
                        misconfig_block("DS-0002", "HIGH", "t", "d", "https://x.example/"))
@@ -190,6 +220,16 @@ class OtherKindsTest(unittest.TestCase):
                        secret_block("CRITICAL", "Synthetic", "synthetic-key", "Synthetic secret"))
         (item,) = parse(text).secrets
         self.assertEqual((item.start_line, item.end_line), (None, None))
+
+    def test_a_block_without_a_rule_line_does_not_swallow_the_next_one(self) -> None:
+        rule = "═" * 40
+        body = (f"HIGH: Custom (one)\n{rule}\nOne\n\n"
+                f"HIGH: Custom (two)\n{rule}\nTwo\n{'─' * 40}\n a.sh:3\n{'─' * 40}\n"
+                "   3 [ SECRET-NOT-A-REAL-VALUE-1234\n" + "─" * 40 + "\n")
+        report = parse(section("a.sh (secrets)", totals(high=2), body))
+        self.assertEqual([(s.rule_id, s.title, s.start_line) for s in report.secrets],
+                         [("one", "One", None), ("two", "Two", 3)])
+        self.assertNotIn("SECRET-NOT-A-REAL", json.dumps(asdict(report)))
 
     def test_two_secrets_and_a_line_range(self) -> None:
         text = section("a.sh (secrets)", totals(high=2),
