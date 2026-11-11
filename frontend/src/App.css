@@ -899,7 +899,7 @@ th {
   padding: 1.25rem 1.5rem 1.5rem;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .details-dialog {
     width: 100vw;
     height: 100dvh;

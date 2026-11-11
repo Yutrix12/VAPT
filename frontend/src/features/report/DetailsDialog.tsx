@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { visibleText } from '../../shared/text'
 
 interface Props {
   title: string // the item, e.g. a package name
@@ -14,6 +15,10 @@ interface Props {
  */
 export function DetailsDialog({ title, subtitle, onClose, children }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
+  // True while a press that began on the backdrop is going on: a drag that starts
+  // inside the dialog (selecting text) and ends outside must not close it.
+  const pressedOnBackdrop = useRef(false)
 
   useEffect(() => {
     // Not closed here on cleanup: React StrictMode runs this effect twice, and a
@@ -25,18 +30,22 @@ export function DetailsDialog({ title, subtitle, onClose, children }: Props) {
     <dialog
       ref={dialog}
       className="details-dialog"
-      aria-labelledby="details-title"
+      aria-labelledby={titleId}
       onClose={onClose}
-      // The box fills the dialog, so a click on the dialog itself is a click on the backdrop.
+      // The box fills the dialog, so a press on the dialog itself is a press on the backdrop.
+      onPointerDown={(event) => {
+        pressedOnBackdrop.current = event.target === event.currentTarget
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) dialog.current?.close()
+        if (pressedOnBackdrop.current && event.target === event.currentTarget) dialog.current?.close()
+        pressedOnBackdrop.current = false
       }}
     >
       <div className="details-box">
         <header className="details-head">
           <div>
-            <h2 id="details-title" className="details-title" translate="no">
-              {title}
+            <h2 id={titleId} className="details-title" translate="no">
+              {visibleText(title)}
             </h2>
             <p className="details-sub">{subtitle}</p>
           </div>
