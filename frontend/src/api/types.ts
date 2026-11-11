@@ -54,7 +54,7 @@ export interface Summary {
   unique_packages: number
   without_fixed_version: number
   distinct_fingerprints: number
-  by_kind: Record<string, number> // vulnerability, misconfiguration, secret, license
+  by_kind: Record<Kind, number>
   misconfig_passed: number
   misconfig_exceptions: number
 }

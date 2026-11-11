@@ -5,7 +5,6 @@ import {
   type AiConnection,
   type AnalyzeResult,
   type FixState,
-  type Kind,
   type PackageGroup,
   type Severity,
 } from './api/types'
@@ -29,6 +28,11 @@ import './App.css'
 /** The rows the table has before any filter: one per package, plus one per other finding. */
 function totalRows(result: AnalyzeResult): number {
   return result.package_groups.length + result.misconfigurations.length + result.secrets.length + result.licenses.length
+}
+
+/** True if the report has findings other than vulnerabilities. */
+function hasOtherKinds(result: AnalyzeResult): boolean {
+  return result.misconfigurations.length + result.secrets.length + result.licenses.length > 0
 }
 
 /** A small status line with a coloured dot; the words carry the meaning. */
@@ -203,7 +207,7 @@ function App() {
             <SeverityCounts
               summary={result.summary}
               counts={counts ?? result.summary.by_severity}
-              headline={overviewText(result.summary.by_kind as Record<Kind, number>, result.summary.unique_packages)}
+              headline={overviewText(result.summary.by_kind, result.summary.unique_packages)}
             />
             <section aria-labelledby="groups-heading">
               <div className="section-head">
@@ -217,6 +221,9 @@ function App() {
                   </button>
                 </div>
               </div>
+              {hasOtherKinds(result) && (
+                <p className="muted">The fix summary lists vulnerabilities only for now.</p>
+              )}
               <FindingsTable
                 key={tableKey}
                 rows={rows}

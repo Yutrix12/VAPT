@@ -215,7 +215,7 @@ function cellsOf(row: Row, secretFixSteps: string[], notInFormat: string[]): Cel
         name: [item.rule_id, item.category && `(${item.category})`].filter(Boolean).join(' ') || 'unknown rule',
         where: whereCell(item.target, lineText(item.start_line, item.end_line)),
         count: '1',
-        fix: visibleText(shorten(secretFixSteps[0] ?? 'Revoke the secret and remove it from the code.')),
+        fix: visibleText(shorten(secretFixSteps[0] ?? 'See the details')),
       }
     }
     case 'license': {
@@ -224,7 +224,7 @@ function cellsOf(row: Row, secretFixSteps: string[], notInFormat: string[]): Cel
         name: item.name ?? 'unknown license',
         where: whereCell(item.pkg_name ?? item.file_path ?? 'unknown', item.target),
         count: '1',
-        fix: `Review the terms (category: ${item.category ?? 'unknown'})`,
+        fix: `Category: ${item.category ?? 'unknown'}. Ask your legal team.`,
       }
     }
   }

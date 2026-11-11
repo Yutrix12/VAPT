@@ -4,7 +4,7 @@ import { isAnalyzeResult, isFixAdvice, isLlmStatus } from './guards'
 /** The shape /api/analyze returns, with every kind empty. */
 const answer = {
   report: {},
-  summary: { by_severity: {}, by_status: {}, by_kind: {} },
+  summary: { by_severity: {}, by_status: {}, by_kind: { vulnerability: 0, misconfiguration: 0, secret: 0, license: 0 } },
   package_groups: [],
   misconfigurations: [],
   secrets: [],
@@ -31,6 +31,15 @@ describe('isAnalyzeResult', () => {
     }
     expect(isAnalyzeResult({ ...answer, summary: { by_severity: {}, by_status: {} } })).toBe(false) // no by_kind
     expect(isAnalyzeResult({ ...answer, secret_fix_steps: [1, 2] })).toBe(false)
+  })
+
+  it('refuses a by_kind that lacks one of the four kinds or has a non-number', () => {
+    const kinds: Record<string, number> = answer.summary.by_kind
+    for (const kind of Object.keys(kinds)) {
+      const { [kind]: _removed, ...without } = kinds
+      expect(isAnalyzeResult({ ...answer, summary: { ...answer.summary, by_kind: without } }), `without ${kind}`).toBe(false)
+      expect(isAnalyzeResult({ ...answer, summary: { ...answer.summary, by_kind: { ...kinds, [kind]: '1' } } })).toBe(false)
+    }
   })
 })
 

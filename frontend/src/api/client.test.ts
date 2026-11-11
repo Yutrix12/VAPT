@@ -13,7 +13,11 @@ describe('callBackend', () => {
   it('returns the data unchanged, hidden characters included', async () => {
     const body = {
       report: { file_name: hidden },
-      summary: { by_severity: {}, by_status: { [hidden]: 1 }, by_kind: {} },
+      summary: {
+        by_severity: {},
+        by_status: { [hidden]: 1 },
+        by_kind: { vulnerability: 0, misconfiguration: 0, secret: 0, license: 0 },
+      },
       package_groups: [{ pkg_name: hidden, fixed_versions: [hidden] }],
       misconfigurations: [],
       secrets: [],

@@ -71,8 +71,8 @@ export function SecretDetails({ item, steps }: { item: Secret; steps: string[] }
       <div className="fix-panel">
         <h3 className="fix-title">How to fix it</h3>
         <ol>
-          {steps.map((step) => (
-            <li key={step}>{visibleText(step)}</li>
+          {steps.map((step, index) => (
+            <li key={`${index}-${step}`}>{visibleText(step)}</li>
           ))}
         </ol>
         <p className="muted">The secret itself is never shown here, sent to the AI or written to the fix summary.</p>

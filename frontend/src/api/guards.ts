@@ -1,5 +1,7 @@
 // Light checks that an answer from the backend has the shape the page expects.
-import { type AnalyzeResult, FIX_STATUSES, type FixAdvice, type LlmStatus } from './types'
+import { type AnalyzeResult, FIX_STATUSES, type FixAdvice, type Kind, type LlmStatus } from './types'
+
+const KINDS: readonly Kind[] = ['vulnerability', 'misconfiguration', 'secret', 'license']
 
 /** True for a plain JSON object (not null, not an array). */
 export function isObject(value: unknown): value is Record<string, unknown> {
@@ -15,6 +17,7 @@ export function isAnalyzeResult(body: unknown): body is AnalyzeResult {
     isObject(body.summary.by_severity) &&
     isObject(body.summary.by_status) &&
     isObject(body.summary.by_kind) &&
+    KINDS.every((kind) => typeof (body.summary as { by_kind: Record<string, unknown> }).by_kind[kind] === 'number') &&
     Array.isArray(body.package_groups) &&
     Array.isArray(body.misconfigurations) &&
     Array.isArray(body.secrets) &&
