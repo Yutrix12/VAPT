@@ -15,11 +15,12 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from app.parsers.json.parser import parse_report, parse_report_bytes
 from app.parsers.models import ReportError
 from fix_steps import SECRET_FIX_STEPS
 from main import app
 from tests.reports import SAMPLES_DIR, SAMPLES_FOUND, SAMPLES_SKIP_REASON
-from trivy_parser import main as cli_main, parse_report, parse_report_bytes, summarize
+from trivy_parser import main as cli_main, summarize
 
 
 def report_with(*results: dict) -> bytes:

@@ -11,14 +11,10 @@ import unittest
 
 from app.parsers.common import severity_level, severity_sort_key
 from app.parsers.json.loader import decode_report_json
+from app.parsers.json.parser import parse_report, parse_report_bytes
 from app.parsers.models import ReportError
 from tests.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
-from trivy_parser import (
-    group_by_package,
-    parse_report,
-    parse_report_bytes,
-    summarize,
-)
+from trivy_parser import group_by_package, summarize
 
 DEBIAN_TARGET = "python:3.9-slim (debian 13.1)"
 
