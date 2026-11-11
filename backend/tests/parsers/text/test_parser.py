@@ -359,5 +359,28 @@ class SecondLayoutTest(unittest.TestCase):
         self.assertEqual(len(parse_report_file("x.txt", text.encode()).findings), 1)
 
 
+class SecondLayoutReviewTest(unittest.TestCase):
+    """Cases found by the code review of the second layout."""
+
+    def test_a_bracket_header_without_a_title_uses_the_lines_below_it(self) -> None:
+        block = "\n".join(["CRITICAL (AWS):", "═" * 70, "AWS Access Key ID", "─" * 70, "deploy.sh:3", "─" * 70]) + "\n\n"
+        (item,) = parse(section("deploy.sh", totals(critical=1), block)).secrets
+        self.assertEqual((item.category, item.title, item.start_line), ("AWS", "AWS Access Key ID", 3))
+
+    def test_a_summary_without_a_licenses_column_does_not_judge_the_licenses(self) -> None:
+        """No Licenses column: the licenses were not counted there, so a license section is fine."""
+        rows = [["Java", "-", "-", "-", "-"]]
+        text = summary(rows, SUMMARY_HEADER_NO_LICENSES) + section(
+            "Java (license)", totals(low=1), box(LICENSE_HEADER, [["org.a:a", "MIT License", "notice", "LOW"]]))
+        self.assertEqual(len(parse(text).licenses), 1)
+
+    def test_a_summary_with_a_licenses_column_still_checks_the_licenses(self) -> None:
+        rows = [["Java", "-", "-", "-", "-", "0"]]
+        text = summary(rows) + section(
+            "Java (license)", totals(low=1), box(LICENSE_HEADER, [["org.a:a", "MIT License", "notice", "LOW"]]))
+        with self.assertRaises(ReportError):
+            parse(text)
+
+
 if __name__ == "__main__":
     unittest.main()

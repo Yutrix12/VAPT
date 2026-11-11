@@ -56,7 +56,8 @@ SEVERITY_ORDER = ("UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL")
 
 
 # One row of the Report Summary: target, type (None for "-") and the four counts.
-SummaryEntry = tuple[str, str | None, list[int]]
+# A count is None when that column is not in the summary (it was not counted there).
+SummaryEntry = tuple[str, str | None, list[int | None]]
 
 
 @dataclass
@@ -199,7 +200,7 @@ def read_summary(lines: list[str]) -> tuple[list[SummaryEntry], int]:
             # Some layouts have no Licenses column: its count is 0.
             entries = [
                 (" ".join(row[0]), type_or_none(" ".join(row[1])),
-                 [count(" ".join(cell)) for cell in row[2:]] + [0] * (6 - len(header)))
+                 [count(" ".join(cell)) for cell in row[2:]] + [None] * (6 - len(header)))
                 for row in rows
             ]
             return entries, after
@@ -407,7 +408,7 @@ def parse_misconfigurations(
                 target=heading.target,
                 misconf_type=heading.result_type,
                 check_type=None,
-                check_id=check_id or None,
+                check_id=check_id,
                 title=None,
                 description=description or None,
                 resolution=None,
@@ -454,6 +455,9 @@ def parse_secrets(
         while index < stop and not is_rule(lines, index, "─"):
             title_lines.append(lines[index].strip())
             index += 1
+        # The title is in the header (second layout) or on the lines below it; an empty header title uses those too.
+        below = " ".join(t for t in title_lines if t) or None
+        title = (header_title or "").strip() or below
         has_location = index + 1 < stop and not is_rule(lines, index + 1, "─")
         location = LOCATION.match(lines[index + 1]) if has_location else None
         first_line = int(location.group(1)) if location else None
@@ -465,7 +469,7 @@ def parse_secrets(
                 rule_id=rule_id or None,
                 category=category or None,
                 severity=normalize_severity(severity),
-                title=header_title.strip() or None if header_title is not None else " ".join(t for t in title_lines if t) or None,
+                title=title,
                 start_line=first_line,
                 end_line=last_line,
             )
@@ -481,10 +485,12 @@ def check_summary(summary: list[SummaryEntry], parsed: Parsed) -> None:
     """
     if not summary:
         return
-    wanted = [sum(entry[2][kind] for entry in summary) for kind in range(4)]
+    wanted = [None if summary[0][2][kind] is None else sum(entry[2][kind] or 0 for entry in summary) for kind in range(4)]
     found = [len(parsed.findings), len(parsed.misconfigurations), len(parsed.secrets), len(parsed.licenses)]
     for name, want, got in zip(("vulnerabilities", "misconfigurations", "secrets", "licenses"), wanted, found):
         # Vulnerabilities: an identical row drawn as blank lines is counted but not read.
+        if want is None:
+            continue  # the summary has no column for it
         if got > want or (got != want and name != "vulnerabilities"):
             raise ReportError(
                 f"the Report Summary lists {want} {name} but {got} were read, so the file may be cut short"
