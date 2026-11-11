@@ -62,13 +62,25 @@ runs on your own computer. Nothing is saved.
   your legal team; each with the AI’s answer when it was asked. It is built in
   the browser; nothing is sent. Report and AI text in it are escaped, so it
   cannot contain links, HTML or hidden characters.
+- **Known exploited (CISA KEV) and exploit probability (EPSS)**, when the
+  local data files exist. A package with at least one CVE on CISA’s list of
+  vulnerabilities known to be exploited in the wild gets a “Known exploited
+  (CISA KEV)” badge; its details give the highest EPSS value of its CVEs (the
+  probability, 0 to 1, that a CVE is exploited in the next 30 days) and both
+  values for each CVE. The filter bar has “Known exploited only” and the sort
+  “Known exploited first”; Trivy’s severity stays the default order. The fix
+  summary has both values for each package. The values come from two files that
+  you download by hand (below); the app never downloads anything while it reads
+  a report. Without the files the page works as before and says “KEV/EPSS data
+  not loaded”; a CVE that is not in the data is “Not listed”, which is not the
+  same as “No data”. Code does the lookup: the AI never gets either value.
 - The app works fully without an LLM; only the AI explanation needs one.
 
 ## How it is built
 
 | Part | What it is |
 |---|---|
-| `backend/` | Python 3.11, FastAPI, the `app` package: `parsers/` (find the format, parse), `analysis/` (group, count), `fixes/` (LLM request and answer check), `llm/` (Ollama client and settings), `api/` (one router per endpoint), `main.py`. `cli.py` is the command line, `tests/` mirrors `app/` |
+| `backend/` | Python 3.11, FastAPI, the `app` package: `parsers/` (find the format, parse), `analysis/` (group, count), `fixes/` (LLM request and answer check), `llm/` (Ollama client and settings), `api/` (one router per endpoint), `threat_data/` (local KEV and EPSS files, and the hand-run refresh command), `main.py`. `cli.py` is the command line, `tests/` mirrors `app/` |
 | `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status) and the results (filter bar, report, severity bar, findings with AI explanations). `src/api/` (backend client), `src/features/` (one folder per part of the page, with its tests), `src/shared/` (helpers several parts use) |
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/check`
@@ -196,6 +208,20 @@ cd backend
 
 `--json OUT.json` writes everything to a file.
 
+## KEV and EPSS data (optional, by hand)
+
+From `backend` (this is the only command that uses the network):
+
+```powershell
+python -m app.threat_data refresh
+```
+
+It saves the CISA KEV JSON feed and the FIRST EPSS file into `backend/data/`
+(not in git) and keeps the old file when a download fails or is not valid.
+Run it again whenever you want newer data; the page shows the age of the data
+and marks it old after 7 days. Sources and formats, checked on 2026-11-11:
+`.claude/skills/threat-data`.
+
 ## Security in short
 
 - Uploaded files and every text in them are treated as untrusted: they are
@@ -206,7 +232,10 @@ cd backend
 - Git author, committer and commit message are dropped as soon as a report
   is loaded.
 - Only one package is ever sent to the LLM, as clearly marked data,
-  and the model is told to ignore instructions inside it.
+  and the model is told to ignore instructions inside it. KEV and EPSS values
+  are never part of it.
+- Reading a report never uses the network. Only `python -m app.threat_data
+  refresh`, started by hand, downloads anything.
 
 ## Known limitations
 

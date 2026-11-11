@@ -2,7 +2,53 @@
 
 from pydantic import BaseModel, ConfigDict
 
-from app.parsers.models import Finding
+
+
+class FindingThreat(BaseModel):
+    """What the local KEV and EPSS data say about one vulnerability ID. Looked up by code, never by the AI."""
+
+    # listed / not_listed (a CVE the loaded data does not hold) / no_data (that file is not loaded
+    # or is broken) / not_cve (an ID such as GHSA-... that these lists do not cover)
+    kev: str  # known exploited (CISA KEV)
+    epss_state: str  # the same four, for the EPSS file
+    epss: float | None  # exploit probability (EPSS), 0 to 1; only when epss_state is "listed"
+
+
+class FindingOut(BaseModel):
+    """One vulnerability row. `threat` is left out of the answer when no data file is loaded."""
+
+    fingerprint: str
+    target: str
+    vuln_class: str | None
+    vuln_type: str | None
+    vuln_id: str | None
+    pkg_name: str | None
+    installed_version: str | None
+    fixed_version: str | None
+    status: str
+    severity: str
+    title: str | None
+    cvss_score: float | None
+    primary_url: str | None
+    published_date: str | None
+    threat: FindingThreat | None = None
+
+
+class ThreatSourceOut(BaseModel):
+    """The state of one data file (KEV or EPSS)."""
+
+    status: str  # "loaded" | "not_loaded" | "error"
+    as_of: str | None  # the date inside the data
+    age_days: int | None
+    old: bool  # older than a week
+    error: str | None
+
+
+class ThreatDataOut(BaseModel):
+    """Both data files. Left out of the answer when neither file exists."""
+
+    kev: ThreatSourceOut
+    epss: ThreatSourceOut
 
 
 class ReportDetails(BaseModel):
@@ -116,7 +162,7 @@ class PackageGroupOut(BaseModel):
     worst_severity: str
     fixed_versions: list[str]
     has_unfixed: bool
-    findings: list[Finding]
+    findings: list[FindingOut]
     fix_commands: list[FixCommandOut]  # built by code from Trivy's fixed versions
     fix_commands_note: str | None  # why there is no command, or what to know about them
 
@@ -131,6 +177,7 @@ class AnalyzeResponse(BaseModel):
     secrets: list[SecretOut]
     licenses: list[LicenseOut]
     secret_fix_steps: list[str]  # the same fixed steps for every secret
+    threat_data: ThreatDataOut | None = None  # left out when no KEV/EPSS file exists
 
 
 class LLMStatus(BaseModel):

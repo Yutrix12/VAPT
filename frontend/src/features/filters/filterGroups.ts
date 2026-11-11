@@ -1,6 +1,7 @@
 // Which package groups the filters leave visible, and how text is matched.
 import { type Finding, type PackageGroup, type Severity } from '../../api/types'
 import { compareSeverity, worstSeverity } from '../../shared/severity'
+import { isKnownExploited } from '../../shared/threat'
 
 /** The status filter value for "all statuses". A real status is never
  * empty (the parser writes "unknown"), so it cannot clash with one. */
@@ -25,6 +26,7 @@ export function matchesSearch(needle: string, ...texts: (string | null | undefin
 interface GroupOptions {
   search?: string // matched against the package name, version and target; else each finding's ID and title
   fixOnly?: boolean // keep only the findings that have a fixed version
+  kevOnly?: boolean // keep only the findings that are on the KEV list
 }
 
 /** Groups with at least one finding that matches the severity and status filters. */
@@ -44,6 +46,7 @@ export function filterGroups(
         severities.has(f.severity) &&
         (status === ALL_STATUSES || f.status === status) &&
         (!options.fixOnly || Boolean(f.fixed_version)) &&
+        (!options.kevOnly || isKnownExploited(f)) &&
         (groupMatches || matchesSearch(needle, f.vuln_id, f.title)),
     )
     if (findings.length > 0) {

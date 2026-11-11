@@ -27,6 +27,7 @@ import {
 } from '../../shared/reportText'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
+import { EPSS_LABEL, KEV_LABEL, packageEpssText, packageKevText, threatStatusText } from '../../shared/threat'
 import { ALL_STATUSES } from '../filters/filterGroups'
 import { ALL_KINDS, type FilterState } from '../filters/filterState'
 import { severityCounts, totalRows, type OtherRow, type Row } from '../report/rows'
@@ -131,11 +132,26 @@ function filtersLine(input: SummaryInput): string {
   }
   if (on.status !== ALL_STATUSES) filters.push(`status ${codeSpan(on.status)}`)
   if (on.fixOnly) filters.push('fix available')
+  if (on.kevOnly) filters.push('known exploited only')
   const total = totalRows(input.result)
   let listed = `${input.rows.length} of ${countText(total, 'item')}`
   if (total === 0) listed = 'no items'
   else if (input.rows.length === total) listed = total === 1 ? '1 item' : `all ${countText(total, 'item')}`
   return `- Filters: ${filters.length > 0 ? filters.join('; ') : 'none'}. This summary lists ${listed}.`
+}
+
+function orderLine(input: SummaryInput): string {
+  return `- Order: ${input.filters.sort === 'kev' ? 'known exploited first' : 'Trivy severity'}.`
+}
+
+/** Both values for a package, when any KEV/EPSS data was loaded (else the header says there is none). */
+function threatLines(group: PackageGroup, loaded: boolean): string[] {
+  if (!loaded) return []
+  const epss = packageEpssText(group.findings)
+  return [
+    `- ${KEV_LABEL}: ${packageKevText(group.findings)}`,
+    `- ${EPSS_LABEL}: ${epss.id === null ? epss.text : `highest ${epss.text} (${codeSpan(epss.id)})`}`,
+  ]
 }
 
 function trivyFixText(group: PackageGroup): string {
@@ -218,7 +234,12 @@ function builtCommandLines(group: PackageGroup): string[] {
   ]
 }
 
-function groupSection(row: Extract<Row, { kind: 'vulnerability' }>, index: number, fix: FixState | undefined): string[] {
+function groupSection(
+  row: Extract<Row, { kind: 'vulnerability' }>,
+  index: number,
+  fix: FixState | undefined,
+  threatLoaded: boolean,
+): string[] {
   const { group, findings } = row.shown
   const count =
     findings.length === group.finding_count
@@ -232,6 +253,7 @@ function groupSection(row: Extract<Row, { kind: 'vulnerability' }>, index: numbe
     `- Target: ${escapeMarkdown(group.target)}`,
     `- Findings: ${count} (highest severity: ${severityLabel(row.severity)})`,
     `- Fixed versions: ${trivyFixText(group)}`,
+    ...threatLines(group, threatLoaded),
     ...noCommandLines(group),
     ...aiLines(fix),
     ...builtCommandLines(group),
@@ -322,7 +344,11 @@ function otherSection(row: OtherRow, index: number, result: AnalyzeResult, fix: 
 }
 
 function rowSection(row: Row, index: number, input: SummaryInput): string[] {
-  if (row.kind === 'vulnerability') return groupSection(row, index, input.fixFor(row.shown.group))
+  if (row.kind === 'vulnerability') {
+    const data = input.result.threat_data
+    const loaded = data !== undefined && (data.kev.status === 'loaded' || data.epss.status === 'loaded')
+    return groupSection(row, index, input.fixFor(row.shown.group), loaded)
+  }
   return otherSection(row, index, input.result, input.otherFixFor(row))
 }
 
@@ -342,6 +368,8 @@ export function buildFixSummary(input: SummaryInput): string {
     scannedLine(input.result),
     countsLine(input.result),
     filtersLine(input),
+    orderLine(input),
+    `- KEV/EPSS data: ${escapeMarkdown(threatStatusText(input.result.threat_data).text)}`,
     `- AI model used: ${input.model === null ? 'none connected yet' : codeSpan(input.model)}`,
     '',
     "> AI suggestions: verify before applying. Only Trivy's fixed versions are ever shown as a fix, " +

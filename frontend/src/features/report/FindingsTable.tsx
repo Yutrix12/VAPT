@@ -3,11 +3,13 @@ import type { AiConnection, Finding, FixState, OtherFixState, PackageGroup, Seve
 import { severityLabel } from '../../shared/severity'
 import { NOT_IN_FORMAT, kindLabel, lineText, misconfigurationName, secretName } from '../../shared/reportText'
 import { safeLink, visibleText } from '../../shared/text'
+import { EPSS_LABEL, KEV_LABEL, epssCellText, hasThreatData, kevCellText, kevCount } from '../../shared/threat'
 import { FixCommands } from '../fixes/FixCommands'
 import { FixPanel } from '../fixes/FixPanel'
 import { DetailsDialog } from './DetailsDialog'
 import { LicenseDetails, MisconfigurationDetails, SecretDetails } from './KindDetails'
 import type { OtherRow, Row } from './rows'
+import { ThreatFacts } from './ThreatFacts'
 
 function SeverityBadge({ severity }: { severity: Severity }) {
   return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severityLabel(severity)}</span>
@@ -32,7 +34,7 @@ function TrivyFix({ group }: { group: PackageGroup }) {
 }
 
 /** The vulnerabilities of one package (only those that match the filters). */
-function CveList({ findings }: { findings: Finding[] }) {
+function CveList({ findings, withThreat }: { findings: Finding[]; withThreat: boolean }) {
   return (
     <div className="table-scroll">
       <table className="cves">
@@ -43,6 +45,8 @@ function CveList({ findings }: { findings: Finding[] }) {
             <th scope="col">Status</th>
             <th scope="col">Fixed version</th>
             <th scope="col">CVSS score</th>
+            {withThreat && <th scope="col">{KEV_LABEL}</th>}
+            {withThreat && <th scope="col">{EPSS_LABEL}</th>}
             <th scope="col">Title</th>
           </tr>
         </thead>
@@ -66,6 +70,8 @@ function CveList({ findings }: { findings: Finding[] }) {
                 <td>{visibleText(finding.status)}</td>
                 <td translate="no" className="nowrap code">{visibleText(finding.fixed_version ?? 'No fixed version yet')}</td>
                 <td className="number">{finding.cvss_score ?? '–'}</td>
+                {withThreat && <td>{kevCellText(finding.threat)}</td>}
+                {withThreat && <td className="number">{epssCellText(finding.threat)}</td>}
                 <td>{visibleText(finding.title ?? '')}</td>
               </tr>
             )
@@ -151,13 +157,14 @@ export function FindingsTable({
         >
           {openRow.kind === 'vulnerability' && (
             <>
+              <ThreatFacts group={openRow.shown.group} />
               <FixCommands commands={openRow.shown.group.fix_commands} note={openRow.shown.group.fix_commands_note} />
               <FixPanel
                 fix={fixFor(openRow.shown.group)}
                 connection={connection}
                 onExplain={() => onExplain(openRow.shown.group)}
               />
-              <CveList findings={openRow.shown.findings} />
+              <CveList findings={openRow.shown.findings} withThreat={hasThreatData(openRow.shown.group)} />
             </>
           )}
           {openRow.kind === 'misconfiguration' && <MisconfigurationDetails item={openRow.item} notInFormat={notInFormat} />}
@@ -260,6 +267,9 @@ function FindingRow({ row, notInFormat, secretFixSteps, onOpen }: RowProps) {
     <tr role="row" className={`group-row worst-${row.severity.toLowerCase()}`}>
       <td role="cell" className="item-name">
         <span translate="no">{visibleText(cells.name)}</span>
+        {row.kind === 'vulnerability' && kevCount(row.shown.group.findings) > 0 && (
+          <span className="badge-kev">{KEV_LABEL}</span>
+        )}
         <button type="button" className="secondary details-button" aria-haspopup="dialog" onClick={onOpen}>
           View details
           <span className="visually-hidden"> of {visibleText(cells.name)}</span>

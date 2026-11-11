@@ -156,3 +156,51 @@ describe('severityCounts', () => {
     expect(severityCounts(only)).toEqual(result.summary.by_severity)
   })
 })
+
+describe('known exploited only, and the sort "Known exploited first"', () => {
+  const withThreat = (id: string, severity: Severity, kev: 'listed' | 'not_listed'): Finding => ({
+    ...finding(severity, 'fixed', id),
+    threat: { kev, epss_state: 'listed', epss: kev === 'listed' ? 0.9 : 0.001 },
+  })
+  const data: typeof result = {
+    ...result,
+    package_groups: [
+      group('openssl', [withThreat('A', 'CRITICAL', 'not_listed'), withThreat('B', 'LOW', 'not_listed')]),
+      // two CVEs, only one of them known exploited
+      group('log4j', [withThreat('C', 'HIGH', 'listed'), withThreat('D', 'HIGH', 'not_listed')]),
+      group('bash', [finding('MEDIUM', 'fixed', 'E')]), // no data at all for this one
+    ],
+  }
+  const names = (rows: ReturnType<typeof buildRows>) =>
+    rows.map((row) => (row.kind === 'vulnerability' ? (row.shown.group.pkg_name ?? '?') : row.kind))
+
+  it('keeps Trivy\'s severity order by default, whatever the KEV data says', () => {
+    expect(names(buildRows(data, filters()))).toEqual(['openssl', 'secret', 'log4j', 'misconfiguration', 'bash', 'license', 'misconfiguration'])
+  })
+
+  it('"Known exploited first" puts the packages with a known exploited CVE first, then the same order as before', () => {
+    expect(names(buildRows(data, filters({ sort: 'kev' })))).toEqual([
+      'log4j', 'openssl', 'secret', 'misconfiguration', 'bash', 'license', 'misconfiguration',
+    ])
+  })
+
+  it('"Known exploited only" keeps only the packages with one, and in them only the known exploited CVEs', () => {
+    const rows = buildRows(data, filters({ kevOnly: true }))
+    expect(names(rows)).toEqual(['log4j'])
+    const [row] = rows
+    if (row.kind !== 'vulnerability') throw new Error('expected a package')
+    expect(row.shown.findings.map((f) => f.vuln_id)).toEqual(['C'])
+    expect(row.shown.group.finding_count).toBe(2) // the package still has both
+  })
+
+  it('a package without KEV data is not known exploited, so the filter hides it (nothing is guessed)', () => {
+    expect(names(buildRows(data, filters({ kevOnly: true, kind: 'vulnerability' })))).toEqual(['log4j'])
+    expect(buildRows({ ...data, package_groups: [data.package_groups[2]] }, filters({ kevOnly: true }))).toEqual([])
+  })
+
+  it('works together with the other filters', () => {
+    expect(buildRows(data, filters({ kevOnly: true, severities: new Set(['LOW']) }))).toEqual([])
+    expect(names(buildRows(data, filters({ kevOnly: true, search: 'log4j' })))).toEqual(['log4j'])
+  })
+})
+

@@ -1,6 +1,7 @@
 // The rows of the findings table: every finding kind in one list (no React here).
 import type { AnalyzeResult, Kind, License, Misconfiguration, Secret, Severity } from '../../api/types'
 import { compareSeverity } from '../../shared/severity'
+import { kevCount } from '../../shared/threat'
 import { filterGroups, matchesSearch, searchNeedle, type ShownGroup } from '../filters/filterGroups'
 import { ALL_KINDS, type FilterState } from '../filters/filterState'
 import { groupKey } from './groupKey'
@@ -62,19 +63,22 @@ function hasFix(row: Exclude<Row, { kind: 'vulnerability' }>): boolean {
  * Every finding kind as one list, most severe first, after the filters. The
  * severity, kind, search and "fix available" filters apply to all kinds. The
  * status filter applies to vulnerabilities only: the other kinds have no status.
+ * "Known exploited only" keeps vulnerabilities only too: the KEV list holds CVEs.
+ * With the sort "Known exploited first", packages with a KEV CVE come first and
+ * every other order stays as it was (Trivy's severity).
  */
 export function buildRows(result: Kinds, filters: FilterState): Row[] {
-  const { kind, severities, status, fixOnly } = filters
+  const { kind, severities, status, fixOnly, kevOnly } = filters
   const needle = searchNeedle(filters.search)
   const wanted = (rowKind: Kind) => kind === ALL_KINDS || kind === rowKind
   const rows: Row[] = []
   if (wanted('vulnerability')) {
-    for (const shown of filterGroups(result.package_groups, severities, status, { search: filters.search, fixOnly })) {
+    for (const shown of filterGroups(result.package_groups, severities, status, { search: filters.search, fixOnly, kevOnly })) {
       rows.push({ kind: 'vulnerability', key: groupKey(shown.group), severity: shown.worst, shown })
     }
   }
   const others = (rowKind: Exclude<Kind, 'vulnerability'>, items: (Misconfiguration | Secret | License)[]) => {
-    if (!wanted(rowKind)) return
+    if (!wanted(rowKind) || kevOnly) return
     items.forEach((item, index) => {
       const row = { kind: rowKind, key: `${rowKind}:${index}`, severity: item.severity, item } as Exclude<
         Row,
@@ -89,7 +93,14 @@ export function buildRows(result: Kinds, filters: FilterState): Row[] {
   others('secret', result.secrets)
   others('license', result.licenses)
   // The sort is stable, so a vulnerability tie keeps filterGroups' order (most shown findings first).
-  return rows.sort((a, b) => compareSeverity(a.severity, b.severity) || KIND_ORDER[a.kind] - KIND_ORDER[b.kind])
+  rows.sort((a, b) => compareSeverity(a.severity, b.severity) || KIND_ORDER[a.kind] - KIND_ORDER[b.kind])
+  // A second, stable sort: the severity order above is kept inside each of the two groups.
+  return filters.sort === 'kev' ? rows.sort((a, b) => Number(isExploitedRow(b)) - Number(isExploitedRow(a))) : rows
+}
+
+/** A package with at least one CVE on the KEV list (its whole group, not only the CVEs the filters keep). */
+export function isExploitedRow(row: Row): boolean {
+  return row.kind === 'vulnerability' && kevCount(row.shown.group.findings) > 0
 }
 
 /** Findings per severity over all kinds (the backend's counts are vulnerabilities only). */

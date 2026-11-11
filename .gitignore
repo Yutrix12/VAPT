@@ -14,3 +14,6 @@ dist/
 
 # Playwright CLI snapshots and screenshots
 .playwright-cli/
+
+# KEV/EPSS data downloaded by hand: python -m app.threat_data refresh
+backend/data/

@@ -2,13 +2,22 @@ import type { Kind, Severity } from '../../api/types'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { visibleText } from '../../shared/text'
 import { ALL_STATUSES } from './filterGroups'
-import { ALL_KINDS, defaultFilters, isFiltering, statusApplies, withKind, type FilterState } from './filterState'
+import {
+  ALL_KINDS,
+  defaultFilters,
+  isFiltering,
+  statusApplies,
+  withKind,
+  type FilterState,
+  type SortOrder,
+} from './filterState'
 
 interface Props {
   filters: FilterState
   onChange: (next: FilterState) => void
   counts: Record<Severity, number> // findings per severity in this report, all kinds
   statuses: string[] // the status values that appear in this report
+  kevLoaded: boolean // the KEV list is loaded, so "Known exploited" can be filtered and sorted
 }
 
 const KIND_CHOICES: { value: Kind; label: string }[] = [
@@ -22,7 +31,7 @@ const KIND_CHOICES: { value: Kind; label: string }[] = [
  * The filters above the findings table: search, kind, status, "fix available"
  * and the severity chips (real checkboxes; UNKNOWN apart), with "Clear all".
  */
-export function FilterBar({ filters, onChange, counts, statuses }: Props) {
+export function FilterBar({ filters, onChange, counts, statuses, kevLoaded }: Props) {
   // Only vulnerabilities have a status, so the list waits for a kind that has one.
   const hasStatus = statusApplies(filters.kind)
 
@@ -110,6 +119,31 @@ export function FilterBar({ filters, onChange, counts, statuses }: Props) {
           />
           Fix available
         </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            name="known-exploited-only"
+            checked={filters.kevOnly}
+            // Without the KEV list the filter would hide everything and mean nothing; a filter that is already on can be turned off.
+            disabled={!kevLoaded && !filters.kevOnly}
+            aria-describedby={kevLoaded ? undefined : 'kev-hint'}
+            onChange={(event) => onChange({ ...filters, kevOnly: event.target.checked })}
+          />
+          Known exploited only
+        </label>
+        <label className="field">
+          Sort by
+          <select
+            name="sort"
+            value={filters.sort}
+            onChange={(event) => onChange({ ...filters, sort: event.target.value as SortOrder })}
+          >
+            <option value="severity">Trivy severity (default)</option>
+            <option value="kev" disabled={!kevLoaded && filters.sort !== 'kev'}>
+              Known exploited first
+            </option>
+          </select>
+        </label>
         <button
           type="button"
           className="secondary"
@@ -119,6 +153,11 @@ export function FilterBar({ filters, onChange, counts, statuses }: Props) {
           Clear all
         </button>
       </div>
+      {!kevLoaded && (
+        <p id="kev-hint" className="muted filter-hint">
+          Known exploited (CISA KEV) data is not loaded, so it cannot be filtered or sorted.
+        </p>
+      )}
       {!hasStatus && (
         <p id="status-hint" className="muted filter-hint">
           Status applies to vulnerabilities only.

@@ -5,7 +5,7 @@ import { ALL_KINDS, defaultFilters, isFiltering, statusApplies, withKind } from 
 describe('filter state', () => {
   it('starts with nothing filtered', () => {
     const filters = defaultFilters()
-    expect(filters).toEqual({ search: '', kind: ALL_KINDS, severities: new Set(SEVERITIES), status: '', fixOnly: false })
+    expect(filters).toEqual({ search: '', kind: ALL_KINDS, severities: new Set(SEVERITIES), status: '', fixOnly: false, kevOnly: false, sort: 'severity' })
     expect(isFiltering(filters)).toBe(false)
   })
 
@@ -16,6 +16,8 @@ describe('filter state', () => {
     expect(isFiltering({ ...base, kind: 'secret' })).toBe(true)
     expect(isFiltering({ ...base, status: 'fixed' })).toBe(true)
     expect(isFiltering({ ...base, fixOnly: true })).toBe(true)
+    expect(isFiltering({ ...base, kevOnly: true })).toBe(true)
+    expect(isFiltering({ ...base, sort: 'kev' })).toBe(true) // so "Clear all" brings the default order back
     expect(isFiltering({ ...base, severities: new Set(['HIGH']) })).toBe(true)
   })
 

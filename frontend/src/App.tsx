@@ -30,6 +30,7 @@ import { UploadForm } from './features/upload/UploadForm'
 import { downloadText } from './shared/download'
 import { overviewText, shownText } from './shared/reportText'
 import { visibleText } from './shared/text'
+import { kevLoaded, threatStatusText } from './shared/threat'
 import './App.css'
 
 /** The body of /api/fix/other for a row that is not a vulnerable package. */
@@ -57,6 +58,22 @@ function HealthBadge({ health }: { health: Health }) {
     <p className={`status-line status-${tone}`} aria-live="polite">
       <span className="dot" aria-hidden="true" />
       {text}
+    </p>
+  )
+}
+
+/** Which KEV/EPSS data the values come from, or that there is none (the backend reads local files only). */
+function ThreatStatus({ data }: { data: AnalyzeResult['threat_data'] }) {
+  const status = threatStatusText(data)
+  return (
+    <p className={status.needsRefresh ? 'threat-status threat-status-warn' : 'threat-status muted'}>
+      {visibleText(status.text)}
+      {status.needsRefresh && (
+        <>
+          {' '}
+          To load or update it, run <code>python -m app.threat_data refresh</code> in the backend folder.
+        </>
+      )}
     </p>
   )
 }
@@ -247,11 +264,13 @@ function App() {
                   </button>
                 </div>
               </div>
+              <ThreatStatus data={result.threat_data} />
               <FilterBar
                 filters={filters}
                 onChange={setFilters}
                 counts={counts ?? result.summary.by_severity}
                 statuses={Object.keys(result.summary.by_status)}
+                kevLoaded={kevLoaded(result.threat_data)}
               />
               <FindingsTable
                 key={tableKey}

@@ -10,6 +10,30 @@ export type RatedSeverity = Exclude<Severity, 'UNKNOWN'>
 /** The four kinds of finding in a report. */
 export type Kind = 'vulnerability' | 'misconfiguration' | 'secret' | 'license'
 
+/** What a lookup in the loaded data says: in the list, not in it, no file loaded, or an ID the lists do not cover. */
+export type ThreatState = 'listed' | 'not_listed' | 'no_data' | 'not_cve'
+
+/** The KEV and EPSS answer for one vulnerability ID (looked up by the backend's code, never by the AI). */
+export interface FindingThreat {
+  kev: ThreatState // known exploited (CISA KEV)
+  epss_state: ThreatState
+  epss: number | null // exploit probability (EPSS), 0 to 1; only when epss_state is 'listed'
+}
+
+/** The state of one local data file. */
+export interface ThreatSource {
+  status: 'loaded' | 'not_loaded' | 'error'
+  as_of: string | null // the date inside the data
+  age_days: number | null
+  old: boolean // older than a week
+  error: string | null
+}
+
+export interface ThreatData {
+  kev: ThreatSource
+  epss: ThreatSource
+}
+
 export interface Finding {
   fingerprint: string
   target: string
@@ -25,6 +49,7 @@ export interface Finding {
   cvss_score: number | null
   primary_url: string | null
   published_date: string | null
+  threat?: FindingThreat // absent when no KEV/EPSS file is loaded
 }
 
 export interface ReportDetails {
@@ -130,6 +155,7 @@ export interface AnalyzeResult {
   secrets: Secret[]
   licenses: License[]
   secret_fix_steps: string[] // the same fixed steps for every secret
+  threat_data?: ThreatData // absent when no KEV/EPSS file exists
 }
 
 /** The AI explanation of one finding in the page; undefined means not asked yet. */

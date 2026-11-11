@@ -225,6 +225,7 @@ describe('buildFixSummary', () => {
   it('names every filter that is on: search, kind, severity, status and fix available', () => {
     const filters: FilterState = {
       search: 'open*ssl', kind: 'vulnerability', severities: new Set<Severity>(['HIGH']), status: 'fixed', fixOnly: true,
+      kevOnly: false, sort: 'severity',
     }
     const text = buildFixSummary({ result, rows: [], otherFixFor: () => undefined, filters, fixFor: () => undefined, model: null })
     expect(text).toContain(
@@ -403,3 +404,64 @@ describe('buildFixSummary for every kind and the built commands', () => {
   })
 })
 
+
+describe('buildFixSummary with KEV and EPSS data', () => {
+  const kevFinding = (id: string, kev: 'listed' | 'not_listed', epss: number | null): Finding => ({
+    ...finding(id, 'HIGH', '2.0'),
+    threat: { kev, epss_state: epss === null ? 'not_listed' : 'listed', epss },
+  })
+  const loaded = { status: 'loaded', as_of: '2026-11-10', age_days: 1, old: false, error: null } as const
+  const withData: AnalyzeResult = {
+    ...result,
+    package_groups: [
+      group('log4j', [kevFinding('CVE-2021-44228', 'listed', 0.97), kevFinding('CVE-2021-45046', 'not_listed', 0.002)], ['2.0']),
+      group('zlib', [kevFinding('CVE-3', 'not_listed', null)], ['1.3']),
+    ],
+    threat_data: { kev: loaded, epss: { ...loaded, as_of: '2026-11-11', age_days: 0 } },
+  }
+  const build = (data: AnalyzeResult, filters: FilterState = defaultFilters()) =>
+    buildFixSummary({
+      result: data, rows: buildRows(data, filters), filters, fixFor: () => undefined, otherFixFor: () => undefined,
+      model: null, locale: 'en-GB', timeZone: 'UTC',
+    })
+
+  it('says what data the values come from', () => {
+    expect(build(withData)).toContain(
+      '- KEV/EPSS data: Known exploited (CISA KEV) data of 2026-11-10 (1 day old). ' +
+        'Exploit probability (EPSS) data of 2026-11-11 (today).',
+    )
+  })
+
+  it('gives both values for each package, in the wording of the page', () => {
+    const text = build(withData)
+    const log4j = text.slice(text.indexOf('## 1. log4j'), text.indexOf('## 2. zlib'))
+    expect(log4j).toContain('- Known exploited (CISA KEV): Yes, 1 of 2 CVEs')
+    expect(log4j).toContain('- Exploit probability (EPSS): highest 0.97 (`CVE-2021-44228`)')
+    const zlib = text.slice(text.indexOf('## 2. zlib'))
+    expect(zlib).toContain('- Known exploited (CISA KEV): Not listed')
+    expect(zlib).toContain('- Exploit probability (EPSS): Not listed')
+  })
+
+  it('names the filter and the sort that were on', () => {
+    const filters = { ...defaultFilters(), kevOnly: true, sort: 'kev' as const }
+    const text = build(withData, filters)
+    expect(text).toContain('Filters: known exploited only.')
+    expect(text).toContain('Order: known exploited first.')
+    expect(build(withData)).toContain('Order: Trivy severity.')
+  })
+
+  it('with no data says "KEV/EPSS data not loaded" and has no per-package lines', () => {
+    const text = build(result)
+    expect(text).toContain('- KEV/EPSS data: KEV/EPSS data not loaded.')
+    expect(text).not.toContain('- Known exploited (CISA KEV):')
+    expect(text).not.toContain('- Exploit probability (EPSS):')
+  })
+
+  it('never calls it risk or priority', () => {
+    const text = build(withData, { ...defaultFilters(), sort: 'kev' })
+    for (const line of text.split('\n').filter((l) => /KEV|EPSS|exploit/i.test(l))) {
+      expect(line).not.toMatch(/\bpriorit/i)
+      expect(line).not.toMatch(/\brisk\b/i)
+    }
+  })
+})
