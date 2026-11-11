@@ -6,8 +6,8 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 from app.api.dependencies import llm_settings
+from app.main import app
 from llm_client import LLMSettings
-from main import app
 
 
 @contextmanager

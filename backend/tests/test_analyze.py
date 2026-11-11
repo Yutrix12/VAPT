@@ -8,9 +8,9 @@ import httpx2
 from fastapi.testclient import TestClient
 
 from app.api.schemas import PackageGroupOut, ReportDetails
-from app.parsers.models import PackageGroup, Report
+from app.main import app
 from app.middleware import MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
-from main import app
+from app.parsers.models import PackageGroup, Report
 from tests.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
 
 

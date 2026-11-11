@@ -5,9 +5,9 @@ import unittest
 
 from fastapi.testclient import TestClient
 
+from app.main import app
 from llm_client import (LLMError, LLMSettings, chat_json, list_models,
                         normalize_base_url)
-from main import app
 from tests.fake_ollama import CHAT_ANSWER, FakeOllama
 from tests.llm_override import backend_llm, clean_llm_environment
 
