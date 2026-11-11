@@ -7,18 +7,10 @@ import {
   checkFileBeforeUpload,
   fieldOrNotInFormat,
   openAfterUpgradeText,
-  countText,
   filterGroups,
-  formatScanDate,
-  formatFileSize,
-  KEEP_LINE_BREAKS,
-  RATED_SEVERITIES,
-  safeLink,
-  severityLabel,
-  severityLevel,
-  visibleText,
-  worstSeverity,
 } from './reportLogic'
+import { RATED_SEVERITIES, severityLabel, severityLevel, worstSeverity } from './shared/severity'
+import { countText, formatScanDate, formatFileSize, KEEP_LINE_BREAKS, safeLink, visibleText } from './shared/text'
 
 function finding(severity: Severity, status: string, id: string): Finding {
   return {

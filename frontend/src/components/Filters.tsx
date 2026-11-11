@@ -1,5 +1,7 @@
 import type { Severity } from '../api/types'
-import { ALL_STATUSES, RATED_SEVERITIES, severityLabel, visibleText } from '../reportLogic'
+import { ALL_STATUSES } from '../reportLogic'
+import { RATED_SEVERITIES, severityLabel } from '../shared/severity'
+import { visibleText } from '../shared/text'
 
 interface Props {
   severities: ReadonlySet<Severity>

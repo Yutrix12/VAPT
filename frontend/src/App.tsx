@@ -14,10 +14,11 @@ import { GroupTable } from './components/GroupTable'
 import { ReportDetails } from './components/ReportDetails'
 import { SeverityCounts } from './components/SeverityCounts'
 import { UploadForm } from './components/UploadForm'
-import { downloadText } from './download'
 import { buildFixSummary, summaryFileName } from './fixSummary'
 import { connectionFromStatus, serialQueue, toFixGroup } from './llmLogic'
-import { ALL_STATUSES, countText, filterGroups, groupKey, visibleText } from './reportLogic'
+import { ALL_STATUSES, filterGroups, groupKey } from './reportLogic'
+import { downloadText } from './shared/download'
+import { countText, visibleText } from './shared/text'
 import './App.css'
 
 /** A small status line with a coloured dot; the words carry the meaning. */

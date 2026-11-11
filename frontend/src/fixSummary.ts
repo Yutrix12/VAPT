@@ -15,16 +15,12 @@ import {
 import {
   ALL_STATUSES,
   artifactTypeLabel,
-  countText,
   fieldOrNotInFormat,
-  formatScanDate,
-  KEEP_LINE_BREAKS,
   openAfterUpgradeText,
-  RATED_SEVERITIES,
-  severityLabel,
-  visibleText,
   type ShownGroup,
 } from './reportLogic'
+import { RATED_SEVERITIES, severityLabel } from './shared/severity'
+import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from './shared/text'
 
 /** Line breaks become spaces, so text cannot start a heading or a list. */
 function oneLine(text: string): string {

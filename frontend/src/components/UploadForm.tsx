@@ -1,7 +1,8 @@
 import { useState, type DragEvent, type FormEvent } from 'react'
 import { analyzeReport } from '../api/client'
 import type { AnalyzeResult } from '../api/types'
-import { checkFileBeforeUpload, formatFileSize, visibleText } from '../reportLogic'
+import { checkFileBeforeUpload } from '../reportLogic'
+import { formatFileSize, visibleText } from '../shared/text'
 
 interface Props {
   onResult: (result: AnalyzeResult) => void // only called on success
