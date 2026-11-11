@@ -97,6 +97,13 @@ class LicenseOut(BaseModel):
     link: str | None
 
 
+class FixCommandOut(BaseModel):
+    """One block of built commands: the lines, and the fixed version they are for (if several)."""
+
+    label: str | None
+    lines: list[str]
+
+
 class PackageGroupOut(BaseModel):
     """One package group with the findings that belong to it."""
 
@@ -110,6 +117,8 @@ class PackageGroupOut(BaseModel):
     fixed_versions: list[str]
     has_unfixed: bool
     findings: list[Finding]
+    fix_commands: list[FixCommandOut]  # built by code from Trivy's fixed versions
+    fix_commands_note: str | None  # why there is no command, or what to know about them
 
 
 class AnalyzeResponse(BaseModel):
