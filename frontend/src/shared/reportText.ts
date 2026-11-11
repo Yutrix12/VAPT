@@ -1,4 +1,6 @@
 // Plain words for the report details.
+import type { Kind } from '../api/types'
+import { countText } from './text'
 
 /** What the page shows for a field the uploaded format does not carry (U3). */
 export const NOT_IN_FORMAT = 'not in this format'
@@ -42,4 +44,45 @@ const ARTIFACT_TYPE_LABELS: Record<string, string> = {
 export function artifactTypeLabel(type: string | null): string {
   if (type === null) return 'unknown'
   return Object.hasOwn(ARTIFACT_TYPE_LABELS, type) ? ARTIFACT_TYPE_LABELS[type] : type
+}
+
+const KIND_LABELS: Record<Kind, string> = {
+  vulnerability: 'Vulnerability',
+  misconfiguration: 'Misconfiguration',
+  secret: 'Secret',
+  license: 'License',
+}
+
+/** "Vulnerability" for the kind of a finding. */
+export function kindLabel(kind: Kind): string {
+  return KIND_LABELS[kind]
+}
+
+/** "line 3" or "lines 7 to 9"; null when the report gives no line. */
+export function lineText(start: number | null, end: number | null): string | null {
+  if (start === null) return null
+  return end === null || end === start ? `line ${start}` : `lines ${start} to ${end}`
+}
+
+/** "Showing 5 of 6 items": the rows of the findings table that match the filters. */
+export function shownText(shown: number, total: number): string {
+  return `Showing ${shown} of ${countText(total, 'item')}`
+}
+
+/**
+ * The headline over the severity bar. A report with vulnerabilities only keeps
+ * its short sentence; otherwise each kind that was found is listed.
+ */
+export function overviewText(byKind: Record<Kind, number>, packages: number): string {
+  const total = byKind.vulnerability + byKind.misconfiguration + byKind.secret + byKind.license
+  const others = byKind.misconfiguration + byKind.secret + byKind.license
+  if (others === 0) return `${countText(total, 'finding')} in ${countText(packages, 'package')}`
+  const parts = [
+    byKind.vulnerability > 0 &&
+      `${countText(byKind.vulnerability, 'vulnerability', 'vulnerabilities')} in ${countText(packages, 'package')}`,
+    byKind.misconfiguration > 0 && countText(byKind.misconfiguration, 'misconfiguration'),
+    byKind.secret > 0 && countText(byKind.secret, 'secret'),
+    byKind.license > 0 && countText(byKind.license, 'license'),
+  ].filter(Boolean)
+  return `${countText(total, 'finding')}: ${parts.join(', ')}`
 }

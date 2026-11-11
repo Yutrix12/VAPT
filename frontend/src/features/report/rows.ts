@@ -1,5 +1,5 @@
 // The rows of the findings table: every finding kind in one list (no React here).
-import type { AnalyzeResult, License, Misconfiguration, Secret, Severity } from '../../api/types'
+import type { AnalyzeResult, Kind, License, Misconfiguration, Secret, Severity } from '../../api/types'
 import { compareSeverity } from '../../shared/severity'
 import { filterGroups, type ShownGroup } from '../filters/filterGroups'
 import { groupKey } from './groupKey'
@@ -13,7 +13,7 @@ export type Row =
 type Kinds = Pick<AnalyzeResult, 'package_groups' | 'misconfigurations' | 'secrets' | 'licenses'>
 
 // Among equal severities the kinds keep the owner's order.
-const KIND_ORDER: Record<Row['kind'], number> = { vulnerability: 0, misconfiguration: 1, secret: 2, license: 3 }
+const KIND_ORDER: Record<Kind, number> = { vulnerability: 0, misconfiguration: 1, secret: 2, license: 3 }
 
 /**
  * Every finding kind as one list, most severe first. The severity filter
@@ -27,7 +27,7 @@ export function buildRows(result: Kinds, severities: ReadonlySet<Severity>, stat
     severity: shown.worst,
     shown,
   }))
-  const others = (kind: Exclude<Row['kind'], 'vulnerability'>, items: (Misconfiguration | Secret | License)[]) =>
+  const others = (kind: Exclude<Kind, 'vulnerability'>, items: (Misconfiguration | Secret | License)[]) =>
     items.forEach((item, index) => {
       if (severities.has(item.severity)) {
         rows.push({ kind, key: `${kind}:${index}`, severity: item.severity, item } as Row)

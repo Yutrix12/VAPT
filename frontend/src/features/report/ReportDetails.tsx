@@ -1,6 +1,6 @@
 import type { ReportDetails as Details } from '../../api/types'
 import { artifactTypeLabel, fieldOrNotInFormat, missingFieldsText } from '../../shared/reportText'
-import { countText, formatScanDate, visibleText } from '../../shared/text'
+import { formatScanDate, visibleText } from '../../shared/text'
 
 /** What was scanned: the artifact as the title, then the facts about the scan. */
 export function ReportDetails({ report }: { report: Details }) {
@@ -72,13 +72,6 @@ export function ReportDetails({ report }: { report: Details }) {
             <dd>{missing}</dd>
           </div>
         )}
-        <div>
-          <dt>Also found</dt>
-          <dd>
-            {countText(report.misconfig_count, 'misconfiguration')}, {countText(report.secret_count, 'secret')}{' '}
-            (counted only)
-          </dd>
-        </div>
       </dl>
     </section>
   )

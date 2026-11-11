@@ -7,6 +7,9 @@ export type Severity = (typeof SEVERITIES)[number]
 /** The severities Trivy could rate; UNKNOWN is kept outside the ranking. */
 export type RatedSeverity = Exclude<Severity, 'UNKNOWN'>
 
+/** The four kinds of finding in a report. */
+export type Kind = 'vulnerability' | 'misconfiguration' | 'secret' | 'license'
+
 export interface Finding {
   fingerprint: string
   target: string

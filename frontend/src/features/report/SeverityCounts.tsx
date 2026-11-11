@@ -1,4 +1,4 @@
-import type { Summary } from '../../api/types'
+import type { Severity, Summary } from '../../api/types'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { countText } from '../../shared/text'
 
@@ -7,21 +7,27 @@ import { countText } from '../../shared/text'
  * wide as its share, and UNKNOWN apart after a gap, since Trivy could not
  * rate it. The bars are decoration; the legend says the same in text.
  */
-export function SeverityCounts({ summary }: { summary: Summary }) {
-  const counts = summary.by_severity
+export function SeverityCounts({
+  summary,
+  counts,
+  headline,
+}: {
+  summary: Summary
+  counts: Record<Severity, number> // all kinds together
+  headline: string
+}) {
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
   const rated = RATED_SEVERITIES.filter((severity) => counts[severity] > 0)
   return (
     <section className="overview" aria-labelledby="counts-heading">
-      <h2 id="counts-heading">
-        {countText(summary.total, 'finding')} in {countText(summary.unique_packages, 'package')}
-      </h2>
+      <h2 id="counts-heading">{headline}</h2>
       <div className="rails" aria-hidden="true">
         {/* Shown as an empty track when there are no findings at all. Wide
             enough for every part, however many UNKNOWN findings there are. */}
         {(rated.length > 0 || counts.UNKNOWN === 0) && (
           <div
             className="rail"
-            style={{ flexGrow: Math.max(1, summary.total - counts.UNKNOWN), minWidth: `${rated.length * 6}px` }}
+            style={{ flexGrow: Math.max(1, total - counts.UNKNOWN), minWidth: `${rated.length * 6}px` }}
           >
             {rated.map((severity) => (
               <span
@@ -50,11 +56,13 @@ export function SeverityCounts({ summary }: { summary: Summary }) {
           <span className="legend-count">{counts.UNKNOWN}</span> {severityLabel('UNKNOWN')} (not rated)
         </li>
       </ul>
-      <p className="muted">
-        {countText(summary.unique_vuln_ids, 'unique vulnerability ID')}.{' '}
-        {countText(summary.without_fixed_version, 'finding')} {summary.without_fixed_version === 1 ? 'has' : 'have'} no
-        fixed version yet.
-      </p>
+      {summary.by_kind.vulnerability > 0 && (
+        <p className="muted">
+          {countText(summary.unique_vuln_ids, 'unique vulnerability ID')}.{' '}
+          {countText(summary.without_fixed_version, 'finding')} {summary.without_fixed_version === 1 ? 'has' : 'have'}{' '}
+          no fixed version yet.
+        </p>
+      )}
     </section>
   )
 }

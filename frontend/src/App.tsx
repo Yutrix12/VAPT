@@ -5,23 +5,31 @@ import {
   type AiConnection,
   type AnalyzeResult,
   type FixState,
+  type Kind,
   type PackageGroup,
   type Severity,
 } from './api/types'
 import { AiStatusPanel } from './features/ai-status/AiStatusPanel'
 import { connectionFromStatus } from './features/ai-status/connection'
-import { ALL_STATUSES, filterGroups } from './features/filters/filterGroups'
+import { ALL_STATUSES } from './features/filters/filterGroups'
 import { Filters } from './features/filters/Filters'
 import { serialQueue, toFixGroup } from './features/fixes/fixLogic'
 import { buildFixSummary, summaryFileName } from './features/fixes/fixSummary'
+import { FindingsTable } from './features/report/FindingsTable'
 import { groupKey } from './features/report/groupKey'
-import { GroupTable } from './features/report/GroupTable'
 import { ReportDetails } from './features/report/ReportDetails'
+import { buildRows, severityCounts } from './features/report/rows'
 import { SeverityCounts } from './features/report/SeverityCounts'
 import { UploadForm } from './features/upload/UploadForm'
 import { downloadText } from './shared/download'
-import { countText, visibleText } from './shared/text'
+import { overviewText, shownText } from './shared/reportText'
+import { visibleText } from './shared/text'
 import './App.css'
+
+/** The rows the table has before any filter: one per package, plus one per other finding. */
+function totalRows(result: AnalyzeResult): number {
+  return result.package_groups.length + result.misconfigurations.length + result.secrets.length + result.licenses.length
+}
 
 /** A small status line with a coloured dot; the words carry the meaning. */
 function HealthBadge({ health }: { health: Health }) {
@@ -110,10 +118,10 @@ function App() {
     return fixes.get(fixKey(group))
   }
 
-  const shown = useMemo(
-    () => (result ? filterGroups(result.package_groups, severities, status) : []),
-    [result, severities, status],
-  )
+  const rows = useMemo(() => (result ? buildRows(result, severities, status) : []), [result, severities, status])
+  // The fix summary lists vulnerabilities only until U9 adds the other kinds.
+  const shown = useMemo(() => rows.flatMap((row) => (row.kind === 'vulnerability' ? [row.shown] : [])), [rows])
+  const counts = useMemo(() => (result ? severityCounts(result) : null), [result])
 
   function showResult(next: AnalyzeResult) {
     setResult(next)
@@ -181,7 +189,7 @@ function App() {
           <Filters
             severities={severities}
             onSeveritiesChange={setSeverities}
-            counts={result.summary.by_severity}
+            counts={counts ?? result.summary.by_severity}
             status={status}
             statuses={Object.keys(result.summary.by_status)}
             onStatusChange={setStatus}
@@ -192,22 +200,28 @@ function App() {
         {result ? (
           <>
             <ReportDetails report={result.report} />
-            <SeverityCounts summary={result.summary} />
+            <SeverityCounts
+              summary={result.summary}
+              counts={counts ?? result.summary.by_severity}
+              headline={overviewText(result.summary.by_kind as Record<Kind, number>, result.summary.unique_packages)}
+            />
             <section aria-labelledby="groups-heading">
               <div className="section-head">
-                <h2 id="groups-heading">Packages by severity</h2>
+                <h2 id="groups-heading">Findings by severity</h2>
                 <div className="section-actions">
                   <p className="muted" aria-live="polite">
-                    Showing {shown.length} of {countText(result.package_groups.length, 'package')}
+                    {shownText(rows.length, totalRows(result))}
                   </p>
                   <button type="button" className="secondary" onClick={downloadSummary}>
                     Download fix summary
                   </button>
                 </div>
               </div>
-              <GroupTable
+              <FindingsTable
                 key={tableKey}
-                shown={shown}
+                rows={rows}
+                notInFormat={result.report.not_in_format}
+                secretFixSteps={result.secret_fix_steps}
                 connection={connection}
                 fixFor={fixFor}
                 onExplain={explain}

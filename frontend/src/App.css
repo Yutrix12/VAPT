@@ -862,3 +862,18 @@ th {
     margin-top: 0.5rem;
   }
 }
+
+/* The findings table: a second line in the Where cell, and the details of the other kinds. */
+.where-sub {
+  display: block;
+  margin-top: 0.1rem;
+}
+
+.kind-details .facts {
+  margin: 0 0 1rem;
+}
+
+.kind-details .fix-panel ol {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.25rem;
+}

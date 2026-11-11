@@ -1,0 +1,291 @@
+import { Fragment, useState, type ReactNode } from 'react'
+import type { AiConnection, Finding, FixState, PackageGroup, Severity } from '../../api/types'
+import { severityLabel } from '../../shared/severity'
+import { NOT_IN_FORMAT, kindLabel, lineText } from '../../shared/reportText'
+import { safeLink, visibleText } from '../../shared/text'
+import { FixPanel } from '../fixes/FixPanel'
+import { LicenseDetails, MisconfigurationDetails, SecretDetails } from './KindDetails'
+import type { Row } from './rows'
+
+function SeverityBadge({ severity }: { severity: Severity }) {
+  return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severityLabel(severity)}</span>
+}
+
+/** A small arrow that turns when the row opens (CSS does the turning). */
+function Chevron() {
+  return (
+    <svg className="chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Trivy's fixed versions for a package, or "No fixed version yet". */
+function TrivyFix({ group }: { group: PackageGroup }) {
+  if (group.fixed_versions.length === 0) return <span className="no-fix">No fixed version yet</span>
+  return (
+    <span translate="no">
+      {group.fixed_versions.map((version, index) => (
+        // A version never breaks in the middle (e.g. at its "-"); the line
+        // may break at the ", " between versions, so it stays outside.
+        <Fragment key={version}>
+          {index > 0 && ', '}
+          <span className="nowrap code">{visibleText(version)}</span>
+        </Fragment>
+      ))}
+      {group.has_unfixed && <span className="muted"> (some vulnerabilities have no fixed version yet)</span>}
+    </span>
+  )
+}
+
+/** The vulnerabilities of one package (only those that match the filters). */
+function CveList({ findings }: { findings: Finding[] }) {
+  return (
+    <div className="table-scroll">
+      <table className="cves">
+        <thead>
+          <tr>
+            <th scope="col">CVE ID</th>
+            <th scope="col">Severity</th>
+            <th scope="col">Status</th>
+            <th scope="col">Fixed version</th>
+            <th scope="col">CVSS score</th>
+            <th scope="col">Title</th>
+          </tr>
+        </thead>
+        <tbody>
+          {findings.map((finding, index) => {
+            const link = safeLink(finding.primary_url)
+            const id = visibleText(finding.vuln_id ?? 'unknown ID')
+            return (
+              // Fingerprints repeat for duplicate rows, so the index is part of the key.
+              <tr key={`${finding.fingerprint}-${index}`}>
+                <td translate="no" className="nowrap">
+                  {link ? (
+                    <a href={link} target="_blank" rel="noopener noreferrer">
+                      {id}
+                    </a>
+                  ) : (
+                    id
+                  )}
+                </td>
+                <td><SeverityBadge severity={finding.severity} /></td>
+                <td>{visibleText(finding.status)}</td>
+                <td translate="no" className="nowrap code">{visibleText(finding.fixed_version ?? 'No fixed version yet')}</td>
+                <td className="number">{finding.cvss_score ?? '–'}</td>
+                <td>{visibleText(finding.title ?? '')}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+interface TableProps {
+  rows: Row[]
+  notInFormat: string[] // fields the report's format lacks
+  secretFixSteps: string[]
+  connection: AiConnection
+  fixFor: (group: PackageGroup) => FixState | undefined
+  onExplain: (group: PackageGroup) => void
+}
+
+/** A text cut at a space once it is longer than `max`, with " ..." at the end. */
+function shorten(text: string, max = 80): string {
+  if (text.length <= max) return text
+  const space = text.lastIndexOf(' ', max)
+  return `${text.slice(0, space > 0 ? space : max)} ...`
+}
+
+/** Every finding kind in one table, worst first; opening a row shows its details and fix. */
+export function FindingsTable({ rows, notInFormat, secretFixSteps, connection, fixFor, onExplain }: TableProps) {
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
+
+  function toggle(key: string) {
+    setOpen((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  if (rows.length === 0) return <p className="muted">No finding matches the filters.</p>
+
+  return (
+    <div className="table-scroll">
+      {/* Explicit roles: the narrow-screen card layout changes display, which
+      would otherwise drop the table semantics. */}
+      <table className="groups" role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader" scope="col">Item</th>
+            <th role="columnheader" scope="col">Kind</th>
+            <th role="columnheader" scope="col">Where</th>
+            <th role="columnheader" scope="col" className="number">Findings</th>
+            <th role="columnheader" scope="col">Highest severity</th>
+            <th role="columnheader" scope="col">Fix</th>
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          {rows.map((row, index) => (
+            <FindingRows
+              key={row.key}
+              row={row}
+              listId={`details-${index}`}
+              isOpen={open.has(row.key)}
+              onToggle={() => toggle(row.key)}
+              notInFormat={notInFormat}
+              secretFixSteps={secretFixSteps}
+              connection={connection}
+              fixFor={fixFor}
+              onExplain={onExplain}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+interface RowProps {
+  row: Row
+  listId: string
+  isOpen: boolean
+  onToggle: () => void
+  notInFormat: string[]
+  secretFixSteps: string[]
+  connection: AiConnection
+  fixFor: (group: PackageGroup) => FixState | undefined
+  onExplain: (group: PackageGroup) => void
+}
+
+/** What a row shows in its cells, whatever the kind. */
+interface Cells {
+  name: string
+  where: ReactNode
+  count: string
+  fix: ReactNode
+}
+
+function whereCell(main: string, sub: string | null): ReactNode {
+  return (
+    <>
+      {visibleText(main)}
+      {sub !== null && <span className="muted where-sub">{visibleText(sub)}</span>}
+    </>
+  )
+}
+
+function cellsOf(row: Row, secretFixSteps: string[], notInFormat: string[]): Cells {
+  switch (row.kind) {
+    case 'vulnerability': {
+      const { group, findings } = row.shown
+      return {
+        name: group.pkg_name ?? 'unknown package',
+        where: (
+          <>
+            <span className="nowrap code">{visibleText(group.installed_version ?? 'unknown')}</span>
+            <span className="muted where-sub">{visibleText(group.target)}</span>
+          </>
+        ),
+        count:
+          findings.length === group.finding_count
+            ? String(group.finding_count)
+            : `${findings.length} of ${group.finding_count}`,
+        fix: <TrivyFix group={group} />,
+      }
+    }
+    case 'misconfiguration': {
+      const { item } = row
+      const missing = notInFormat.includes('resolution') ? NOT_IN_FORMAT : 'No fix text in this report'
+      return {
+        name: [item.check_id, item.title].filter(Boolean).join(': ') || 'unknown check',
+        where: whereCell(item.target, lineText(item.start_line, item.end_line)),
+        count: '1',
+        fix:
+          item.resolution === null ? <span className="muted">{missing}</span> : visibleText(shorten(item.resolution)),
+      }
+    }
+    case 'secret': {
+      const { item } = row
+      return {
+        name: [item.rule_id, item.category && `(${item.category})`].filter(Boolean).join(' ') || 'unknown rule',
+        where: whereCell(item.target, lineText(item.start_line, item.end_line)),
+        count: '1',
+        fix: visibleText(shorten(secretFixSteps[0] ?? 'Revoke the secret and remove it from the code.')),
+      }
+    }
+    case 'license': {
+      const { item } = row
+      return {
+        name: item.name ?? 'unknown license',
+        where: whereCell(item.pkg_name ?? item.file_path ?? 'unknown', item.target),
+        count: '1',
+        fix: `Review the terms (category: ${item.category ?? 'unknown'})`,
+      }
+    }
+  }
+}
+
+/** One row, plus its details underneath when it is open. */
+function FindingRows(props: RowProps) {
+  const { row, listId, isOpen, onToggle, notInFormat, secretFixSteps, connection, fixFor, onExplain } = props
+  const cells = cellsOf(row, secretFixSteps, notInFormat)
+  return (
+    <>
+      <tr role="row" className={`group-row worst-${row.severity.toLowerCase()}${isOpen ? ' is-open' : ''}`}>
+        <td role="cell">
+          <button
+            type="button"
+            className="row-toggle"
+            aria-expanded={isOpen}
+            // Points at the details only while they exist.
+            aria-controls={isOpen ? listId : undefined}
+            onClick={onToggle}
+          >
+            <Chevron />
+            <span translate="no">{visibleText(cells.name)}</span>
+          </button>
+        </td>
+        {/* data-label names each cell when narrow screens show a row as a card. */}
+        <td role="cell" className="nowrap" data-label="Kind">
+          {kindLabel(row.kind)}
+        </td>
+        <td role="cell" translate="no" className="target" data-label="Where">
+          {cells.where}
+        </td>
+        <td role="cell" className="number" data-label="Findings">
+          {cells.count}
+        </td>
+        <td role="cell" data-label="Highest severity">
+          <SeverityBadge severity={row.severity} />
+        </td>
+        <td role="cell" className="fix-cell" data-label="Fix">
+          {cells.fix}
+        </td>
+      </tr>
+      {isOpen && (
+        <tr role="row" id={listId} className={`detail-row worst-${row.severity.toLowerCase()}`}>
+          <td role="cell" colSpan={6}>
+            {row.kind === 'vulnerability' && (
+              <>
+                <FixPanel
+                  fix={fixFor(row.shown.group)}
+                  connection={connection}
+                  onExplain={() => onExplain(row.shown.group)}
+                />
+                <CveList findings={row.shown.findings} />
+              </>
+            )}
+            {row.kind === 'misconfiguration' && <MisconfigurationDetails item={row.item} notInFormat={notInFormat} />}
+            {row.kind === 'secret' && <SecretDetails item={row.item} steps={secretFixSteps} />}
+            {row.kind === 'license' && <LicenseDetails item={row.item} />}
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}

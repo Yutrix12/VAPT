@@ -18,12 +18,19 @@ runs on your own computer. Nothing is saved.
   report” and the list of supported formats.
 - **Report details**: what was scanned, Trivy version, scan date, and the
   operating system or the git repository, branch and commit.
-- **Counts** by severity: Critical, High, Medium and Low are ranked (levels
-  4 to 1, higher is more severe); Unknown is shown apart, because Trivy
-  could not rate it, and always comes after the rated ones.
-- **Packages by severity**, with filters for severity and status. Each
-  package shows Trivy’s fixed versions and opens to the list of its
-  vulnerabilities.
+- **Counts** by severity over all finding kinds: Critical, High, Medium and
+  Low are ranked (levels 4 to 1, higher is more severe); Unknown is shown
+  apart, because Trivy could not rate it, and always comes after the rated
+  ones.
+- **Findings by severity**: one table for the four kinds, worst first, with
+  filters for severity and status (the status filter applies to
+  vulnerabilities, the other kinds have no status). Each vulnerability row
+  is a package: it shows Trivy’s fixed versions and opens to the list of its
+  vulnerabilities. A misconfiguration opens to what is wrong and Trivy’s own
+  fix text (when the report has one). A secret opens to its place and the
+  fixed steps (revoke it, remove it from the code and history); its value is
+  never shown. A license opens to its name and category, with a pointer to
+  your legal team. The AI explanation is only for vulnerabilities so far.
 - **AI explanation** when a package is opened: the LLM (`qwen3:8b`) explains
   the fix and suggests
   commands. The code, not the LLM, decides what counts as a fix: a version
@@ -43,7 +50,7 @@ runs on your own computer. Nothing is saved.
 | Part | What it is |
 |---|---|
 | `backend/` | Python 3.11, FastAPI, the `app` package: `parsers/` (find the format, parse), `analysis/` (group, count), `fixes/` (LLM request and answer check), `llm/` (Ollama client and settings), `api/` (one router per endpoint), `main.py`. `cli.py` is the command line, `tests/` mirrors `app/` |
-| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status, filters) and the results (report, severity bar, packages with AI explanations). `src/api/` (backend client), `src/features/` (one folder per part of the page, with its tests), `src/shared/` (helpers several parts use) |
+| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status, filters) and the results (report, severity bar, findings with AI explanations). `src/api/` (backend client), `src/features/` (one folder per part of the page, with its tests), `src/shared/` (helpers several parts use) |
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/check`
 (Check connection), `POST /api/fix` (AI explanation; the body is one

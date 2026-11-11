@@ -21,7 +21,7 @@
    - **Severity bar**: 492 findings in 54 packages: 6 Critical, 126 High,
      193 Medium, 158 Low, and apart from them 9 Unknown (not rated by
      Trivy, so not part of the ranking). The bar shows the mix at a glance.
-   - **Packages by severity**: libssl3t64, openssl and
+   - **Findings by severity**: libssl3t64, openssl and
      openssl-provider-legacy, 57 findings each, all Critical (red stripe).
 3. Under **Filters**, switch off every chip except **Critical**: 4
    packages remain, 6 findings. Switch them on again.
