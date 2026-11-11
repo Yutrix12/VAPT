@@ -112,7 +112,6 @@ export function FindingsTable({ rows, notInFormat, secretFixSteps, connection, f
             <th role="columnheader" scope="col" className="number">Findings</th>
             <th role="columnheader" scope="col">Highest severity</th>
             <th role="columnheader" scope="col">Fix</th>
-            <th role="columnheader" scope="col"><span className="visually-hidden">Details</span></th>
           </tr>
         </thead>
         <tbody role="rowgroup">
@@ -231,13 +230,17 @@ function cellsOf(row: Row, secretFixSteps: string[], notInFormat: string[]): Cel
   }
 }
 
-/** One row of the table, with the button that opens its details. */
+/** One row of the table, with the button that opens its details under the item name. */
 function FindingRow({ row, notInFormat, secretFixSteps, onOpen }: RowProps) {
   const cells = cellsOf(row, secretFixSteps, notInFormat)
   return (
     <tr role="row" className={`group-row worst-${row.severity.toLowerCase()}`}>
       <td role="cell" className="item-name">
         <span translate="no">{visibleText(cells.name)}</span>
+        <button type="button" className="secondary details-button" aria-haspopup="dialog" onClick={onOpen}>
+          View details
+          <span className="visually-hidden"> of {visibleText(cells.name)}</span>
+        </button>
       </td>
       {/* data-label names each cell when narrow screens show a row as a card. */}
       <td role="cell" className="nowrap" data-label="Kind">
@@ -254,12 +257,6 @@ function FindingRow({ row, notInFormat, secretFixSteps, onOpen }: RowProps) {
       </td>
       <td role="cell" className="fix-cell" data-label="Fix">
         {cells.fix}
-      </td>
-      <td role="cell" className="details-cell">
-        <button type="button" className="secondary" aria-haspopup="dialog" onClick={onOpen}>
-          View details
-          <span className="visually-hidden"> of {visibleText(cells.name)}</span>
-        </button>
       </td>
     </tr>
   )

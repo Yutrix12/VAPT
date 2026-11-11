@@ -25,11 +25,12 @@ runs on your own computer. Nothing is saved.
 - **Findings by severity**: one table for the four kinds, worst first, with
   filters for severity and status (the status filter applies to
   vulnerabilities, the other kinds have no status). Each vulnerability row
-  is a package: it shows Trivy’s fixed versions and opens to the list of its
-  vulnerabilities. A misconfiguration opens to what is wrong and Trivy’s own
-  fix text (when the report has one). A secret opens to its place and the
+  is a package: it shows Trivy’s fixed versions, and its details dialog lists
+  its vulnerabilities. A misconfiguration’s dialog shows what is wrong and
+  Trivy’s own fix text (when the report has one). A secret’s dialog shows its
+  place and the
   fixed steps (revoke it, remove it from the code and history); its value is
-  never shown. A license opens to its name and category, with a pointer to
+  never shown. A license’s dialog shows its name and category, with a pointer to
   your legal team. The AI explanation is only for vulnerabilities so far.
 - **AI explanation** when a package is opened: the LLM (`qwen3:8b`) explains
   the fix and suggests
@@ -106,9 +107,11 @@ For the AI explanation, Ollama must be running (the Ollama app, or
    click it to choose one) and click **Analyze report**.
 2. Read the report details and the severity bar. Use the severity chips
    and the status list under **Filters** to narrow the packages.
-3. Click a package name: its vulnerabilities show, and the AI explanation
-   starts by itself (about 25 seconds; one package at a time, the others
-   wait their turn). Answers are kept until the next upload.
+3. Click **View details** under a finding: a dialog shows its details (for
+   a package: its vulnerabilities), and the AI explanation starts by itself
+   (about 25 seconds; one package at a time, the others wait their turn).
+   Esc, **Close** or a click outside the dialog closes it. Answers are kept
+   until the next upload.
 4. **AI explanations** in the sidebar shows whether `qwen3:8b` is ready;
    the page checks this when it opens. **Check connection** checks again,
    for example after starting Ollama.

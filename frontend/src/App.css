@@ -553,8 +553,18 @@ th {
   font-weight: 600;
 }
 
-.details-cell {
-  white-space: nowrap;
+.details-button {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.fix-cell {
+  min-width: 12rem;
+  max-width: 22rem;
+  overflow-wrap: anywhere;
 }
 
 .number {
@@ -792,8 +802,7 @@ th {
 
   .group-row > td:first-child,
   .group-row > .target,
-  .group-row > .fix-cell,
-  .group-row > .details-cell {
+  .group-row > .fix-cell {
     grid-column: 1 / -1;
   }
 
@@ -809,7 +818,8 @@ th {
     text-align: left;
   }
 
-  .target {
+  .target,
+  .fix-cell {
     min-width: 0;
     max-width: none;
   }

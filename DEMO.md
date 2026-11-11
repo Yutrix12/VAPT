@@ -25,9 +25,11 @@
      openssl-provider-legacy, 57 findings each, all Critical (red stripe).
 3. Under **Filters**, switch off every chip except **Critical**: 4
    packages remain, 6 findings. Switch them on again.
-4. Click **libssl3t64**: the list of its 57 vulnerabilities, each with
-   severity, status, fixed version, CVSS score and a link to the advisory.
-   The AI explanation starts by itself (“Asking the AI… 5 s”).
+4. Click **View details** under **libssl3t64**: a dialog opens with the list
+   of its 57 vulnerabilities, each with severity, status, fixed version,
+   CVSS score and a link to the advisory. The AI explanation starts by
+   itself (“Asking the AI… 5 s”). Esc, the Close button or a click on the
+   dimmed background closes the dialog.
 5. Show the **Fixed versions** column: straight from the report, and
    always shown, with or without AI.
 6. When the answer arrives (around 25 seconds), point out:
@@ -36,7 +38,7 @@
      as the recommended upgrade only if it is one of Trivy’s fixed
      versions; any other version is marked as not a fix.
    - The commands are shown apart and are never run.
-7. Close and open the package again: the answer is still there, with no
+7. Close the dialog and open it again: the answer is still there, with no
    second call to the LLM.
 8. Click **Download fix summary**: a Markdown file with every package,
    its fixed versions and, for libssl3t64, the AI’s advice. Open it in VS Code
@@ -52,7 +54,8 @@
    - **Severity bar**: 18 findings in 1 package: 10 High, 7 Medium, 1 Low.
    - One package: **pypdf 6.19.0**, with 7 fixed versions from 6.20.0 to
      6.21.4.
-3. Click **pypdf**: its AI explanation starts by itself.
+3. Click **View details** under **pypdf**: its AI explanation starts by
+   itself.
 
 ## 3. When something goes wrong
 
