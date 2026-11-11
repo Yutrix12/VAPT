@@ -23,8 +23,10 @@
      Trivy, so not part of the ranking). The bar shows the mix at a glance.
    - **Findings by severity**: libssl3t64, openssl and
      openssl-provider-legacy, 57 findings each, all Critical (red stripe).
-3. Under **Filters**, switch off every chip except **Critical**: 4
-   packages remain, 6 findings. Switch them on again.
+3. In the filter bar above the table, switch off every chip except
+   **Critical**: 4 packages remain, 6 findings. Click **Clear all**. Then
+   type `libssl` in **Search**: one package. Tick **Fix available**: 31 of
+   the 54 packages have a fixed version.
 4. Click **View details** under **libssl3t64**: a dialog opens with the list
    of its 57 vulnerabilities, each with severity, status, fixed version,
    CVSS score and a link to the advisory. The AI explanation starts by

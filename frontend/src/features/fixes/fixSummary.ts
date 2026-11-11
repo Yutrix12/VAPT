@@ -10,12 +10,13 @@ import {
   type FixAdvice,
   type FixState,
   type PackageGroup,
-  type Severity,
+  type Kind,
 } from '../../api/types'
 import { artifactTypeLabel, fieldOrNotInFormat, missingFieldsText } from '../../shared/reportText'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
 import { ALL_STATUSES, type ShownGroup } from '../filters/filterGroups'
+import { ALL_KINDS, type FilterState } from '../filters/filterState'
 import { openAfterUpgradeText } from './fixLogic'
 
 /** Line breaks become spaces, so text cannot start a heading or a list. */
@@ -71,8 +72,7 @@ export function summaryFileName(reportFileName: string): string {
 export interface SummaryInput {
   result: AnalyzeResult
   shown: ShownGroup[] // the groups and findings the filters show
-  severities: ReadonlySet<Severity>
-  status: string // ALL_STATUSES or one status value
+  filters: FilterState // the filters that were on; the summary says which
   fixFor: (group: PackageGroup) => FixState | undefined
   model: string | null // the model the answers came from (last successful check)
   locale?: string // for tests; the browser's own by default
@@ -101,13 +101,24 @@ function countsLine(result: AnalyzeResult): string {
   )
 }
 
+const KIND_PLURALS: Record<Kind, string> = {
+  vulnerability: 'Vulnerabilities',
+  misconfiguration: 'Misconfigurations',
+  secret: 'Secrets',
+  license: 'Licenses',
+}
+
 function filtersLine(input: SummaryInput): string {
+  const { filters: on } = input
   const filters: string[] = []
-  if (input.severities.size < SEVERITIES.length) {
-    const on = SEVERITIES.filter((s) => input.severities.has(s)).map(severityLabel)
-    filters.push(on.length > 0 ? `severity ${on.join(', ')}` : 'no severity')
+  if (on.search.trim() !== '') filters.push(`search ${codeSpan(on.search.trim())}`)
+  if (on.kind !== ALL_KINDS) filters.push(`kind ${KIND_PLURALS[on.kind]}`)
+  if (on.severities.size < SEVERITIES.length) {
+    const shown = SEVERITIES.filter((s) => on.severities.has(s)).map(severityLabel)
+    filters.push(shown.length > 0 ? `severity ${shown.join(', ')}` : 'no severity')
   }
-  if (input.status !== ALL_STATUSES) filters.push(`status ${codeSpan(input.status)}`)
+  if (on.status !== ALL_STATUSES) filters.push(`status ${codeSpan(on.status)}`)
+  if (on.fixOnly) filters.push('fix available')
   const total = input.result.package_groups.length
   let listed = `${input.shown.length} of ${countText(total, 'package')}`
   if (total === 0) listed = 'no packages'

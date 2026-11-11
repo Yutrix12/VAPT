@@ -23,8 +23,11 @@ runs on your own computer. Nothing is saved.
   apart, because Trivy could not rate it, and always comes after the rated
   ones.
 - **Findings by severity**: one table for the four kinds, worst first, with
-  filters for severity and status (the status filter applies to
-  vulnerabilities, the other kinds have no status). Each vulnerability row
+  a filter bar above it: search (names, files, CVE IDs and titles), kind,
+  status, “Fix available”, the severity chips and **Clear all**. The status
+  filter applies to vulnerabilities, the other kinds have no status; “Fix
+  available” keeps vulnerabilities with a fixed version, misconfigurations
+  with a fix text from Trivy, and all secrets (never licenses). Each vulnerability row
   is a package: it shows Trivy’s fixed versions, and its details dialog lists
   its vulnerabilities. A misconfiguration’s dialog shows what is wrong and
   Trivy’s own fix text (when the report has one). A secret’s dialog shows its
@@ -51,7 +54,7 @@ runs on your own computer. Nothing is saved.
 | Part | What it is |
 |---|---|
 | `backend/` | Python 3.11, FastAPI, the `app` package: `parsers/` (find the format, parse), `analysis/` (group, count), `fixes/` (LLM request and answer check), `llm/` (Ollama client and settings), `api/` (one router per endpoint), `main.py`. `cli.py` is the command line, `tests/` mirrors `app/` |
-| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status, filters) and the results (report, severity bar, findings with AI explanations). `src/api/` (backend client), `src/features/` (one folder per part of the page, with its tests), `src/shared/` (helpers several parts use) |
+| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status) and the results (filter bar, (report, severity bar, findings with AI explanations). `src/api/` (backend client), `src/features/` (one folder per part of the page, with its tests), `src/shared/` (helpers several parts use) |
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/check`
 (Check connection), `POST /api/fix` (AI explanation; the body is one
@@ -105,8 +108,9 @@ For the AI explanation, Ollama must be running (the Ollama app, or
 
 1. Drop a Trivy report (JSON or text table) on the **Upload a report** panel in the sidebar (or
    click it to choose one) and click **Analyze report**.
-2. Read the report details and the severity bar. Use the severity chips
-   and the status list under **Filters** to narrow the packages.
+2. Read the report details and the severity bar. Use the filter bar above
+   the table (search, kind, status, severity chips, **Fix available**) to
+   narrow the findings, and **Clear all** to start again.
 3. Click **View details** under a finding: a dialog shows its details (for
    a package: its vulnerabilities), and the AI explanation starts by itself
    (about 25 seconds; one package at a time, the others wait their turn).

@@ -1,18 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { checkHealth, checkLlm, explainFix, type Health } from './api/client'
 import {
-  SEVERITIES,
   type AiConnection,
   type AnalyzeResult,
   type FixState,
   type PackageGroup,
-  type Severity,
 } from './api/types'
 import { AiStatusPanel } from './features/ai-status/AiStatusPanel'
 import { connectionFromStatus } from './features/ai-status/connection'
-import { ALL_STATUSES } from './features/filters/filterGroups'
-import { defaultFilters } from './features/filters/filterState'
-import { Filters } from './features/filters/Filters'
+import { FilterBar } from './features/filters/FilterBar'
+import { defaultFilters, type FilterState } from './features/filters/filterState'
 import { serialQueue, toFixGroup } from './features/fixes/fixLogic'
 import { buildFixSummary, summaryFileName } from './features/fixes/fixSummary'
 import { FindingsTable } from './features/report/FindingsTable'
@@ -69,8 +66,7 @@ function EmptyState() {
 function App() {
   const [health, setHealth] = useState<Health>({ state: 'checking' })
   const [result, setResult] = useState<AnalyzeResult | null>(null)
-  const [severities, setSeverities] = useState<Set<Severity>>(() => new Set(SEVERITIES))
-  const [status, setStatus] = useState(ALL_STATUSES)
+  const [filters, setFilters] = useState<FilterState>(defaultFilters)
   const [connection, setConnection] = useState<AiConnection>({ state: 'checking' })
   // The model of the last successful check: answers are kept per model, so
   // a backend switched to another model never shows an older model's advice.
@@ -123,15 +119,14 @@ function App() {
     return fixes.get(fixKey(group))
   }
 
-  const rows = useMemo(() => (result ? buildRows(result, { ...defaultFilters(), severities, status }) : []), [result, severities, status])
+  const rows = useMemo(() => (result ? buildRows(result, filters) : []), [result, filters])
   // The fix summary lists vulnerabilities only until U9 adds the other kinds.
   const shown = useMemo(() => rows.flatMap((row) => (row.kind === 'vulnerability' ? [row.shown] : [])), [rows])
   const counts = useMemo(() => (result ? severityCounts(result) : null), [result])
 
   function showResult(next: AnalyzeResult) {
     setResult(next)
-    setSeverities(new Set(SEVERITIES))
-    setStatus(ALL_STATUSES)
+    setFilters(defaultFilters())
     // A new report starts without AI answers: an old answer could belong
     // to a group whose fixed versions have changed.
     reportNumber.current += 1
@@ -150,8 +145,7 @@ function App() {
     const text = buildFixSummary({
       result,
       shown,
-      severities,
-      status,
+      filters,
       fixFor,
       model: aiModel,
     })
@@ -190,16 +184,6 @@ function App() {
         </header>
         <UploadForm onResult={showResult} />
         <AiStatusPanel connection={connection} onCheck={() => void checkConnection()} />
-        {result && (
-          <Filters
-            severities={severities}
-            onSeveritiesChange={setSeverities}
-            counts={counts ?? result.summary.by_severity}
-            status={status}
-            statuses={Object.keys(result.summary.by_status)}
-            onStatusChange={setStatus}
-          />
-        )}
       </aside>
       <main className="main" id="results">
         {result ? (
@@ -222,6 +206,12 @@ function App() {
                   </button>
                 </div>
               </div>
+              <FilterBar
+                filters={filters}
+                onChange={setFilters}
+                counts={counts ?? result.summary.by_severity}
+                statuses={Object.keys(result.summary.by_status)}
+              />
               {hasOtherKinds(result) && (
                 <p className="muted">The fix summary lists vulnerabilities only for now.</p>
               )}

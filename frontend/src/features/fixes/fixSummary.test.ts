@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AnalyzeResult, Finding, FixAdvice, FixState, PackageGroup, Severity } from '../../api/types'
 import { SEVERITIES } from '../../api/types'
 import { filterGroups } from '../filters/filterGroups'
+import { defaultFilters, type FilterState } from '../filters/filterState'
 import { buildFixSummary, codeBlock, codeSpan, escapeMarkdown, summaryFileName } from './fixSummary'
 
 const RLO = String.fromCodePoint(0x202e) // right-to-left override: hidden
@@ -102,11 +103,11 @@ function advice(changes: Partial<FixAdvice>): FixAdvice {
 }
 
 function summaryOf(fixes: Map<string, FixState>, severities: ReadonlySet<Severity> = new Set(SEVERITIES)) {
+  const filters = { ...defaultFilters(), severities }
   return buildFixSummary({
     result,
     shown: filterGroups(result.package_groups, severities, ''),
-    severities,
-    status: '',
+    filters,
     fixFor: (g) => fixes.get(g.pkg_name ?? ''),
     model: 'qwen3:8b',
     locale: 'en-GB',
@@ -158,7 +159,7 @@ describe('buildFixSummary', () => {
     const single = { ...result, package_groups: [zlib] }
     const text = buildFixSummary({
       result: single, shown: filterGroups(single.package_groups, new Set(SEVERITIES), ''),
-      severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
+      filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
     expect(text).toContain('Filters: none. This summary lists 1 package.')
     expect(text).toContain('- AI model used: none connected yet')
@@ -167,7 +168,7 @@ describe('buildFixSummary', () => {
   it('writes the repository line like the page, also without git details', () => {
     const repo = { ...result, report: { ...result.report, artifact_type: 'repository' } }
     const text = buildFixSummary({
-      result: repo, shown: [], severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
+      result: repo, shown: [], filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
     expect(text).toContain('- Repository: No git details in the report')
   })
@@ -179,7 +180,7 @@ describe('buildFixSummary', () => {
                 not_in_format: ['created_at', 'os', 'status'] },
     }
     const text = buildFixSummary({
-      result: lacking, shown: [], severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
+      result: lacking, shown: [], filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
     expect(text).toContain('- Report format: Trivy table')
     expect(text).toContain('Scan date: not in this format.')
@@ -194,7 +195,7 @@ describe('buildFixSummary', () => {
                 not_in_format: ['artifact_name', 'artifact_type', 'trivy_version', 'created_at', 'cvss_score'] },
     }
     const text = buildFixSummary({
-      result: table, shown: [], severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
+      result: table, shown: [], filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
     expect(text).toContain('# Fix summary: not in this format')
     expect(text).toContain('Trivy version: not in this format.')
@@ -202,10 +203,25 @@ describe('buildFixSummary', () => {
     expect(text).toContain('- Not in this format: CVSS scores')
   })
 
+  it('names every filter that is on: search, kind, severity, status and fix available', () => {
+    const filters: FilterState = {
+      search: 'open*ssl', kind: 'vulnerability', severities: new Set<Severity>(['HIGH']), status: 'fixed', fixOnly: true,
+    }
+    const text = buildFixSummary({ result, shown: [], filters, fixFor: () => undefined, model: null })
+    expect(text).toContain(
+      'Filters: search `open*ssl`; kind Vulnerabilities; severity High; status `fixed`; fix available.')
+  })
+
+  it('keeps hidden characters in the search text out of the summary', () => {
+    const filters = { ...defaultFilters(), search: `a${RLO}b` }
+    const text = buildFixSummary({ result, shown: [], filters, fixFor: () => undefined, model: null })
+    expect(text).not.toContain(RLO)
+  })
+
   it('says "no packages" for a report without any', () => {
     const empty = { ...result, package_groups: [] }
     const text = buildFixSummary({
-      result: empty, shown: [], severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
+      result: empty, shown: [], filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
     expect(text).toContain('Filters: none. This summary lists no packages.')
   })

@@ -309,10 +309,6 @@ button:disabled {
   outline-offset: 2px;
 }
 
-.chips-apart {
-  align-items: center;
-  margin-top: 0.6rem;
-}
 
 .chips-label {
   font-size: 0.8rem;
@@ -563,7 +559,7 @@ th {
 
 .fix-cell {
   min-width: 12rem;
-  max-width: 22rem;
+  max-width: 30rem;
   overflow-wrap: anywhere;
 }
 
@@ -912,4 +908,65 @@ th {
     height: 100%;
     max-height: none;
   }
+}
+
+/* The filter bar above the findings table. */
+.filter-bar {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+}
+
+.filter-bar .field {
+  margin-top: 0;
+}
+
+.filter-search {
+  flex: 1 1 16rem;
+}
+
+.filter-search input,
+.filter-bar select {
+  font: inherit;
+  font-weight: 400;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.filter-bar select:disabled {
+  color: var(--faint);
+  background: var(--bg, #f3f4f6);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0;
+  font-size: 0.87rem;
+  font-weight: 600;
+}
+
+.filter-hint {
+  margin: -0.4rem 0 0;
+  font-size: 0.82rem;
+}
+
+.filter-bar .chips {
+  align-items: center;
 }
