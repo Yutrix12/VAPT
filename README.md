@@ -11,7 +11,7 @@ runs on your own computer. Nothing is saved.
 
 ## What it does
 
-- **Upload** one Trivy report: JSON, or Trivy’s text (table) output. The
+- **Upload** one Trivy report: JSON, or Trivy’s text (table) output (two layouts of the table are read). The
   format is found from the content, not the file name. A table carries less
   than JSON (no scan date, Trivy version, CVSS scores or full titles), and
   the page lists what is missing. Other files get “not a supported Trivy

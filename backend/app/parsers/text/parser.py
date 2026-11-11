@@ -43,7 +43,12 @@ TOTAL = re.compile(r"^Total: (\d+) \(UNKNOWN: (\d+), LOW: (\d+), MEDIUM: (\d+), 
 TESTS = re.compile(r"^Tests: \d+ \(SUCCESSES: (\d+), FAILURES: (\d+)\)$")
 FAILURES = re.compile(r"^Failures: (\d+) \(UNKNOWN: (\d+), LOW: (\d+), MEDIUM: (\d+), HIGH: (\d+), CRITICAL: (\d+)\)$")
 MISCONFIG_HEAD = re.compile(rf"^(\S+) \(({SEVERITY})\): ?(.*)$")
-SECRET_HEAD = re.compile(rf"^({SEVERITY}): (.*) \(([^()]*)\)$")
+SECRET_HEAD = re.compile(rf"^({SEVERITY}): (.*) \(([^()]*)\)$")  # SEVERITY: Category (rule-id)
+# The second layout (no IDs): "HIGH: message" and "CRITICAL (AWS): title".
+MISCONFIG_HEAD_PLAIN = re.compile(rf"^({SEVERITY}): ?(.*)$")
+SECRET_HEAD_BRACKET = re.compile(rf"^({SEVERITY}) \(([^()]*)\): ?(.*)$")
+SUMMARY_COUNTS = ("Vulnerabilities", "Misconfigurations", "Secrets", "Licenses")
+AVD_HOST = "avd.aquasec.com"
 LOCATION = re.compile(r"^\s*.+?:(\d+)(?:-(\d+))?(?: \(offset: \d+ bytes\))?\s*$")
 HEADING_BRACKET = re.compile(r"^(.*\S) \(([^()\s]+)\)$")
 LIBRARY_FILE = re.compile(r"^(.*\S) \([^()\s]+\)$")
@@ -61,6 +66,7 @@ class Parsed:
     secrets: list[Secret] = field(default_factory=list)
     licenses: list[License] = field(default_factory=list)
     misconfig_passed: int = 0
+    missing: set[str] = field(default_factory=set)  # fields this layout lacks, on top of NOT_IN_TEXT
 
 
 @dataclass
@@ -108,6 +114,11 @@ def heading_at(lines: list[str], index: int) -> bool:
     return first < len(lines) and lines[first].startswith(("Total: ", "Tests: "))
 
 
+def starts_secret_block(line: str) -> bool:
+    """True if the line looks like the first line of a secret block (either layout)."""
+    return bool(SECRET_HEAD.match(line.strip()) or SECRET_HEAD_BRACKET.match(line.strip()))
+
+
 def is_trivy_text(text: str) -> bool:
     """True if the text looks like Trivy's table output (a summary or a result section)."""
     lines = text.splitlines()
@@ -125,7 +136,8 @@ def is_trivy_text(text: str) -> bool:
             if lines[first].startswith("Total: "):
                 after = next_content(lines, first + 1)
                 if after < len(lines) and (
-                    lines[after].startswith("┌") or (SECRET_HEAD.match(lines[after].strip()) and is_rule(lines, after + 1, "═"))
+                    lines[after].startswith("┌")
+                    or (starts_secret_block(lines[after]) and is_rule(lines, after + 1, "═"))
                 ):
                     return True
     return False
@@ -149,7 +161,7 @@ def parse_report_text(file_name: str, raw: bytes, text: str) -> Report:
         file_name=file_name,
         file_sha256=hashlib.sha256(raw).hexdigest(),
         report_format=TRIVY_TEXT,
-        not_in_format=NOT_IN_TEXT,
+        not_in_format=NOT_IN_TEXT + tuple(sorted(parsed.missing)),
         schema_version=None,
         trivy_version=None,
         created_at=None,
@@ -182,10 +194,14 @@ def read_summary(lines: list[str]) -> tuple[list[SummaryEntry], int]:
             if top >= len(lines) or not lines[top].startswith("┌"):
                 raise ReportError("the Report Summary has no table")
             header, rows, after = read_table(lines, top, "Report Summary")
-            if header[:2] != ["Target", "Type"] or len(header) != 6:
+            if header[:2] != ["Target", "Type"] or header[2:] != list(SUMMARY_COUNTS[: len(header) - 2]) or len(header) < 5:
                 raise ReportError("the Report Summary has unexpected columns")
-            entries = [(" ".join(row[0]), type_or_none(" ".join(row[1])), [count(" ".join(cell)) for cell in row[2:]])
-                       for row in rows]
+            # Some layouts have no Licenses column: its count is 0.
+            entries = [
+                (" ".join(row[0]), type_or_none(" ".join(row[1])),
+                 [count(" ".join(cell)) for cell in row[2:]] + [0] * (6 - len(header)))
+                for row in rows
+            ]
             return entries, after
     return [], 0
 
@@ -272,20 +288,31 @@ def cell(row: Row, column: int) -> str:
 
 
 def title_and_url(lines: list[str]) -> tuple[str | None, str | None]:
-    """The title lines, then the primary URL (its wrapped parts join without a space)."""
+    """The title lines, then the primary URL (its wrapped parts join without a space).
+
+    A second layout writes the link as "-->avd.aquasec.com/nvd/cve-..." (no
+    scheme). Only that host gets "https://"; any other host gives no link.
+    """
     for number, text in enumerate(lines):
         if text.startswith(("http://", "https://")):
             return " ".join(lines[:number]) or None, "".join(lines[number:])
+        if text.startswith("-->"):
+            rest = "".join(lines[number:])[3:]
+            url = f"https://{rest}" if rest.split("/", 1)[0] == AVD_HOST else None
+            return " ".join(lines[:number]) or None, url
     return " ".join(lines) or None, None
 
 
 def parse_vulnerabilities(rows: list[Row], heading: Heading, title: str, expected: list[int], parsed: Parsed) -> None:
     items = []
+    previous_library = ""
     for row in rows:
         vuln_id = cell(row, 1)
         if not vuln_id:
             raise ReportError(f"{title}: a table row has no vulnerability ID")
-        library = cell(row, 0)
+        # A blank Library cell means the package of the row above (this layout does not merge it).
+        library = cell(row, 0) or previous_library
+        previous_library = library
         file_suffix = LIBRARY_FILE.match(library)  # "jaraco.context (METADATA)": a file name
         text, url = title_and_url(row[6])
         items.append(
@@ -298,7 +325,7 @@ def parse_vulnerabilities(rows: list[Row], heading: Heading, title: str, expecte
                 pkg_name=(file_suffix.group(1) if file_suffix else library) or None,
                 installed_version=cell(row, 4) or None,
                 fixed_version=cell(row, 5) or None,
-                status=cell(row, 3) or "unknown",
+                status="".join(row[3]) or "unknown",  # a status has no space: a wrap can fall inside it
                 severity=normalize_severity(cell(row, 2)),
                 title=text,
                 cvss_score=None,
@@ -332,9 +359,12 @@ def parse_licenses(rows: list[Row], heading: Heading, title: str, expected: list
     parsed.licenses.extend(items)
 
 
-def block_starts(lines: list[str], start: int, end: int, head: re.Pattern[str]) -> list[int]:
-    """Indexes of the block headers: a matching line followed by a line of "═"."""
-    return [i for i in range(start, end) if head.match(lines[i].strip()) and is_rule(lines, i + 1, "═")]
+def block_starts(lines: list[str], start: int, end: int, *heads: re.Pattern[str]) -> list[int]:
+    """Indexes of the block headers: a line that matches a header shape, then a line of "═"."""
+    return [
+        i for i in range(start, end)
+        if any(head.match(lines[i].strip()) for head in heads) and is_rule(lines, i + 1, "═")
+    ]
 
 
 def parse_misconfigurations(
@@ -346,14 +376,21 @@ def parse_misconfigurations(
     failures_line = next_content(lines, first + 1)
     failures = FAILURES.match(lines[failures_line].strip()) if failures_line < end else None
     items = []
-    starts = block_starts(lines, first, end, MISCONFIG_HEAD)
+    starts = block_starts(lines, first, end, MISCONFIG_HEAD, MISCONFIG_HEAD_PLAIN)
     for number, start in enumerate(starts):
         stop = starts[number + 1] if number + 1 < len(starts) else end
-        match = MISCONFIG_HEAD.match(lines[start].strip())
-        assert match is not None
+        head = lines[start].strip()
+        with_id = MISCONFIG_HEAD.match(head)
         # The text after the colon is the check's Message: it can quote the
         # scanned file, so it is never kept (secrets rule, owner 2026-11-11).
-        check_id, severity, _message = match.groups()
+        if with_id is not None:
+            check_id, severity, _message = with_id.groups()
+        else:
+            plain = MISCONFIG_HEAD_PLAIN.match(head)
+            assert plain is not None
+            severity, _message = plain.groups()
+            check_id = None  # this layout prints no check ID
+            parsed.missing.add("check_id")
         # Between the "═" line and the first "─" line: description and "See <url>".
         # Everything after it (location, source lines) is never read.
         body = []
@@ -370,7 +407,7 @@ def parse_misconfigurations(
                 target=heading.target,
                 misconf_type=heading.result_type,
                 check_type=None,
-                check_id=check_id,
+                check_id=check_id or None,
                 title=None,
                 description=description or None,
                 resolution=None,
@@ -396,12 +433,20 @@ def parse_secrets(
     lines: list[str], first: int, end: int, heading: Heading, title: str, expected: list[int], parsed: Parsed
 ) -> None:
     items = []
-    starts = block_starts(lines, first, end, SECRET_HEAD)
+    starts = block_starts(lines, first, end, SECRET_HEAD, SECRET_HEAD_BRACKET)
     for number, start in enumerate(starts):
         stop = starts[number + 1] if number + 1 < len(starts) else end
-        match = SECRET_HEAD.match(lines[start].strip())
-        assert match is not None
-        severity, category, rule_id = match.groups()
+        head = lines[start].strip()
+        with_rule = SECRET_HEAD.match(head)
+        header_title = None
+        if with_rule is not None:
+            severity, category, rule_id = with_rule.groups()
+        else:
+            bracket = SECRET_HEAD_BRACKET.match(head)
+            assert bracket is not None
+            severity, category, header_title = bracket.groups()
+            rule_id = ""  # this layout prints no rule ID; its title is in the header
+            parsed.missing.add("rule_id")
         # Title: lines up to the first "─" line. Then the location line, if any.
         # The source lines after it are never read: they can hold the secret.
         index = start + 2
@@ -420,7 +465,7 @@ def parse_secrets(
                 rule_id=rule_id or None,
                 category=category or None,
                 severity=normalize_severity(severity),
-                title=" ".join(t for t in title_lines if t) or None,
+                title=header_title.strip() or None if header_title is not None else " ".join(t for t in title_lines if t) or None,
                 start_line=first_line,
                 end_line=last_line,
             )

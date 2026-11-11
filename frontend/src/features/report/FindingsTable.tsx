@@ -1,7 +1,7 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import type { AiConnection, Finding, FixState, OtherFixState, PackageGroup, Severity } from '../../api/types'
 import { severityLabel } from '../../shared/severity'
-import { NOT_IN_FORMAT, kindLabel, lineText } from '../../shared/reportText'
+import { NOT_IN_FORMAT, kindLabel, lineText, misconfigurationName, secretName } from '../../shared/reportText'
 import { safeLink, visibleText } from '../../shared/text'
 import { FixCommands } from '../fixes/FixCommands'
 import { FixPanel } from '../fixes/FixPanel'
@@ -225,7 +225,7 @@ function cellsOf(row: Row, secretFixSteps: string[], notInFormat: string[]): Cel
       const { item } = row
       const missing = notInFormat.includes('resolution') ? NOT_IN_FORMAT : 'No fix text in this report'
       return {
-        name: [item.check_id, item.title].filter(Boolean).join(': ') || 'unknown check',
+        name: misconfigurationName(item),
         where: whereCell(item.target, lineText(item.start_line, item.end_line)),
         count: '1',
         fix:
@@ -235,7 +235,7 @@ function cellsOf(row: Row, secretFixSteps: string[], notInFormat: string[]): Cel
     case 'secret': {
       const { item } = row
       return {
-        name: [item.rule_id, item.category && `(${item.category})`].filter(Boolean).join(' ') || 'unknown rule',
+        name: secretName(item),
         where: whereCell(item.target, lineText(item.start_line, item.end_line)),
         count: '1',
         fix: visibleText(shorten(secretFixSteps[0] ?? 'See the details')),

@@ -9,6 +9,7 @@ from collections.abc import Sequence
 Cell = str | list[str] | None
 
 SUMMARY_HEADER = ["Target", "Type", "Vulnerabilities", "Misconfigurations", "Secrets", "Licenses"]
+SUMMARY_HEADER_NO_LICENSES = SUMMARY_HEADER[:5]  # the second layout has no Licenses column
 VULN_HEADER = ["Library", "Vulnerability", "Severity", "Status", "Installed Version", "Fixed Version", "Title"]
 LICENSE_HEADER = ["Package", "License", "Classification", "Severity"]
 
@@ -56,10 +57,10 @@ def box(header: Sequence[str], rows: Sequence[Sequence[Cell]]) -> str:
     return "\n".join(out)
 
 
-def summary(rows: Sequence[Sequence[str]]) -> str:
+def summary(rows: Sequence[Sequence[str]], header: Sequence[str] = SUMMARY_HEADER) -> str:
     """The "Report Summary" part that opens a scan's table output."""
     legend = "Legend:\n- '-': Not scanned\n- '0': Clean (no security findings detected)"
-    return f"\nReport Summary\n\n{box(SUMMARY_HEADER, rows)}\n{legend}\n\n"
+    return f"\nReport Summary\n\n{box(header, rows)}\n{legend}\n\n"
 
 
 def section(heading: str, *parts: str) -> str:
@@ -89,3 +90,20 @@ def secret_block(severity: str, category: str, rule: str, title: str, location: 
     if location:
         lines += [f" {location}", "─" * 40, *code, "─" * 40]
     return "\n".join(lines) + "\n\n"
+
+
+def plain_misconfig_block(severity: str, message: str, description: str, url: str, code: Sequence[str] = ()) -> str:
+    """One failed check in the second layout: "SEVERITY: message" (no ID)."""
+    lines = [f"{severity}: {message}", "═" * 70, description, "", f"See {url}", "─" * 70]
+    if code:
+        lines += [" Dockerfile:3-4", "─" * 70, *code, "─" * 70]
+    return "\n".join(lines) + "\n\n"
+
+
+def plain_secret_block(severity: str, category: str, title: str, location: str = "", code: Sequence[str] = ()) -> str:
+    """One secret in the second layout: "SEVERITY (Category): title" (no rule ID)."""
+    lines = [f"{severity} ({category}): {title}", "═" * 70, "Secret detected", "─" * 70]
+    if location:
+        lines += [location, *code, "─" * 70]
+    return "\n".join(lines) + "\n\n"
+

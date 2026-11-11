@@ -20,8 +20,10 @@ import {
   fieldOrNotInFormat,
   kindLabel,
   lineText,
+  misconfigurationName,
   missingFieldsText,
   overviewText,
+  secretName,
 } from '../../shared/reportText'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
@@ -282,7 +284,7 @@ function otherSection(row: OtherRow, index: number, result: AnalyzeResult, fix: 
       const { item } = row
       const noFix = result.report.not_in_format.includes('resolution') ? NOT_IN_FORMAT : 'none in the report'
       return [
-        ...head([item.check_id, item.title].filter(Boolean).join(': ') || 'unknown check'),
+        ...head(misconfigurationName(item)),
         severity,
         `- Where: ${whereText(item.target, item.start_line, item.end_line)}`,
         `- What is wrong: ${escapeMarkdown(item.description ?? 'the report gives no description')}`,
@@ -294,7 +296,7 @@ function otherSection(row: OtherRow, index: number, result: AnalyzeResult, fix: 
     case 'secret': {
       const { item } = row
       return [
-        ...head([item.rule_id, item.category && `(${item.category})`].filter(Boolean).join(' ') || 'unknown rule'),
+        ...head(secretName(item)),
         severity,
         `- Where: ${whereText(item.target, item.start_line, item.end_line)}`,
         '- How to fix it:',

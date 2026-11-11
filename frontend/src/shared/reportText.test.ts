@@ -4,7 +4,9 @@ import {
   fieldOrNotInFormat,
   kindLabel,
   lineText,
+  misconfigurationName,
   missingFieldsText,
+  secretName,
   overviewText,
   shownText,
 } from './reportText'
@@ -84,3 +86,49 @@ describe('overviewText', () => {
       '5 findings: 1 misconfiguration, 4 licenses')
   })
 })
+
+describe('missing check and rule IDs', () => {
+  it('names them when the layout of a text report has none', () => {
+    expect(missingFieldsText({ not_in_format: ['check_id', 'rule_id'] })).toBe('misconfiguration IDs, secret rule IDs')
+  })
+})
+
+describe('misconfigurationName', () => {
+  it('is the ID and the title, as before', () => {
+    expect(misconfigurationName({ check_id: 'DS-0002', title: 'Image user', description: 'd' })).toBe('DS-0002: Image user')
+    expect(misconfigurationName({ check_id: 'DS-0002', title: null, description: 'd' })).toBe('DS-0002')
+    expect(misconfigurationName({ check_id: null, title: 'Image user', description: 'd' })).toBe('Image user')
+  })
+
+  it('falls back to the start of the description when the report has no ID and no title', () => {
+    expect(misconfigurationName({ check_id: null, title: null, description: 'Root is risky.' })).toBe('Root is risky.')
+    const long = 'Running containers with root user can lead to a container escape situation. It is a best practice.'
+    const name = misconfigurationName({ check_id: null, title: null, description: long })
+    expect(name.length).toBeLessThanOrEqual(60)
+    expect(name.endsWith('...')).toBe(true)
+    expect(long.startsWith(name.slice(0, -3))).toBe(true)
+  })
+
+  it('says "unknown check" when there is nothing to name it by', () => {
+    expect(misconfigurationName({ check_id: null, title: null, description: null })).toBe('unknown check')
+    expect(misconfigurationName({ check_id: '', title: '', description: '  ' })).toBe('unknown check')
+  })
+})
+
+describe('secretName', () => {
+  it('is the rule ID and the category, as before', () => {
+    expect(secretName({ rule_id: 'aws-access-key-id', category: 'AWS', title: 'AWS Access Key ID' })).toBe('aws-access-key-id (AWS)')
+    expect(secretName({ rule_id: 'aws-access-key-id', category: null, title: null })).toBe('aws-access-key-id')
+  })
+
+  it('uses the title when the report has no rule ID', () => {
+    expect(secretName({ rule_id: null, category: 'AWS', title: 'AWS Access Key ID' })).toBe('AWS Access Key ID (AWS)')
+    expect(secretName({ rule_id: null, category: null, title: 'My Secret' })).toBe('My Secret')
+  })
+
+  it('says "unknown rule" when there is nothing to name it by', () => {
+    expect(secretName({ rule_id: null, category: null, title: null })).toBe('unknown rule')
+    expect(secretName({ rule_id: '', category: 'AWS', title: '' })).toBe('(AWS)') // only a category: kept as it is
+  })
+})
+

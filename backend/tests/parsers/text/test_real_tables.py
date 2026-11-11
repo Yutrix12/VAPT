@@ -100,5 +100,44 @@ class RealTablesTest(unittest.TestCase):
             self.assertNotIn(value, text)
 
 
+SECOND_LAYOUT = TABLES_DIR / "second-layout.txt"
+
+
+@unittest.skipUnless(SECOND_LAYOUT.exists(), f"{SECOND_LAYOUT} not found")
+class SecondLayoutRealTest(unittest.TestCase):
+    """The owner's file: a second layout of Trivy's table output."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.report = parse_report_file("trivy-sample-report.txt", SECOND_LAYOUT.read_bytes())
+
+    def test_numbers(self) -> None:
+        report = self.report
+        self.assertEqual((len(report.findings), len(report.misconfigurations), len(report.secrets)), (13, 1, 2))
+        self.assertEqual(report.misconfig_passed, 26)
+        summary = summarize(report)
+        self.assertEqual(list(summary["by_severity"].values()), [1, 1, 7, 4, 0])
+        self.assertEqual(summary["unique_packages"], 11)
+
+    def test_findings(self) -> None:
+        rows = [(f.target, f.pkg_name, f.vuln_id, f.severity, f.status, f.installed_version, f.fixed_version)
+                for f in self.report.findings]
+        self.assertIn(("testdata/fixtures/images/centos-7.tar.gz (centos 7.6.1810)", "bash", "CVE-2019-18276", "LOW",
+                       "will_not_fix", "4.2.46-31.el7", None), rows)
+        self.assertIn(("testdata/fixtures/images/centos-7.tar.gz (centos 7.6.1810)", "openssl-libs", "CVE-2018-0734",
+                       "LOW", "fixed", "1:1.0.2k-16.el7", "1:1.0.2k-19.el7"), rows)  # a blank library cell
+        self.assertIn(("requirements.txt", "Werkzeug", "CVE-2020-28724", "MEDIUM", "fixed", "0.11", "0.11.6"), rows)
+        self.assertEqual({f.vuln_type for f in self.report.findings}, {"ubuntu", "centos", "debian", "npm", "pip"})
+
+    def test_links_and_other_kinds(self) -> None:
+        self.assertEqual(self.report.findings[0].primary_url, "https://avd.aquasec.com/nvd/cve-2019-18276")
+        self.assertEqual([(s.severity, s.category, s.title, s.start_line) for s in self.report.secrets],
+                         [("CRITICAL", "AWS", "AWS Access Key ID", 3), ("HIGH", "Custom", "My Secret", 7)])
+        self.assertEqual(self.report.misconfigurations[0].severity, "HIGH")
+
+    def test_the_secret_text_in_the_source_lines_never_appears(self) -> None:
+        self.assertNotIn("ghp_0123456789", repr(self.report))
+
+
 if __name__ == "__main__":
     unittest.main()

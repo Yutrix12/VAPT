@@ -15,9 +15,12 @@ from app.parsers.models import ReportError
 from app.parsers.text.parser import parse_report_text
 from tests.support.trivy_tables import (
     LICENSE_HEADER,
+    SUMMARY_HEADER_NO_LICENSES,
     VULN_HEADER,
     box,
     misconfig_block,
+    plain_misconfig_block,
+    plain_secret_block,
     secret_block,
     section,
     summary,
@@ -280,6 +283,80 @@ class DetectionTest(unittest.TestCase):
 
     def test_supported_formats_list_the_text_format(self) -> None:
         self.assertEqual(SUPPORTED_FORMATS, ("Trivy JSON", "Trivy text (table)"))
+
+
+class SecondLayoutTest(unittest.TestCase):
+    """The second layout of Trivy's table output (a file given by the owner)."""
+
+    TOKEN = "TOKEN-NOT-A-REAL-SECRET-VALUE-1234"
+
+    def test_summary_without_a_licenses_column_is_read(self) -> None:
+        rows = [["Python", "python-pkg", "1", "-", "-"], ["deploy.sh", "secret", "-", "-", "1"]]
+        text = summary(rows, SUMMARY_HEADER_NO_LICENSES) + vulnerabilities(
+            ["a", "CVE-1", "HIGH", "fixed", "1", "2", "t"], high=1)
+        text += section("deploy.sh", totals(high=1), plain_secret_block("HIGH", "Custom", "My Secret", "deploy.sh:7"))
+        report = parse(text)
+        self.assertEqual((len(report.findings), len(report.secrets)), (1, 1))
+        self.assertEqual(report.findings[0].vuln_type, "python-pkg")  # the exact type, from the summary
+
+    def test_a_blank_library_cell_means_the_package_above(self) -> None:
+        text = vulnerabilities(
+            ["openssl-libs", "CVE-1", "MEDIUM", "fixed", "1:1.0", "1:2.0", ["t", "-->avd.aquasec.com/nvd/cve-1"]],
+            ["", "CVE-2", "LOW", "fixed", "1:1.0", "1:2.0", ["t", "-->avd.aquasec.com/nvd/cve-2"]],
+            ["bash", "CVE-3", "LOW", "affected", "5.0", "", "t"], medium=1, low=2)
+        self.assertEqual([(f.pkg_name, f.vuln_id) for f in parse(text).findings],
+                         [("openssl-libs", "CVE-1"), ("openssl-libs", "CVE-2"), ("bash", "CVE-3")])
+
+    def test_a_status_wrapped_inside_a_word_is_put_back_together(self) -> None:
+        text = vulnerabilities(["bash", "CVE-1", "LOW", ["will_not", "_fix"], "4.2", "", "t"], low=1)
+        self.assertEqual(parse(text).findings[0].status, "will_not_fix")
+
+    def test_the_avd_link_without_a_scheme_gets_https_and_other_hosts_stay_empty(self) -> None:
+        text = vulnerabilities(
+            ["a", "CVE-1", "LOW", "fixed", "1", "2", ["title", "-->avd.aquasec.com/nvd/cve-1"]],
+            ["b", "CVE-2", "LOW", "fixed", "1", "2", ["title", "-->evil.example/x"]],
+            ["c", "CVE-3", "LOW", "fixed", "1", "2", ["title", "-->avd.aquasec.com.evil.example/x"]], low=3)
+        urls = [(f.title, f.primary_url) for f in parse(text).findings]
+        self.assertEqual(urls, [("title", "https://avd.aquasec.com/nvd/cve-1"), ("title", None), ("title", None)])
+
+    def test_misconfiguration_without_an_id_is_read_and_its_message_is_dropped(self) -> None:
+        block = plain_misconfig_block("HIGH", f"Specify a USER, not ENV TOKEN={self.TOKEN}", "Root is risky.",
+                                      "https://avd.aquasec.com/misconfig/ds-0002")
+        text = section("Dockerfile (dockerfile)", "Tests: 27 (SUCCESSES: 26, FAILURES: 1)\n", block)
+        report = parse(text)
+        (item,) = report.misconfigurations
+        self.assertEqual((item.severity, item.check_id, item.title, item.description), ("HIGH", None, None, "Root is risky."))
+        self.assertEqual(item.primary_url, "https://avd.aquasec.com/misconfig/ds-0002")
+        self.assertEqual(report.misconfig_passed, 26)
+        self.assertNotIn(self.TOKEN, json.dumps(asdict(report)))
+        self.assertIn("check_id", report.not_in_format)
+
+    def test_secret_with_the_category_in_brackets_has_no_rule_id_and_no_value(self) -> None:
+        code = [f"   3 export KEY={self.TOKEN}", "   4"]
+        block = plain_secret_block("CRITICAL", "AWS", "AWS Access Key ID", "deploy.sh:3", code)
+        block += plain_secret_block("HIGH", "Custom", "My Secret", "deploy.sh:7", [f"   7 echo {self.TOKEN}"])
+        report = parse(section("deploy.sh", totals(high=1, critical=1), block))
+        self.assertEqual([(s.severity, s.category, s.title, s.rule_id, s.start_line) for s in report.secrets],
+                         [("CRITICAL", "AWS", "AWS Access Key ID", None, 3), ("HIGH", "Custom", "My Secret", None, 7)])
+        self.assertNotIn(self.TOKEN, json.dumps(asdict(report)))
+        self.assertIn("rule_id", report.not_in_format)
+
+    def test_the_first_layout_still_has_its_ids(self) -> None:
+        report = parse(section("Dockerfile (dockerfile)", "Tests: 1 (SUCCESSES: 0, FAILURES: 1)\n",
+                               misconfig_block("DS-0002", "HIGH", "m", "d", "https://x.example/")))
+        self.assertNotIn("check_id", report.not_in_format)
+        self.assertEqual(report.misconfigurations[0].check_id, "DS-0002")
+
+    def test_the_count_check_still_refuses_a_missing_block(self) -> None:
+        text = section("Dockerfile (dockerfile)", "Tests: 2 (SUCCESSES: 0, FAILURES: 2)\n",
+                       plain_misconfig_block("HIGH", "m", "d", "https://x.example/"))
+        with self.assertRaises(ReportError):
+            parse(text)
+
+    def test_detection_finds_a_file_that_starts_with_the_five_column_summary(self) -> None:
+        text = summary([["Python", "python-pkg", "1", "-", "-"]], SUMMARY_HEADER_NO_LICENSES) + vulnerabilities(
+            ["a", "CVE-1", "HIGH", "fixed", "1", "2", "t"], high=1)
+        self.assertEqual(len(parse_report_file("x.txt", text.encode()).findings), 1)
 
 
 if __name__ == "__main__":

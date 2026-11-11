@@ -19,6 +19,8 @@ const MISSING_FIELD_WORDS: Record<string, string> = {
   resolution: 'fix texts for misconfigurations',
   link: 'license links',
   confidence: 'license confidence',
+  check_id: 'misconfiguration IDs',
+  rule_id: 'secret rule IDs',
 }
 
 /** What the report's format does not carry, as one list; null when nothing of it needs saying. */
@@ -86,3 +88,29 @@ export function overviewText(byKind: Record<Kind, number>, packages: number): st
   ].filter(Boolean)
   return `${countText(total, 'finding')}: ${parts.join(', ')}`
 }
+
+const MAX_NAME_LENGTH = 60
+
+/**
+ * What to call a misconfiguration: its ID and title; with neither (a text report
+ * of the second layout), the start of its description, which is the check's own text.
+ */
+export function misconfigurationName(item: {
+  check_id: string | null
+  title: string | null
+  description: string | null
+}): string {
+  const named = [item.check_id, item.title].filter(Boolean).join(': ')
+  if (named !== '') return named
+  const text = item.description?.trim() ?? ''
+  if (text === '') return 'unknown check'
+  return text.length <= MAX_NAME_LENGTH ? text : `${text.slice(0, MAX_NAME_LENGTH - 3).trimEnd()}...`
+}
+
+/** What to call a secret: its rule ID, or its title when the report has no rule ID, then the category. */
+export function secretName(item: { rule_id: string | null; category: string | null; title: string | null }): string {
+  const name = item.rule_id || item.title
+  const category = item.category ? `(${item.category})` : ''
+  return [name, category].filter(Boolean).join(' ') || 'unknown rule'
+}
+

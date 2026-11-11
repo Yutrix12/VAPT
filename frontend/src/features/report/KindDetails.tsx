@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { License, Misconfiguration, Secret } from '../../api/types'
-import { NOT_IN_FORMAT, lineText } from '../../shared/reportText'
+import { NOT_IN_FORMAT, lineText, misconfigurationName } from '../../shared/reportText'
 import { safeLink, visibleText } from '../../shared/text'
 
 /** One labelled fact; wide ones take a whole line. */
@@ -38,7 +38,7 @@ export function MisconfigurationDetails({ item, notInFormat }: { item: Misconfig
     <div className="kind-details">
       <dl className="facts">
         <Fact label="Check" wide>
-          <span translate="no">{visibleText([item.check_id, item.title].filter(Boolean).join(': ') || 'unknown check')}</span>
+          <span translate="no">{visibleText(misconfigurationName(item))}</span>
         </Fact>
         <Fact label="What is wrong" wide>
           {visibleText(item.description ?? 'The report gives no description.')}
