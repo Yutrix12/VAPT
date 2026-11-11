@@ -50,8 +50,9 @@ export function SeverityCounts({ summary }: { summary: Summary }) {
         </li>
       </ul>
       <p className="muted">
-        {countText(summary.unique_vuln_ids, 'distinct vulnerability ID')};{' '}
-        {countText(summary.without_fixed_version, 'finding')} without a fixed version yet.
+        {countText(summary.unique_vuln_ids, 'unique vulnerability ID')}.{' '}
+        {countText(summary.without_fixed_version, 'finding')} {summary.without_fixed_version === 1 ? 'has' : 'have'} no
+        fixed version yet.
       </p>
     </section>
   )

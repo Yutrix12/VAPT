@@ -1,4 +1,4 @@
-import { countText, formatScanDate, visibleText } from '../reportLogic'
+import { artifactTypeLabel, countText, formatScanDate, visibleText } from '../reportLogic'
 import type { ReportDetails as Details } from '../types'
 
 /** What was scanned: the artifact as the title, then the facts about the scan. */
@@ -6,6 +6,7 @@ export function ReportDetails({ report }: { report: Details }) {
   const isRepository = report.artifact_type === 'repository'
   const hasGit = Boolean(report.repo_url || report.branch || report.commit)
   const os = [report.os_family, report.os_name].filter(Boolean).join(' ')
+  const typeLabel = artifactTypeLabel(report.artifact_type)
 
   return (
     <section aria-labelledby="details-heading">
@@ -14,14 +15,15 @@ export function ReportDetails({ report }: { report: Details }) {
       </h2>
       <dl className="facts">
         <div>
-          <dt>Type</dt>
-          <dd translate="no">{visibleText(report.artifact_type ?? 'unknown')}</dd>
+          <dt>Artifact type</dt>
+          {/* A type without a friendly name is shown as Trivy wrote it: not translated. */}
+          <dd translate={typeLabel === report.artifact_type ? 'no' : undefined}>{visibleText(typeLabel)}</dd>
         </div>
         {isRepository ? (
           <>
             <div className="wide-fact">
               <dt>Repository</dt>
-              <dd translate="no">{hasGit ? visibleText(report.repo_url ?? 'unknown') : 'no git details in report'}</dd>
+              <dd translate="no">{hasGit ? visibleText(report.repo_url ?? 'unknown') : 'No git details in the report'}</dd>
             </div>
             {hasGit && (
               <>
@@ -45,15 +47,15 @@ export function ReportDetails({ report }: { report: Details }) {
           </div>
         )}
         <div>
-          <dt>Scanned</dt>
+          <dt>Scan date</dt>
           <dd>{visibleText(formatScanDate(report.created_at))}</dd>
         </div>
         <div>
-          <dt>Trivy</dt>
+          <dt>Trivy version</dt>
           <dd translate="no">{visibleText(report.trivy_version ?? 'unknown')}</dd>
         </div>
         <div>
-          <dt>File</dt>
+          <dt>Report file</dt>
           <dd translate="no">{visibleText(report.file_name)}</dd>
         </div>
         <div>

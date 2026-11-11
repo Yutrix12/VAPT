@@ -119,30 +119,33 @@ describe('buildFixSummary', () => {
 
   it('starts with what was scanned, the counts and the AI warning', () => {
     expect(text.startsWith('# Fix summary: python:3.9-slim\n')).toBe(true)
-    expect(text).toContain('Scanned 6 Nov 2026, 04:15 with Trivy 0.76.2')
+    expect(text).toContain('- Report file: `image.json`. Scan date: 6 Nov 2026, 04:15. Trivy version: 0.76.2.')
+    expect(text).toContain('- Artifact type: Container image; operating system: debian 13.1')
     expect(text).toContain('4 findings in 3 packages: 1 Critical, 1 High, 1 Medium, 1 Low; 0 Unknown (not rated)')
     expect(text).toContain('Filters: none. This summary lists all 3 packages.')
-    expect(text).toContain('- AI model of the explanations: `qwen3:8b`')
+    expect(text).toContain('- AI model used: `qwen3:8b`')
     expect(text).toContain('> AI suggestions: verify before applying.')
   })
 
-  it('lists a verified package with Trivy’s fix, the verdict, the advice and the commands', () => {
+  it('lists a verified package with its fixed versions, the verdict, the advice and the commands', () => {
     expect(text).toContain('## 1. openssl\n')
-    expect(text).toContain("- Trivy's fix: `3.5.4` (some CVEs have no fix yet)")
+    expect(text).toContain('- Installed version: `3.5.1`')
+    expect(text).toContain('- Findings: 2 (highest severity: Critical)')
+    expect(text).toContain('- Fixed versions: `3.5.4` (some vulnerabilities have no fixed version yet)')
     expect(text).toContain("- AI verdict: recommended upgrade `3.5.4` (one of Trivy's fixed versions)")
-    expect(text).toContain('- 1 CVE has no fix yet and stays open after any upgrade.')
+    expect(text).toContain('- 1 vulnerability in this package has no fixed version yet and stays open after any upgrade.')
     expect(text).toContain('- Summary: Upgrade \\[now\\](https\\:\\/\\/evil.example).')
     expect(text).toContain('- What to do: Upgrade openssl. Then restart.')
-    expect(text).toContain('Suggested commands from the AI (never run; check each one before you use it):\n\n````\napt-get install openssl\necho ```\n````')
+    expect(text).toContain('AI-suggested commands (verify before running; never run by this app):\n\n````\napt-get install openssl\necho ```\n````')
   })
 
   it('marks a version that is not Trivy’s as not a fix', () => {
     expect(text).toContain("- AI verdict: the AI suggested `9.9`, which is not one of Trivy's fixed versions, so it is not a fix")
   })
 
-  it('still lists packages without an AI answer, with Trivy’s fix', () => {
+  it('still lists packages without an AI answer, with their fixed versions', () => {
     expect(text).toContain('## 3. cu\\\\u202Erl\n')
-    expect(text).toContain("- Trivy's fix: `8.0`")
+    expect(text).toContain('- Fixed versions: `8.0`')
     expect(text).toContain('- AI explanation: not requested yet')
   })
 
@@ -153,7 +156,15 @@ describe('buildFixSummary', () => {
       severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
     })
     expect(text).toContain('Filters: none. This summary lists 1 package.')
-    expect(text).toContain('- AI model of the explanations: none connected yet')
+    expect(text).toContain('- AI model used: none connected yet')
+  })
+
+  it('writes the repository line like the page, also without git details', () => {
+    const repo = { ...result, report: { ...result.report, artifact_type: 'repository' } }
+    const text = buildFixSummary({
+      result: repo, shown: [], severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
+    })
+    expect(text).toContain('- Repository: No git details in the report')
   })
 
   it('says "no packages" for a report without any', () => {

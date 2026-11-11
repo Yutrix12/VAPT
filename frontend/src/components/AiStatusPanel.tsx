@@ -38,13 +38,16 @@ export function AiStatusPanel({ connection, onCheck }: Props) {
         <span className="dot" aria-hidden="true" />
         <span>{visibleText(connectionText(connection))}</span>
       </p>
-      {connection.state === 'error' && <p className="hint">After fixing this, click Check connection.</p>}
-      <p className="hint">Opening a package asks the AI to explain the fix; everything else works without it.</p>
+      {connection.state === 'error' && <p className="hint">Fix this, then click Check connection.</p>}
+      <p className="hint">
+        Opening a package asks the AI to explain how to fix it. The rest of the page works without the AI.
+      </p>
       {connection.state === 'ready' && connection.leavesThisComputer && (
         <p className="notice">
           The AI runs on a hosted service, not on this computer. Every package you open sends this to it:
-          the package name and installed version, Trivy’s fixed versions, the ecosystem and OS, and up to 15
-          CVE IDs with severities and short titles.
+          the package name and installed version, Trivy’s fixed versions, the ecosystem and OS, up to 15
+          vulnerability IDs with their severity, fixed version and a short title, and how many vulnerabilities
+          are not listed or have no fixed version.
         </p>
       )}
       <button type="button" className="secondary wide" onClick={onCheck} disabled={connection.state === 'checking'}>

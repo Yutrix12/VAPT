@@ -9,7 +9,7 @@ import { UploadForm } from './components/UploadForm'
 import { downloadText } from './download'
 import { buildFixSummary, summaryFileName } from './fixSummary'
 import { connectionFromStatus, serialQueue, toFixGroup } from './llmLogic'
-import { ALL_STATUSES, filterGroups, groupKey, visibleText } from './reportLogic'
+import { ALL_STATUSES, countText, filterGroups, groupKey, visibleText } from './reportLogic'
 import {
   SEVERITIES,
   type AiConnection,
@@ -43,8 +43,8 @@ function EmptyState() {
     <section className="empty" aria-labelledby="empty-heading">
       <h2 id="empty-heading">No report yet</h2>
       <p>
-        Drop a Trivy JSON report on the Report panel, or click it to choose one. You will see what was
-        scanned, how severe the findings are, and how to fix each package.
+        Drop a Trivy report on <strong>Upload a report</strong>, or click it to choose a file. You’ll see
+        what was scanned, how severe each finding is, and how to fix it.
       </p>
     </section>
   )
@@ -168,8 +168,8 @@ function App() {
       </a>
       <aside className="sidebar">
         <header className="brand">
-          <h1>Trivy report</h1>
-          <p className="muted">Upload a scan and see what to fix first.</p>
+          <h1>Trivy report viewer</h1>
+          <p className="muted">Upload a Trivy report to see what to fix first.</p>
           <HealthBadge health={health} />
         </header>
         <UploadForm onResult={showResult} />
@@ -192,10 +192,10 @@ function App() {
             <SeverityCounts summary={result.summary} />
             <section aria-labelledby="groups-heading">
               <div className="section-head">
-                <h2 id="groups-heading">Packages, worst first</h2>
+                <h2 id="groups-heading">Packages by severity</h2>
                 <div className="section-actions">
                   <p className="muted" aria-live="polite">
-                    Showing {shown.length} of {result.package_groups.length}
+                    Showing {shown.length} of {countText(result.package_groups.length, 'package')}
                   </p>
                   <button type="button" className="secondary" onClick={downloadSummary}>
                     Download fix summary

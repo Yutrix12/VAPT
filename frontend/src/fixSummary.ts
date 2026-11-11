@@ -6,9 +6,11 @@
 // HTML, a heading or formatting, and hidden characters show as codes.
 import {
   ALL_STATUSES,
+  artifactTypeLabel,
   countText,
   formatScanDate,
   KEEP_LINE_BREAKS,
+  openAfterUpgradeText,
   RATED_SEVERITIES,
   severityLabel,
   visibleText,
@@ -81,10 +83,13 @@ function scannedLine(result: AnalyzeResult): string {
   const { report } = result
   if (report.artifact_type === 'repository') {
     const parts = [report.repo_url, report.branch, report.commit].filter((part): part is string => Boolean(part))
-    return `- Repository: ${parts.length > 0 ? parts.map(codeSpan).join(', ') : 'no git details in report'}`
+    return `- Repository: ${parts.length > 0 ? parts.map(codeSpan).join(', ') : 'No git details in the report'}`
   }
   const os = [report.os_family, report.os_name].filter(Boolean).join(' ')
-  return `- Type: ${escapeMarkdown(report.artifact_type ?? 'unknown')}; operating system: ${escapeMarkdown(os || 'unknown')}`
+  return (
+    `- Artifact type: ${escapeMarkdown(artifactTypeLabel(report.artifact_type))}; ` +
+    `operating system: ${escapeMarkdown(os || 'unknown')}`
+  )
 }
 
 function countsLine(result: AnalyzeResult): string {
@@ -111,9 +116,9 @@ function filtersLine(input: SummaryInput): string {
 }
 
 function trivyFixText(group: PackageGroup): string {
-  if (group.fixed_versions.length === 0) return 'no fix available yet'
+  if (group.fixed_versions.length === 0) return 'no fixed version yet'
   const versions = group.fixed_versions.map(codeSpan).join(', ')
-  return group.has_unfixed ? `${versions} (some CVEs have no fix yet)` : versions
+  return group.has_unfixed ? `${versions} (some vulnerabilities have no fixed version yet)` : versions
 }
 
 function verdictText(advice: FixAdvice): string {
@@ -126,21 +131,15 @@ function verdictText(advice: FixAdvice): string {
         "which is not one of Trivy's fixed versions, so it is not a fix"
       )
     case 'no_version_suggested':
-      return "the AI named no version; use Trivy's fix"
+      return "the AI named no version; use one of Trivy's fixed versions"
     case 'no_fix_available':
-      return 'no fix available yet; the advice below is about mitigations only'
+      return 'Trivy lists no fixed version yet; the advice below covers mitigations only'
   }
 }
 
 function adviceLines(advice: FixAdvice): string[] {
   const lines = [`- AI verdict: ${verdictText(advice)}`]
-  const open = advice.cves_without_fix
-  if (open > 0) {
-    lines.push(
-      `- ${countText(open, 'CVE')} ${open === 1 ? 'has' : 'have'} no fix yet and ` +
-        `${open === 1 ? 'stays' : 'stay'} open after any upgrade.`,
-    )
-  }
+  if (advice.cves_without_fix > 0) lines.push(`- ${openAfterUpgradeText(advice.cves_without_fix)}`)
   lines.push(
     `- Summary: ${escapeMarkdown(advice.summary)}`,
     `- ${advice.mitigation_only ? 'Mitigation' : 'What to do'}: ${escapeMarkdown(advice.recommended_action)}`,
@@ -149,7 +148,7 @@ function adviceLines(advice: FixAdvice): string[] {
   if (advice.commands.length > 0) {
     lines.push(
       '',
-      'Suggested commands from the AI (never run; check each one before you use it):',
+      'AI-suggested commands (verify before running; never run by this app):',
       '',
       codeBlock(advice.commands),
     )
@@ -179,10 +178,10 @@ function groupSection(item: ShownGroup, index: number, fix: FixState | undefined
   return [
     `## ${index + 1}. ${escapeMarkdown(group.pkg_name ?? 'unknown package')}`,
     '',
-    `- Installed: ${codeSpan(group.installed_version ?? 'unknown')}`,
+    `- Installed version: ${codeSpan(group.installed_version ?? 'unknown')}`,
     `- Target: ${escapeMarkdown(group.target)}`,
-    `- Findings: ${count} (worst: ${severityLabel(worst)})`,
-    `- Trivy's fix: ${trivyFixText(group)}`,
+    `- Findings: ${count} (highest severity: ${severityLabel(worst)})`,
+    `- Fixed versions: ${trivyFixText(group)}`,
     ...aiLines(fix),
     '',
   ]
@@ -195,12 +194,12 @@ export function buildFixSummary(input: SummaryInput): string {
   const lines = [
     `# Fix summary: ${escapeMarkdown(report.artifact_name ?? 'unknown artifact')}`,
     '',
-    `- Report: ${codeSpan(report.file_name)}. Scanned ${escapeMarkdown(scanDate)} with Trivy ` +
-      `${escapeMarkdown(report.trivy_version ?? 'unknown version')}.`,
+    `- Report file: ${codeSpan(report.file_name)}. Scan date: ${escapeMarkdown(scanDate)}. ` +
+      `Trivy version: ${escapeMarkdown(report.trivy_version ?? 'unknown')}.`,
     scannedLine(input.result),
     countsLine(input.result),
     filtersLine(input),
-    `- AI model of the explanations: ${input.model === null ? 'none connected yet' : codeSpan(input.model)}`,
+    `- AI model used: ${input.model === null ? 'none connected yet' : codeSpan(input.model)}`,
     '',
     "> AI suggestions: verify before applying. Only Trivy's fixed versions are ever shown as a fix, " +
       'and the commands were never run.',

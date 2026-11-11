@@ -1,34 +1,35 @@
-# Trivy report prototype
+# Trivy report viewer
 
 Upload a Trivy vulnerability report (JSON) in the browser. The app shows
 what was scanned, counts the vulnerabilities by severity, groups them by
-package (worst first) and shows how to fix each package: always Trivy's own
-fixed versions, and an explanation from a local LLM (Ollama) when you
-open a package.
+package, ordered by severity, and shows how to fix each package: always
+Trivy’s fixed versions, and an AI explanation from a local LLM (Ollama)
+when you open a package.
 
 This is a prototype: the smallest thing that works end to end. Everything
 runs on your own computer. Nothing is saved.
 
 ## What it does
 
-- **Upload** one Trivy JSON report. Other files get "only Trivy JSON reports
-  are supported right now".
+- **Upload** one Trivy JSON report. Other files get “only Trivy JSON reports
+  are supported right now”.
 - **Report details**: what was scanned, Trivy version, scan date, and the
   operating system or the git repository, branch and commit.
 - **Counts** by severity: Critical, High, Medium and Low are ranked (levels
   4 to 1, higher is more severe); Unknown is shown apart, because Trivy
   could not rate it, and always comes after the rated ones.
-- **Package groups**, worst first, with filters for severity and status.
-  Each group shows Trivy's fix and opens to the list of its CVEs.
-- **AI explanation** when a group is opened: the LLM (`qwen3:8b`) explains
+- **Packages by severity**, with filters for severity and status. Each
+  package shows Trivy’s fixed versions and opens to the list of its
+  vulnerabilities.
+- **AI explanation** when a package is opened: the LLM (`qwen3:8b`) explains
   the fix and suggests
   commands. The code, not the LLM, decides what counts as a fix: a version
-  is shown as the recommended upgrade only if it is one of Trivy's fixed
-  versions. Every answer says "AI suggestion: verify before applying", and
+  is shown as the recommended upgrade only if it is one of Trivy’s fixed
+  versions. Every answer says “AI suggestion: verify before applying”, and
   commands are only shown, never run.
 - **Download fix summary**: a Markdown file (`fix-summary-<report>.md`) of
   what the page shows (the filters apply): the report, the counts, and per
-  package Trivy's fix plus the AI verdict, advice and commands for every
+  package its fixed versions plus the AI verdict, advice and commands for every
   package explained so far. It is built in the browser; nothing is sent.
   Report and AI text in it are escaped, so it cannot contain links, HTML or
   hidden characters.
@@ -39,11 +40,11 @@ runs on your own computer. Nothing is saved.
 | Part | What it is |
 |---|---|
 | `backend/` | Python 3.11, FastAPI. `trivy_parser.py` (parse, group, count), `llm_client.py` (Ollama client), `fixes.py` (LLM request and answer check), `main.py` (the API) |
-| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status, filters) and the results (report, severity rail, packages with AI explanations) |
+| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status, filters) and the results (report, severity bar, packages with AI explanations) |
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/check`
-(Check connection), `POST /api/fix` (AI explanation; the body is one package
-group). The browser talks only to the backend; the backend talks to Ollama.
+(Check connection), `POST /api/fix` (AI explanation; the body is one
+package). The browser talks only to the backend; the backend talks to Ollama.
 The backend alone chooses the LLM (`backend/llm_config.py`): the page has no
 LLM settings and never sees a key.
 
@@ -83,7 +84,7 @@ cd frontend
 npm run dev
 ```
 
-Open http://localhost:5173. The sidebar shows "Backend running" when both
+Open http://localhost:5173. The sidebar shows “Backend running” when both
 are up. Stop each with Ctrl+C.
 
 For the AI explanation, Ollama must be running (the Ollama app, or
@@ -91,18 +92,18 @@ For the AI explanation, Ollama must be running (the Ollama app, or
 
 ## Use
 
-1. Drop a Trivy JSON report on the **Report** panel in the sidebar (or
+1. Drop a Trivy JSON report on the **Upload a report** panel in the sidebar (or
    click it to choose one) and click **Analyze report**.
-2. Read the report details and the severity rail. Use the severity chips
-   and the status list under **Filter** to narrow the packages.
-3. Click a package name: its CVEs show, and the AI explanation
+2. Read the report details and the severity bar. Use the severity chips
+   and the status list under **Filters** to narrow the packages.
+3. Click a package name: its vulnerabilities show, and the AI explanation
    starts by itself (about 25 seconds; one package at a time, the others
    wait their turn). Answers are kept until the next upload.
 4. **AI explanations** in the sidebar shows whether `qwen3:8b` is ready;
    the page checks this when it opens. **Check connection** checks again,
    for example after starting Ollama.
 
-## Which LLM: local now, hosted API later
+## Which AI model: local now, hosted API later
 
 The backend reads the `LLM_MODE` environment variable when it handles a
 request:
@@ -110,7 +111,7 @@ request:
 | `LLM_MODE` | LLM | Key |
 |---|---|---|
 | `local` (default) | Ollama on this computer, `http://localhost:11434`, model `qwen3:8b` | none |
-| `api` | Ollama's hosted API, `https://ollama.com`; model `OLLAMA_API_MODEL` (default `qwen3:8b`) | `OLLAMA_API_KEY` (from https://ollama.com/settings/keys) |
+| `api` | Ollama’s hosted API, `https://ollama.com`; model `OLLAMA_API_MODEL` (default `qwen3:8b`) | `OLLAMA_API_KEY` (from https://ollama.com/settings/keys) |
 
 To use the hosted API, start the backend with the variables set, for
 example in PowerShell:
@@ -120,16 +121,16 @@ $env:LLM_MODE = "api"; $env:OLLAMA_API_KEY = "<your key>"
 .venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-When the app has moved to the API for good, delete the "Local LLM" part of
+When the app has moved to the API for good, delete the “Local LLM” part of
 `backend/llm_config.py` and its branch in `current_settings()`.
 
-The key stays in the backend's environment only: it is never sent to the
+The key stays in the backend’s environment only: it is never sent to the
 page, never logged, never put in a URL, and only sent over https. Nothing
 reads `.env` files: set the variables in the shell that starts the backend,
 and never write the key into a file in the repository. In `api` mode the page warns that the
-opened package's data leaves this computer. The Ollama docs say their cloud
+opened package’s data leaves this computer. The Ollama docs say their cloud
 does not support structured outputs yet, so answers from it may be refused
-as "did not match the expected format"; it also only works if the service
+as “did not match the expected format”; it also only works if the service
 offers the chosen model.
 
 ## Tests
@@ -171,7 +172,7 @@ cd backend
   (Host and Origin checks).
 - Git author, committer and commit message are dropped as soon as a report
   is loaded.
-- Only one package group is ever sent to the LLM, as clearly marked data,
+- Only one package is ever sent to the LLM, as clearly marked data,
   and the model is told to ignore instructions inside it.
 
 ## Known limitations
@@ -179,14 +180,14 @@ cd backend
 - The AI text can be wrong (a small local model may misstate risks or
   suggest poor commands). The verdict about the version is made by code,
   but always read the AI text and commands critically.
-- Ollama's hosted cloud does not support structured outputs yet, so its
+- Ollama’s hosted cloud does not support structured outputs yet, so its
   answers may be refused.
-- A local model needs time: about 20-25 seconds per group with qwen3:8b.
-- The backend keeps no state, so it checks the AI's version against the
+- A local model needs time: about 20 to 25 seconds per package with qwen3:8b.
+- The backend keeps no state, so it checks the AI’s version against the
   fixed versions the page sends back from the upload.
 - While an upload is read, Starlette keeps files over 1 MB in a temporary
   file, deleted after the request.
-- Versions are never compared (Trivy's fixed versions are listed as text),
+- Versions are never compared (Trivy’s fixed versions are listed as text),
   and CVSS v4-only scores are not shown.
 
 ## Future scope

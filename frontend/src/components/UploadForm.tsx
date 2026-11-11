@@ -30,7 +30,7 @@ export function UploadForm({ onResult }: Props) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (file === null) {
-      setError('Choose a Trivy JSON report first.')
+      setError('Choose a report first.')
       return
     }
     const problem = checkFileBeforeUpload(file.name, file.size)
@@ -50,7 +50,7 @@ export function UploadForm({ onResult }: Props) {
   return (
     <form className="panel" onSubmit={handleSubmit} aria-labelledby="upload-heading">
       <h2 id="upload-heading" className="panel-title">
-        Report
+        Upload a report
       </h2>
       <label
         className={dragging ? 'dropzone is-dragging' : 'dropzone'}

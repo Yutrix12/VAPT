@@ -54,9 +54,35 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')}${nbsp}MB`
 }
 
-/** "1 package" or "2 packages": the word gets an "s" unless count is 1. */
-export function countText(count: number, word: string): string {
-  return `${count} ${count === 1 ? word : `${word}s`}`
+/** "1 package" or "2 packages"; give the plural when it is not word + "s" ("vulnerabilities"). */
+export function countText(count: number, word: string, plural = `${word}s`): string {
+  return `${count} ${count === 1 ? word : plural}`
+}
+
+/** The sentence for vulnerabilities that no upgrade closes (page and fix summary). */
+export function openAfterUpgradeText(count: number): string {
+  const one = count === 1
+  return (
+    `${countText(count, 'vulnerability', 'vulnerabilities')} in this package ${one ? 'has' : 'have'} ` +
+    `no fixed version yet and ${one ? 'stays' : 'stay'} open after any upgrade.`
+  )
+}
+
+// Trivy 0.76.2's artifact types (pkg/fanal/types/artifact.go) in plain words.
+const ARTIFACT_TYPE_LABELS: Record<string, string> = {
+  container_image: 'Container image',
+  filesystem: 'Filesystem',
+  repository: 'Repository',
+  cyclonedx: 'CycloneDX SBOM',
+  spdx: 'SPDX SBOM',
+  aws_account: 'AWS account',
+  vm: 'Virtual machine image',
+}
+
+/** "Container image" for container_image; any other value as Trivy wrote it. */
+export function artifactTypeLabel(type: string | null): string {
+  if (type === null) return 'unknown'
+  return Object.hasOwn(ARTIFACT_TYPE_LABELS, type) ? ARTIFACT_TYPE_LABELS[type] : type
 }
 
 /** A unique key per group: JSON keeps null and "" apart, and needs no separator. */

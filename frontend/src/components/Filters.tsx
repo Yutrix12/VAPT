@@ -10,7 +10,7 @@ interface Props {
   onStatusChange: (next: string) => void
 }
 
-/** Severity chips (real checkboxes; UNKNOWN apart) and a status list that filter the package groups. */
+/** Severity chips (real checkboxes; UNKNOWN apart) and a status list that filter the packages. */
 export function Filters({ severities, onSeveritiesChange, counts, status, statuses, onStatusChange }: Props) {
   function toggle(severity: Severity) {
     const next = new Set(severities)
@@ -37,7 +37,7 @@ export function Filters({ severities, onSeveritiesChange, counts, status, status
 
   return (
     <fieldset className="panel">
-      <legend className="panel-title">Filter</legend>
+      <legend className="panel-title">Filters</legend>
       <div className="chips">{RATED_SEVERITIES.map(chip)}</div>
       {/* UNKNOWN is not part of the ranking, so its chip stands apart. */}
       <div className="chips chips-apart" role="group" aria-labelledby="not-rated-label">
@@ -49,7 +49,7 @@ export function Filters({ severities, onSeveritiesChange, counts, status, status
       <label className="field">
         Status
         <select name="status" value={status} onChange={(event) => onStatusChange(event.target.value)}>
-          <option value={ALL_STATUSES}>all</option>
+          <option value={ALL_STATUSES}>All statuses</option>
           {statuses.map((value) => (
             // The value stays the real status, so the filter matches it.
             <option key={value} value={value}>

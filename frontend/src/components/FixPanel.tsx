@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useState } from 'react'
-import { countText, KEEP_LINE_BREAKS, visibleText } from '../reportLogic'
+import { KEEP_LINE_BREAKS, openAfterUpgradeText, visibleText } from '../reportLogic'
 import type { AiConnection, FixAdvice, FixState } from '../types'
 
 interface Props {
@@ -22,15 +22,15 @@ function VersionVerdict({ advice }: { advice: FixAdvice }) {
       return (
         <p className="verdict verdict-warn">
           The AI suggested <span translate="no" className="nowrap">{visibleText(advice.unverified_version ?? '')}</span>, which
-          is not one of Trivy’s fixed versions, so it is not shown as a fix. Use Trivy’s fix above.
+          is not one of Trivy’s fixed versions, so it is not shown as a fix. Use one of Trivy’s fixed versions above.
         </p>
       )
     case 'no_version_suggested':
-      return <p className="verdict">The AI named no version. Use Trivy’s fix above.</p>
+      return <p className="verdict">The AI named no version. Use one of Trivy’s fixed versions above.</p>
     case 'no_fix_available':
       return (
         <p className="verdict verdict-warn">
-          No fix available yet. The advice below is about mitigations only.
+          Trivy lists no fixed version yet. The advice below covers mitigations only.
         </p>
       )
   }
@@ -93,8 +93,8 @@ function FixContent({ fix, connection, needsClick, onExplain }: Props & { needsC
     return (
       <div>
         <p className="muted">
-          The AI runs on a hosted service (see the notice under AI explanations). Trivy’s fix above still
-          applies.
+          The AI runs on a hosted service (see the notice under AI explanations). Trivy’s fixed versions
+          above still apply.
         </p>
         <button type="button" className="secondary" onClick={onExplain}>
           Send this package to the hosted AI
@@ -103,7 +103,7 @@ function FixContent({ fix, connection, needsClick, onExplain }: Props & { needsC
     )
   }
   if (fix === undefined) {
-    return <p className="muted">{visibleText(notReadyText(connection))} Trivy’s fix above still applies.</p>
+    return <p className="muted">{visibleText(notReadyText(connection))} Trivy’s fixed versions above still apply.</p>
   }
   switch (fix.state) {
     case 'queued':
@@ -125,7 +125,7 @@ function FixContent({ fix, connection, needsClick, onExplain }: Props & { needsC
     case 'error':
       return (
         <div className="ai-error" role="alert">
-          <p>{visibleText(fix.message)} Trivy’s fix above is still valid.</p>
+          <p>{visibleText(fix.message)} Trivy’s fixed versions above still apply.</p>
           <button type="button" className="secondary" onClick={onExplain} disabled={connection.state !== 'ready'}>
             Try again
           </button>
@@ -146,8 +146,7 @@ function Advice({ advice }: { advice: FixAdvice }) {
       <VersionVerdict advice={advice} />
       {advice.cves_without_fix > 0 && (
         <p className="verdict verdict-warn">
-          {countText(advice.cves_without_fix, 'CVE')} in this group {advice.cves_without_fix === 1 ? 'has' : 'have'} no
-          fix yet and {advice.cves_without_fix === 1 ? 'stays' : 'stay'} open after any upgrade.
+          {openAfterUpgradeText(advice.cves_without_fix)}
         </p>
       )}
       <dl className="advice">
@@ -162,8 +161,7 @@ function Advice({ advice }: { advice: FixAdvice }) {
         // Kept apart from the verdict: these come from the AI and are untrusted.
         <div className="commands">
           <p className="commands-heading">
-            Suggested commands from the AI. They are only shown, never run: check each one before you use it.
-            One click selects a whole command.
+            AI-suggested commands: verify before running. This page only shows them; it never runs them.
           </p>
           {advice.commands.map((command, index) => (
             <pre key={index} translate="no">

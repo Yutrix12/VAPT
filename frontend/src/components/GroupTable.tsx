@@ -16,9 +16,9 @@ function Chevron() {
   )
 }
 
-/** Trivy's own fix for a group: its fixed versions, or "no fix available yet". */
+/** Trivy's fixed versions for a package, or "No fixed version yet". */
 function TrivyFix({ group }: { group: PackageGroup }) {
-  if (group.fixed_versions.length === 0) return <span className="no-fix">no fix available yet</span>
+  if (group.fixed_versions.length === 0) return <span className="no-fix">No fixed version yet</span>
   return (
     <span translate="no">
       {group.fixed_versions.map((version, index) => (
@@ -29,23 +29,23 @@ function TrivyFix({ group }: { group: PackageGroup }) {
           <span className="nowrap code">{visibleText(version)}</span>
         </Fragment>
       ))}
-      {group.has_unfixed && <span className="muted"> (some CVEs have no fix yet)</span>}
+      {group.has_unfixed && <span className="muted"> (some vulnerabilities have no fixed version yet)</span>}
     </span>
   )
 }
 
-/** The CVEs of one group (only those that match the filters). */
+/** The vulnerabilities of one package (only those that match the filters). */
 function CveList({ findings }: { findings: Finding[] }) {
   return (
     <div className="table-scroll">
       <table className="cves">
         <thead>
           <tr>
-            <th scope="col">ID</th>
+            <th scope="col">CVE ID</th>
             <th scope="col">Severity</th>
             <th scope="col">Status</th>
-            <th scope="col">Fixed in</th>
-            <th scope="col">CVSS</th>
+            <th scope="col">Fixed version</th>
+            <th scope="col">CVSS score</th>
             <th scope="col">Title</th>
           </tr>
         </thead>
@@ -67,7 +67,7 @@ function CveList({ findings }: { findings: Finding[] }) {
                 </td>
                 <td><SeverityBadge severity={finding.severity} /></td>
                 <td>{visibleText(finding.status)}</td>
-                <td translate="no" className="nowrap code">{visibleText(finding.fixed_version ?? 'no fix yet')}</td>
+                <td translate="no" className="nowrap code">{visibleText(finding.fixed_version ?? 'No fixed version yet')}</td>
                 <td className="number">{finding.cvss_score ?? '–'}</td>
                 <td>{visibleText(finding.title ?? '')}</td>
               </tr>
@@ -86,7 +86,7 @@ interface TableProps {
   onExplain: (group: PackageGroup) => void
 }
 
-/** Package groups, worst first; opening one shows its AI explanation and CVEs. */
+/** Packages by severity; opening one shows its AI explanation and vulnerabilities. */
 export function GroupTable({ shown, connection, fixFor, onExplain }: TableProps) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
 
@@ -99,7 +99,7 @@ export function GroupTable({ shown, connection, fixFor, onExplain }: TableProps)
     })
   }
 
-  if (shown.length === 0) return <p className="muted">No package group matches the filters.</p>
+  if (shown.length === 0) return <p className="muted">No package matches the filters.</p>
 
   return (
     <div className="table-scroll">
@@ -109,11 +109,11 @@ export function GroupTable({ shown, connection, fixFor, onExplain }: TableProps)
         <thead role="rowgroup">
           <tr role="row">
             <th role="columnheader" scope="col">Package</th>
-            <th role="columnheader" scope="col">Installed</th>
+            <th role="columnheader" scope="col">Installed version</th>
             <th role="columnheader" scope="col">Target</th>
             <th role="columnheader" scope="col" className="number">Findings</th>
-            <th role="columnheader" scope="col">Worst</th>
-            <th role="columnheader" scope="col">Trivy’s fix</th>
+            <th role="columnheader" scope="col">Highest severity</th>
+            <th role="columnheader" scope="col">Fixed versions</th>
           </tr>
         </thead>
         <tbody role="rowgroup">
@@ -173,7 +173,7 @@ function GroupRows({ item, listId, isOpen, onToggle, connection, fix, onExplain 
           </button>
         </td>
         {/* data-label names each cell when narrow screens show a row as a card. */}
-        <td role="cell" translate="no" className="nowrap code" data-label="Installed">
+        <td role="cell" translate="no" className="nowrap code" data-label="Installed version">
           {visibleText(group.installed_version ?? 'unknown')}
         </td>
         <td role="cell" translate="no" className="target" data-label="Target">
@@ -182,10 +182,10 @@ function GroupRows({ item, listId, isOpen, onToggle, connection, fix, onExplain 
         <td role="cell" className="number" data-label="Findings">
           {count}
         </td>
-        <td role="cell" data-label="Worst">
+        <td role="cell" data-label="Highest severity">
           <SeverityBadge severity={worst} />
         </td>
-        <td role="cell" className="fix-cell" data-label="Trivy’s fix">
+        <td role="cell" className="fix-cell" data-label="Fixed versions">
           <TrivyFix group={group} />
         </td>
       </tr>

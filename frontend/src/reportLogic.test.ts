@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ALL_STATUSES, checkFileBeforeUpload, countText, filterGroups, formatScanDate, isAnalyzeResult,
+  ALL_STATUSES, artifactTypeLabel, checkFileBeforeUpload, openAfterUpgradeText, countText, filterGroups, formatScanDate, isAnalyzeResult,
   formatFileSize, KEEP_LINE_BREAKS, RATED_SEVERITIES, safeLink, severityLabel, severityLevel, visibleText,
   worstSeverity,
 } from './reportLogic'
@@ -146,6 +146,20 @@ describe('countText', () => {
     expect(countText(0, 'package')).toBe('0 packages')
     expect(countText(54, 'package')).toBe('54 packages')
   })
+
+  it('takes an irregular plural', () => {
+    expect(countText(1, 'vulnerability', 'vulnerabilities')).toBe('1 vulnerability')
+    expect(countText(2, 'vulnerability', 'vulnerabilities')).toBe('2 vulnerabilities')
+  })
+})
+
+describe('openAfterUpgradeText', () => {
+  it('says how many vulnerabilities stay open, in singular or plural', () => {
+    expect(openAfterUpgradeText(1)).toBe(
+      '1 vulnerability in this package has no fixed version yet and stays open after any upgrade.')
+    expect(openAfterUpgradeText(3)).toBe(
+      '3 vulnerabilities in this package have no fixed version yet and stay open after any upgrade.')
+  })
 })
 
 describe('formatScanDate', () => {
@@ -154,6 +168,21 @@ describe('formatScanDate', () => {
       .toBe('6 Nov 2026, 04:15')
     expect(formatScanDate('not a date', 'en-GB', 'UTC')).toBe('not a date')
     expect(formatScanDate(null, 'en-GB', 'UTC')).toBe('unknown')
+  })
+})
+
+describe('artifactTypeLabel', () => {
+  it('names every artifact type of Trivy 0.76.2 in plain words', () => {
+    expect(['container_image', 'filesystem', 'repository', 'cyclonedx', 'spdx', 'aws_account', 'vm']
+      .map(artifactTypeLabel)).toEqual([
+      'Container image', 'Filesystem', 'Repository', 'CycloneDX SBOM', 'SPDX SBOM', 'AWS account',
+      'Virtual machine image',
+    ])
+  })
+
+  it('shows any other value as Trivy wrote it, and unknown when missing', () => {
+    expect(artifactTypeLabel('something_new')).toBe('something_new')
+    expect(artifactTypeLabel(null)).toBe('unknown')
   })
 })
 
