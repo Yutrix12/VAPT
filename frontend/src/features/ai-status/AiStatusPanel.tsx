@@ -1,5 +1,5 @@
-import type { AiConnection } from '../api/types'
-import { visibleText } from '../shared/text'
+import type { AiConnection } from '../../api/types'
+import { visibleText } from '../../shared/text'
 
 interface Props {
   connection: AiConnection

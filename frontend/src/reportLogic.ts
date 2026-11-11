@@ -4,20 +4,6 @@ import { type Finding, type PackageGroup, type Severity } from './api/types'
 import { compareSeverity, worstSeverity } from './shared/severity'
 import { countText } from './shared/text'
 
-export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
-
-/**
- * A reason to refuse the file before uploading it, or null if it is fine.
- * Only the size is checked here: the backend detects the format from the
- * content, never from the file name (U3).
- */
-export function checkFileBeforeUpload(name: string, size: number): string | null {
-  if (size > MAX_UPLOAD_BYTES) {
-    return `Skipped ${name}: the file is larger than 50 MB`
-  }
-  return null
-}
-
 /** What the page shows for a field the uploaded format does not carry (U3). */
 export const NOT_IN_FORMAT = 'not in this format'
 

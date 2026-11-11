@@ -1,12 +1,5 @@
 // Plain functions behind the AI status and the AI explanations (no React).
-import type { ApiResult } from './api/client'
-import {
-  type AiConnection,
-  type FixGroupRequest,
-  type LlmStatus,
-  type PackageGroup,
-  type ReportDetails,
-} from './api/types'
+import { type FixGroupRequest, type PackageGroup, type ReportDetails } from './api/types'
 
 /** The body of /api/fix: this group only, nothing else from the report. */
 export function toFixGroup(group: PackageGroup, report: ReportDetails): FixGroupRequest {
@@ -24,19 +17,6 @@ export function toFixGroup(group: PackageGroup, report: ReportDetails): FixGroup
         ? []
         : [{ vuln_id: f.vuln_id, severity: f.severity, title: f.title, fixed_version: f.fixed_version }],
     ),
-  }
-}
-
-/** The result of a connection check, as the page shows it. */
-export function connectionFromStatus(result: ApiResult<LlmStatus>): AiConnection {
-  if (!result.ok) return { state: 'error', message: result.message }
-  const { model, model_found, leaves_this_computer } = result.data
-  if (model_found) return { state: 'ready', model, leavesThisComputer: leaves_this_computer }
-  return {
-    state: 'error',
-    message: leaves_this_computer
-      ? `The hosted AI service does not offer the model ${model}.`
-      : `Ollama answers, but it does not have the model ${model}. Install it with: ollama pull ${model}`,
   }
 }
 

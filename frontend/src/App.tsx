@@ -8,14 +8,15 @@ import {
   type PackageGroup,
   type Severity,
 } from './api/types'
-import { AiStatusPanel } from './components/AiStatusPanel'
 import { Filters } from './components/Filters'
 import { GroupTable } from './components/GroupTable'
 import { ReportDetails } from './components/ReportDetails'
 import { SeverityCounts } from './components/SeverityCounts'
-import { UploadForm } from './components/UploadForm'
+import { AiStatusPanel } from './features/ai-status/AiStatusPanel'
+import { connectionFromStatus } from './features/ai-status/connection'
+import { UploadForm } from './features/upload/UploadForm'
 import { buildFixSummary, summaryFileName } from './fixSummary'
-import { connectionFromStatus, serialQueue, toFixGroup } from './llmLogic'
+import { serialQueue, toFixGroup } from './llmLogic'
 import { ALL_STATUSES, filterGroups, groupKey } from './reportLogic'
 import { downloadText } from './shared/download'
 import { countText, visibleText } from './shared/text'

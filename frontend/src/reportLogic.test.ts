@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { isAnalyzeResult } from './api/guards'
 import type { Finding, PackageGroup, Severity } from './api/types'
-import {
-  ALL_STATUSES,
-  artifactTypeLabel,
-  checkFileBeforeUpload,
-  fieldOrNotInFormat,
-  openAfterUpgradeText,
-  filterGroups,
-} from './reportLogic'
+import { checkFileBeforeUpload } from './features/upload/uploadLogic'
+import { ALL_STATUSES, artifactTypeLabel, fieldOrNotInFormat, openAfterUpgradeText, filterGroups } from './reportLogic'
 import { RATED_SEVERITIES, severityLabel, severityLevel, worstSeverity } from './shared/severity'
 import { countText, formatScanDate, formatFileSize, KEEP_LINE_BREAKS, safeLink, visibleText } from './shared/text'
 
