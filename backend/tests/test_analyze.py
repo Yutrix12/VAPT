@@ -7,9 +7,9 @@ import unittest
 import httpx2
 from fastapi.testclient import TestClient
 
+from app.api.schemas import PackageGroupOut, ReportDetails
 from app.parsers.models import PackageGroup, Report
-from main import (MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES, PackageGroupOut,
-                  ReportDetails, app)
+from main import MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES, app
 from tests.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
 
 
