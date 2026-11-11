@@ -85,8 +85,13 @@ class ResponseModelTest(unittest.TestCase):
 
     def test_report_details_match_report_fields(self) -> None:
         parser_fields = {f.name for f in dataclasses.fields(Report)}
+        # The finding lists and the misconfiguration counts travel in their
+        # own response fields; the two counts the page still shows (until
+        # U5) are properties of Report.
+        elsewhere = {"findings", "misconfigurations", "secrets", "licenses",
+                     "misconfig_passed", "misconfig_exceptions"}
         self.assertEqual(set(ReportDetails.model_fields),
-                         parser_fields - {"findings"})
+                         parser_fields - elsewhere | {"misconfig_count", "secret_count"})
 
     def test_group_model_matches_group_fields(self) -> None:
         parser_fields = {f.name for f in dataclasses.fields(PackageGroup)}
@@ -102,7 +107,8 @@ class AnalyzeContentTest(unittest.TestCase):
 
     def test_groups_carry_their_findings(self) -> None:
         body = upload(self.client, "r.json", tiny_report()).json()
-        self.assertEqual(set(body), {"report", "summary", "package_groups"})
+        self.assertEqual(set(body), {"report", "summary", "package_groups", "misconfigurations",
+                                     "secrets", "licenses", "secret_fix_steps"})
         group = body["package_groups"][0]
         self.assertEqual(group["pkg_name"], "demo")
         self.assertEqual(len(group["findings"]), group["finding_count"])

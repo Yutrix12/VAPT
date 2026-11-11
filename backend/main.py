@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from fix_steps import SECRET_FIX_STEPS
 from fixes import (FIX_SCHEMA, FixAdvice, FixError, FixGroup, build_messages,
                    validate_answer)
 from llm_client import (LLMError, LLMSettings, chat_json, is_this_computer,
@@ -70,6 +71,63 @@ class Summary(BaseModel):
     unique_packages: int
     without_fixed_version: int
     distinct_fingerprints: int
+    by_kind: dict[str, int]
+    misconfig_passed: int
+    misconfig_exceptions: int
+
+
+class MisconfigurationOut(BaseModel):
+    """One failed configuration check. No Message or code lines (they can quote a credential)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    fingerprint: str
+    target: str
+    misconf_type: str | None
+    check_type: str | None
+    check_id: str | None
+    title: str | None
+    description: str | None
+    resolution: str | None
+    severity: str
+    status: str
+    primary_url: str | None
+    references: list[str]
+    resource: str | None
+    start_line: int | None
+    end_line: int | None
+
+
+class SecretOut(BaseModel):
+    """Where a secret is. This model has no field for its value (rule n)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    fingerprint: str
+    target: str
+    rule_id: str | None
+    category: str | None
+    severity: str
+    title: str | None
+    start_line: int | None
+    end_line: int | None
+
+
+class LicenseOut(BaseModel):
+    """One license of a package or found in a file."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    fingerprint: str
+    target: str
+    license_class: str | None
+    pkg_name: str | None
+    file_path: str | None
+    name: str | None
+    category: str | None
+    severity: str
+    confidence: float | None
+    link: str | None
 
 
 class PackageGroupOut(BaseModel):
@@ -93,6 +151,10 @@ class AnalyzeResponse(BaseModel):
     report: ReportDetails
     summary: Summary
     package_groups: list[PackageGroupOut]
+    misconfigurations: list[MisconfigurationOut]
+    secrets: list[SecretOut]
+    licenses: list[LicenseOut]
+    secret_fix_steps: list[str]  # the same fixed steps for every secret
 
 
 class LLMStatus(BaseModel):
@@ -196,6 +258,10 @@ def analyze(file: UploadFile) -> AnalyzeResponse:
         report=ReportDetails.model_validate(report),
         summary=Summary(**summarize(report)),
         package_groups=groups,
+        misconfigurations=[MisconfigurationOut.model_validate(m) for m in report.misconfigurations],
+        secrets=[SecretOut.model_validate(s) for s in report.secrets],
+        licenses=[LicenseOut.model_validate(lic) for lic in report.licenses],
+        secret_fix_steps=list(SECRET_FIX_STEPS),
     )
 
 

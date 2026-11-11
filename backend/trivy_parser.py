@@ -9,7 +9,8 @@ import os
 import reprlib
 import sys
 from collections import Counter
-from dataclasses import asdict, dataclass
+from collections.abc import Iterator
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, NoReturn
@@ -22,6 +23,21 @@ SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN")  # display order
 SEVERITY_LEVELS = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
 # Personal data in repository scans: dropped as soon as the JSON is loaded.
 GIT_PERSONAL_FIELDS = ("CommitMsg", "Author", "Committer")
+# Secrets rule (rule n): the secret value lives in these fields of a
+# secret; dropped as soon as the JSON is loaded, like the git data.
+SECRET_VALUE_FIELDS = ("Match", "Code", "Offset")
+# A misconfiguration can quote the scanned file: its cause's code lines
+# (e.g. ENV PASSWORD=...) and its Message (Trivy's checks put the failing
+# instruction in it, e.g. DS-0013 the whole RUN command). Both are dropped
+# at load (owner's decisions 2026-11-11): only the problem and its place
+# (check ID, title, description, resolution, file, lines) are used.
+MISCONFIG_CODE_FIELDS = ("Code", "RenderedCause")
+MISCONFIG_FILE_TEXT_FIELDS = ("Message",)
+# Misconfiguration statuses (Trivy v0.76.2 pkg/types/misconfiguration.go).
+# Only FAIL is a finding; PASS and EXCEPTION are counted, not listed (rule m).
+MISCONFIG_FAILED = "FAIL"
+MISCONFIG_PASSED = "PASS"
+MISCONFIG_EXCEPTION = "EXCEPTION"
 MAX_SHOWN_FIXED_VERSIONS = 3
 MAX_TARGET_WIDTH = 30
 
@@ -51,8 +67,63 @@ class Finding:
 
 
 @dataclass(frozen=True)
+class Misconfiguration:
+    """One failed configuration check (Status FAIL) in one file.
+
+    Its Message and code lines are never kept: they can quote a credential.
+    """
+
+    fingerprint: str
+    target: str
+    misconf_type: str | None  # the result's Type, e.g. "dockerfile"
+    check_type: str | None  # e.g. "Dockerfile Security Check"
+    check_id: str | None  # ID, or the older AVDID when ID is missing
+    title: str | None
+    description: str | None
+    resolution: str | None  # Trivy's own fix text; None if not in the report
+    severity: str
+    status: str
+    primary_url: str | None
+    references: tuple[str, ...]
+    resource: str | None
+    start_line: int | None  # optional (rule o)
+    end_line: int | None
+
+
+@dataclass(frozen=True)
+class Secret:
+    """Where a secret was found. The secret value itself is never kept."""
+
+    fingerprint: str
+    target: str
+    rule_id: str | None
+    category: str | None
+    severity: str
+    title: str | None
+    start_line: int | None
+    end_line: int | None
+
+
+@dataclass(frozen=True)
+class License:
+    """One license of a package (PkgName) or found in a file (FilePath)."""
+
+    fingerprint: str
+    target: str
+    license_class: str | None  # "license" or "license-file"
+    pkg_name: str | None
+    file_path: str | None
+    name: str | None
+    category: str | None
+    severity: str
+    confidence: float | None  # 0.0 to 1.0
+    link: str | None
+
+
+@dataclass(frozen=True)
 class Report:
-    """One parsed report. Git author, committer and message are never kept."""
+    """One parsed report. Git author, committer and message are never kept,
+    and neither are secret values or misconfiguration code lines."""
 
     file_name: str
     file_sha256: str
@@ -66,9 +137,22 @@ class Report:
     repo_url: str | None
     branch: str | None
     commit: str | None
-    misconfig_count: int
-    secret_count: int
-    findings: tuple[Finding, ...]
+    findings: tuple[Finding, ...]  # the vulnerabilities
+    misconfigurations: tuple[Misconfiguration, ...]  # Status FAIL only
+    secrets: tuple[Secret, ...]
+    licenses: tuple[License, ...]
+    misconfig_passed: int  # checks that passed (rule m): counted, not listed
+    misconfig_exceptions: int  # checks with Status EXCEPTION: counted only
+
+    @property
+    def misconfig_count(self) -> int:
+        """Listed (failed) misconfigurations; the page shows it until U5."""
+        return len(self.misconfigurations)
+
+    @property
+    def secret_count(self) -> int:
+        """Secrets found; the page shows it until U5."""
+        return len(self.secrets)
 
 
 @dataclass(frozen=True)
@@ -158,6 +242,39 @@ def drop_git_personal_data(data: Any) -> None:
                 metadata.pop(key, None)
 
 
+def objects_in(value: Any) -> list[dict[str, Any]]:
+    """The dict items of a list (anything else is checked later)."""
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
+def drop_secret_values(data: Any) -> None:
+    """Remove secret values and misconfiguration code lines (rule n).
+
+    Changes `data` in place, right after the JSON is parsed (like
+    drop_git_personal_data), so nothing later can see, keep, log or send
+    them. Secrets lose Match, Code and Offset; misconfigurations lose their
+    Message and their cause's code lines; licenses lose Text (long and not
+    used).
+
+    This walk runs before any parsing on purpose. A new finding kind with
+    sensitive fields must be added here as well as in parse_results.
+    """
+    results = data.get("Results") if isinstance(data, dict) else data
+    for result in objects_in(results):
+        for secret in objects_in(result.get("Secrets")):
+            for key in SECRET_VALUE_FIELDS:
+                secret.pop(key, None)
+        for misconfig in objects_in(result.get("Misconfigurations")):
+            for key in MISCONFIG_FILE_TEXT_FIELDS:
+                misconfig.pop(key, None)
+            cause = misconfig.get("CauseMetadata")
+            if isinstance(cause, dict):
+                for key in MISCONFIG_CODE_FIELDS:
+                    cause.pop(key, None)
+        for license_item in objects_in(result.get("Licenses")):
+            license_item.pop("Text", None)
+
+
 def reject_json_constant(name: str) -> NoReturn:
     """Reject NaN, Infinity and -Infinity, which are not valid JSON."""
     raise ReportError(f"not valid JSON ({name} is not allowed)")
@@ -225,6 +342,7 @@ def decode_report_json(raw: bytes) -> dict[str, Any]:
     except RecursionError as error:
         raise ReportError("JSON is nested too deeply") from error
     drop_git_personal_data(data)
+    drop_secret_values(data)
     return to_report_dict(data)
 
 
@@ -266,6 +384,42 @@ def get_object(item: dict[str, Any], key: str, where: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ReportError(f"{where}: {key} is not an object")
     return value
+
+
+def get_count(item: dict[str, Any], key: str, where: str) -> int | None:
+    """Return item[key] as a whole number of 0 or more, or None if missing."""
+    value = item.get(key)
+    if value is None:
+        return None
+    # bool is a subclass of int in Python, so rule it out explicitly.
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ReportError(f"{where}: {key} is not a whole number")
+    return value
+
+
+def get_line(item: dict[str, Any], key: str, where: str) -> int | None:
+    """A line number; missing or 0 (Trivy's "no line") is None (rule o)."""
+    return get_count(item, key, where) or None
+
+
+def get_text_list(item: dict[str, Any], key: str, where: str) -> tuple[str, ...]:
+    """Return item[key] as a tuple of texts; missing or null is empty."""
+    texts = []
+    for value in get_list(item, key, where):
+        text = get_text({key: value}, key, where)
+        if text is not None:
+            texts.append(text)
+    return tuple(texts)
+
+
+def get_confidence(item: dict[str, Any], where: str) -> float | None:
+    """A license's Confidence: a number from 0 to 1, or None if missing."""
+    value = item.get("Confidence")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1:
+        raise ReportError(f"{where}: Confidence is not a number from 0 to 1")
+    return float(value)
 
 
 def normalize_severity(value: Any) -> str:
@@ -341,16 +495,169 @@ def parse_finding(
     )
 
 
-def parse_results(
-    results: list[dict[str, Any]],
-) -> tuple[list[Finding], int, int]:
-    """Go through all results once.
+def parse_misconfiguration(
+    item: dict[str, Any], target: str, result_type: str | None,
+    numbers: Counter[tuple[str, str | None, str | None]], where: str,
+) -> Misconfiguration:
+    """Turn one listed (failed) Misconfigurations item into a Misconfiguration.
 
-    Returns the findings, the misconfiguration count and the secret count.
+    Fingerprint (owner's OK, 2026-11-11): "config|type|file|check ID|
+    resource|n", where n counts this check's failures for this resource in
+    this file (1, 2, ...). No line numbers, so it stays the same when code
+    moves; removing the first of two same failures renumbers the second.
     """
-    findings = []
-    misconfig_count = 0
-    secret_count = 0
+    cause = get_object(item, "CauseMetadata", where)
+    check_id = get_text(item, "ID", where) or get_text(item, "AVDID", where)
+    resource = get_text(cause, "Resource", where)
+    numbers[(target, check_id, resource)] += 1
+    occurrence = str(numbers[(target, check_id, resource)])
+    return Misconfiguration(
+        fingerprint=make_fingerprint("config", result_type, target, check_id, resource, occurrence),
+        target=target,
+        misconf_type=result_type,
+        check_type=get_text(item, "Type", where),
+        check_id=check_id,
+        title=get_text(item, "Title", where),
+        description=get_text(item, "Description", where),
+        resolution=get_text(item, "Resolution", where),
+        severity=normalize_severity(item.get("Severity")),
+        status=MISCONFIG_FAILED,  # only failed checks are listed
+        primary_url=get_text(item, "PrimaryURL", where),
+        references=get_text_list(item, "References", where),
+        resource=resource,
+        start_line=get_line(cause, "StartLine", where),
+        end_line=get_line(cause, "EndLine", where),
+    )
+
+
+def parse_secret(
+    item: dict[str, Any], target: str, result_type: str | None, rule_id: str | None,
+    occurrence: int, where: str,
+) -> Secret:
+    """Turn one Secrets item into a Secret, without its value (rule n).
+
+    Fingerprint (owner's OK, 2026-11-11): "secret|type|file|rule ID|n",
+    where n counts this rule's findings in this file (1, 2, ...). Never a
+    line number, and never anything derived from the secret value: even a
+    hash of a short secret can be guessed by trying values.
+    """
+    return Secret(
+        fingerprint=make_fingerprint("secret", result_type, target, rule_id, str(occurrence)),
+        target=target,
+        rule_id=rule_id,
+        category=get_text(item, "Category", where),
+        severity=normalize_severity(item.get("Severity")),
+        title=get_text(item, "Title", where),
+        start_line=get_line(item, "StartLine", where),
+        end_line=get_line(item, "EndLine", where),
+    )
+
+
+def parse_license(
+    item: dict[str, Any], target: str, result_class: str | None, result_type: str | None, where: str,
+) -> License:
+    """Turn one Licenses item into a License.
+
+    Fingerprint (owner's OK, 2026-11-11): "class|type|file|license name|
+    package or file path".
+    """
+    pkg_name = get_text(item, "PkgName", where)
+    file_path = get_text(item, "FilePath", where)
+    name = get_text(item, "Name", where)
+    return License(
+        fingerprint=make_fingerprint(result_class, result_type, target, name, pkg_name or file_path),
+        target=target,
+        license_class=result_class,
+        pkg_name=pkg_name,
+        file_path=file_path,
+        name=name,
+        category=get_text(item, "Category", where),
+        severity=normalize_severity(item.get("Severity")),
+        confidence=get_confidence(item, where),
+        link=get_text(item, "Link", where),
+    )
+
+
+@dataclass
+class ParsedResults:
+    """Everything parse_results collects from the Results list."""
+
+    findings: list[Finding] = field(default_factory=list)
+    misconfigurations: list[Misconfiguration] = field(default_factory=list)
+    secrets: list[Secret] = field(default_factory=list)
+    licenses: list[License] = field(default_factory=list)
+    misconfig_passed: int = 0
+    misconfig_exceptions: int = 0
+
+
+def object_items(
+    result: dict[str, Any], key: str, label: str, where: str,
+) -> Iterator[tuple[str, dict[str, Any]]]:
+    """Each item of result[key] with its place ("result 2, secret 1").
+
+    Raises ReportError if an item is not a JSON object.
+    """
+    for number, item in enumerate(get_list(result, key, where), start=1):
+        item_where = f"{where}, {label} {number}"
+        if not isinstance(item, dict):
+            raise ReportError(f"{item_where}: not an object")
+        yield item_where, item
+
+
+def parse_misconfigurations(
+    result: dict[str, Any], target: str, result_type: str | None, where: str, parsed: ParsedResults,
+    numbers: Counter[tuple[str, str | None, str | None]],
+) -> None:
+    """List the failed checks of one result; count the passed and excepted.
+
+    Trivy (pkg/result/filter.go, v0.76.2) counts PASS in
+    MisconfSummary.Successes and FAIL in Failures; EXCEPTION is in neither.
+    It lists PASS and EXCEPTION items only with --include-non-failures, and
+    listed PASS items are already in Successes, so they are not added again.
+    """
+    listed_passes = listed_exceptions = 0
+    for item_where, item in object_items(result, "Misconfigurations", "misconfiguration", where):
+        # Status first: counted items are not parsed further, so a broken
+        # field that is never used cannot make the upload fail.
+        status = (get_text(item, "Status", item_where) or "").upper()
+        if status == MISCONFIG_PASSED:
+            listed_passes += 1
+        elif status == MISCONFIG_EXCEPTION:
+            listed_exceptions += 1
+        elif status == MISCONFIG_FAILED:
+            parsed.misconfigurations.append(
+                parse_misconfiguration(item, target, result_type, numbers, item_where))
+        else:  # never guess what an unknown status means
+            shown = reprlib.repr(status) if status else "missing"
+            raise ReportError(f"{item_where}: Status is {shown} (expected PASS, FAIL or EXCEPTION)")
+    summary_where = f"{where} MisconfSummary"
+    summary = get_object(result, "MisconfSummary", where)
+    successes = get_count(summary, "Successes", summary_where)
+    # Exceptions: written by older Trivy versions (v0.30 to at least v0.50).
+    exceptions = get_count(summary, "Exceptions", summary_where)
+    parsed.misconfig_passed += listed_passes if successes is None else successes
+    parsed.misconfig_exceptions += listed_exceptions if exceptions is None else exceptions
+
+
+def parse_secrets(
+    result: dict[str, Any], target: str, result_type: str | None, where: str,
+    parsed: ParsedResults, numbers: Counter[tuple[str, str | None]],
+) -> None:
+    """List the secrets of one result; `numbers` counts each (file, rule)
+    across the whole report, for the fingerprint's n."""
+    for item_where, item in object_items(result, "Secrets", "secret", where):
+        rule_id = get_text(item, "RuleID", item_where)
+        numbers[(target, rule_id)] += 1
+        parsed.secrets.append(
+            parse_secret(item, target, result_type, rule_id, numbers[(target, rule_id)], item_where))
+
+
+def parse_results(results: list[dict[str, Any]]) -> ParsedResults:
+    """Go through all results once and collect every finding kind."""
+    parsed = ParsedResults()
+    # Occurrence numbers for the fingerprints, across the whole report.
+    misconfig_numbers: Counter[tuple[str, str | None, str | None]] = Counter()
+    secret_numbers: Counter[tuple[str, str | None]] = Counter()
     for result_number, result in enumerate(results, start=1):
         where = f"result {result_number}"
         target = get_text(result, "Target", where)
@@ -360,7 +667,7 @@ def parse_results(
         vuln_type = get_text(result, "Type", where)
         vulns = get_list(result, "Vulnerabilities", where)
         for vuln_number, vuln in enumerate(vulns, start=1):
-            findings.append(
+            parsed.findings.append(
                 parse_finding(
                     vuln,
                     target,
@@ -369,9 +676,11 @@ def parse_results(
                     f"{where}, vulnerability {vuln_number}",
                 )
             )
-        misconfig_count += len(get_list(result, "Misconfigurations", where))
-        secret_count += len(get_list(result, "Secrets", where))
-    return findings, misconfig_count, secret_count
+        parse_misconfigurations(result, target, vuln_type, where, parsed, misconfig_numbers)
+        parse_secrets(result, target, vuln_type, where, parsed, secret_numbers)
+        for item_where, item in object_items(result, "Licenses", "license", where):
+            parsed.licenses.append(parse_license(item, target, vuln_class, vuln_type, item_where))
+    return parsed
 
 
 def parse_report(path: Path) -> Report:
@@ -391,7 +700,7 @@ def parse_report_bytes(file_name: str, raw: bytes) -> Report:
     """
     check_file_name(file_name)
     data = decode_report_json(raw)
-    findings, misconfig_count, secret_count = parse_results(data["Results"])
+    parsed = parse_results(data["Results"])
 
     trivy_info = get_object(data, "Trivy", "report")
     metadata = get_object(data, "Metadata", "report")
@@ -418,9 +727,12 @@ def parse_report_bytes(file_name: str, raw: bytes) -> Report:
         repo_url=repo_url,
         branch=branch,
         commit=commit,
-        misconfig_count=misconfig_count,
-        secret_count=secret_count,
-        findings=tuple(findings),
+        findings=tuple(parsed.findings),
+        misconfigurations=tuple(parsed.misconfigurations),
+        secrets=tuple(parsed.secrets),
+        licenses=tuple(parsed.licenses),
+        misconfig_passed=parsed.misconfig_passed,
+        misconfig_exceptions=parsed.misconfig_exceptions,
     )
 
 
@@ -455,6 +767,16 @@ def summarize(report: Report) -> dict[str, Any]:
         "unique_packages": len(packages),
         "without_fixed_version": without_fixed_version,
         "distinct_fingerprints": len(fingerprints),
+        # The other finding kinds (U2). The keys above count vulnerabilities
+        # only, so their expected numbers never change.
+        "by_kind": {
+            "vulnerability": len(report.findings),
+            "misconfiguration": len(report.misconfigurations),
+            "secret": len(report.secrets),
+            "license": len(report.licenses),
+        },
+        "misconfig_passed": report.misconfig_passed,
+        "misconfig_exceptions": report.misconfig_exceptions,
     }
 
 
@@ -655,7 +977,7 @@ def print_report(
         f"{name} {count}" for name, count in summary["by_status"].items()
     )
     lines += [
-        ("Findings", str(summary["total"])),
+        ("Vulnerabilities", str(summary["total"])),
         ("Severity", severities),
         ("Status", statuses or "-"),
         ("Unique", ", ".join([
@@ -665,13 +987,16 @@ def print_report(
             count_text(summary["distinct_fingerprints"],
                        "distinct fingerprint"),
         ])),
-        ("Also found", ", ".join([
-            count_text(report.misconfig_count, "misconfiguration"),
-            count_text(report.secret_count, "secret") + " (counted only)",
+        ("Other kinds", ", ".join([
+            count_text(summary["by_kind"]["misconfiguration"], "misconfiguration")
+            + f" ({count_text(summary['misconfig_passed'], 'passed check')}"
+            + f", {count_text(summary['misconfig_exceptions'], 'exception')})",
+            count_text(summary["by_kind"]["secret"], "secret"),
+            count_text(summary["by_kind"]["license"], "license"),
         ])),
     ]
     for label, value in lines:
-        print(f"{label + ':':<12} {for_display(value)}")
+        print(f"{label + ':':<17} {for_display(value)}")
 
     if not groups:
         print("No vulnerable packages.")

@@ -15,3 +15,9 @@ FS_JSON = REPORTS_DIR / "fs.json"
 REAL_REPORTS_FOUND = IMAGE_JSON.exists() and FS_JSON.exists()
 SKIP_REASON = (f"real reports not found in {REPORTS_DIR} "
                "(set TRIVY_REPORTS_DIR)")
+
+# Trivy's own sample reports and the owner's synthetic report (U2), in the
+# "samples" folder next to the real reports; see SOURCES.txt there.
+SAMPLES_DIR = REPORTS_DIR / "samples"
+SAMPLES_FOUND = (SAMPLES_DIR / "SOURCES.txt").exists()
+SAMPLES_SKIP_REASON = f"sample reports not found in {SAMPLES_DIR}"

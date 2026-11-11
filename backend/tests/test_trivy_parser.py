@@ -221,6 +221,10 @@ class RealReportsTest(unittest.TestCase):
             "unique_packages": 54,
             "without_fixed_version": 186,
             "distinct_fingerprints": 491,
+            "by_kind": {"vulnerability": 492, "misconfiguration": 0,
+                        "secret": 0, "license": 0},
+            "misconfig_passed": 0,
+            "misconfig_exceptions": 0,
         })
 
     def test_image_groups(self) -> None:
