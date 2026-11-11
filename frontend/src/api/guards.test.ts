@@ -1,17 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import { isAnalyzeResult, isFixAdvice, isLlmStatus } from './guards'
 
+/** The shape /api/analyze returns, with every kind empty. */
+const answer = {
+  report: {},
+  summary: { by_severity: {}, by_status: {}, by_kind: {} },
+  package_groups: [],
+  misconfigurations: [],
+  secrets: [],
+  licenses: [],
+  secret_fix_steps: ['Revoke the secret.'],
+}
+
 describe('isAnalyzeResult', () => {
   it('accepts the shape /api/analyze returns', () => {
-    expect(isAnalyzeResult({
-      report: {}, summary: { by_severity: {}, by_status: {} }, package_groups: [],
-    })).toBe(true)
+    expect(isAnalyzeResult(answer)).toBe(true)
   })
 
   it('refuses other answers', () => {
     expect(isAnalyzeResult({})).toBe(false)
     expect(isAnalyzeResult([])).toBe(false)
     expect(isAnalyzeResult({ report: {}, summary: {}, package_groups: [] })).toBe(false)
+  })
+
+  it('refuses an answer that lacks a finding kind or its fix steps', () => {
+    for (const field of ['misconfigurations', 'secrets', 'licenses', 'secret_fix_steps'] as const) {
+      const { [field]: _removed, ...without } = answer
+      expect(isAnalyzeResult(without), `without ${field}`).toBe(false)
+      expect(isAnalyzeResult({ ...answer, [field]: 'nope' }), `${field} as text`).toBe(false)
+    }
+    expect(isAnalyzeResult({ ...answer, summary: { by_severity: {}, by_status: {} } })).toBe(false) // no by_kind
+    expect(isAnalyzeResult({ ...answer, secret_fix_steps: [1, 2] })).toBe(false)
   })
 })
 

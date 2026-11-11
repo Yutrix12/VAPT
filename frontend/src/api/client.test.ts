@@ -13,8 +13,12 @@ describe('callBackend', () => {
   it('returns the data unchanged, hidden characters included', async () => {
     const body = {
       report: { file_name: hidden },
-      summary: { by_severity: {}, by_status: { [hidden]: 1 } },
+      summary: { by_severity: {}, by_status: { [hidden]: 1 }, by_kind: {} },
       package_groups: [{ pkg_name: hidden, fixed_versions: [hidden] }],
+      misconfigurations: [],
+      secrets: [],
+      licenses: [],
+      secret_fix_steps: [],
     }
     vi.stubGlobal('fetch', vi.fn(async () => Response.json(body)))
     expect(await analyzeReport(new File(['{}'], 'report.json'))).toEqual({ ok: true, data: body })

@@ -84,8 +84,11 @@ const result: AnalyzeResult = {
     total: 4, by_severity: { CRITICAL: 1, HIGH: 1, MEDIUM: 1, LOW: 1, UNKNOWN: 0 },
     by_status: { fixed: 4 }, unique_vuln_ids: 4, unique_packages: 3, without_fixed_version: 1,
     distinct_fingerprints: 4,
+    by_kind: { vulnerability: 4, misconfiguration: 0, secret: 0, license: 0 },
+    misconfig_passed: 0, misconfig_exceptions: 0,
   },
   package_groups: [openssl, zlib, curl],
+  misconfigurations: [], secrets: [], licenses: [], secret_fix_steps: [],
 }
 
 function advice(changes: Partial<FixAdvice>): FixAdvice {

@@ -1,5 +1,6 @@
 // The shapes /api/analyze returns. They mirror the Pydantic models in
-// backend/app/api/schemas.py (ReportDetails, Summary, PackageGroupOut, AnalyzeResponse).
+// backend/app/api/schemas.py (ReportDetails, Summary, PackageGroupOut, the finding
+// kinds, AnalyzeResponse).
 
 export const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] as const // display order
 export type Severity = (typeof SEVERITIES)[number]
@@ -50,6 +51,53 @@ export interface Summary {
   unique_packages: number
   without_fixed_version: number
   distinct_fingerprints: number
+  by_kind: Record<string, number> // vulnerability, misconfiguration, secret, license
+  misconfig_passed: number
+  misconfig_exceptions: number
+}
+
+/** One failed configuration check. The backend never sends its Message or code lines. */
+export interface Misconfiguration {
+  fingerprint: string
+  target: string
+  misconf_type: string | null
+  check_type: string | null
+  check_id: string | null
+  title: string | null
+  description: string | null
+  resolution: string | null // Trivy's own fix text; null when the report has none
+  severity: Severity
+  status: string
+  primary_url: string | null
+  references: string[]
+  resource: string | null
+  start_line: number | null
+  end_line: number | null
+}
+
+/** Where a secret is. There is no field for its value: it never reaches the page. */
+export interface Secret {
+  fingerprint: string
+  target: string
+  rule_id: string | null
+  category: string | null
+  severity: Severity
+  title: string | null
+  start_line: number | null
+  end_line: number | null
+}
+
+export interface License {
+  fingerprint: string
+  target: string
+  license_class: string | null
+  pkg_name: string | null
+  file_path: string | null
+  name: string | null
+  category: string | null
+  severity: Severity
+  confidence: number | null
+  link: string | null
 }
 
 export interface PackageGroup {
@@ -67,6 +115,10 @@ export interface AnalyzeResult {
   report: ReportDetails
   summary: Summary
   package_groups: PackageGroup[]
+  misconfigurations: Misconfiguration[]
+  secrets: Secret[]
+  licenses: License[]
+  secret_fix_steps: string[] // the same fixed steps for every secret
 }
 
 /** The AI explanation of one package group in the page; undefined means not asked yet. */

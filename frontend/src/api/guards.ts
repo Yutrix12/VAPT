@@ -14,7 +14,12 @@ export function isAnalyzeResult(body: unknown): body is AnalyzeResult {
     isObject(body.summary) &&
     isObject(body.summary.by_severity) &&
     isObject(body.summary.by_status) &&
-    Array.isArray(body.package_groups)
+    isObject(body.summary.by_kind) &&
+    Array.isArray(body.package_groups) &&
+    Array.isArray(body.misconfigurations) &&
+    Array.isArray(body.secrets) &&
+    Array.isArray(body.licenses) &&
+    isStringArray(body.secret_fix_steps)
   )
 }
 
