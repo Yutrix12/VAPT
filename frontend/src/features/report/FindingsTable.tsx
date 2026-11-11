@@ -4,20 +4,12 @@ import { severityLabel } from '../../shared/severity'
 import { NOT_IN_FORMAT, kindLabel, lineText } from '../../shared/reportText'
 import { safeLink, visibleText } from '../../shared/text'
 import { FixPanel } from '../fixes/FixPanel'
+import { DetailsDialog } from './DetailsDialog'
 import { LicenseDetails, MisconfigurationDetails, SecretDetails } from './KindDetails'
 import type { Row } from './rows'
 
 function SeverityBadge({ severity }: { severity: Severity }) {
   return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severityLabel(severity)}</span>
-}
-
-/** A small arrow that turns when the row opens (CSS does the turning). */
-function Chevron() {
-  return (
-    <svg className="chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
 }
 
 /** Trivy's fixed versions for a package, or "No fixed version yet". */
@@ -99,18 +91,11 @@ function shorten(text: string, max = 80): string {
   return `${text.slice(0, space > 0 ? space : max)} ...`
 }
 
-/** Every finding kind in one table, worst first; opening a row shows its details and fix. */
+/** Every finding kind in one table, worst first; "View details" opens a finding in a dialog. */
 export function FindingsTable({ rows, notInFormat, secretFixSteps, connection, fixFor, onExplain }: TableProps) {
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
-
-  function toggle(key: string) {
-    setOpen((current) => {
-      const next = new Set(current)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
+  // The key of the finding whose dialog is open; the dialog closes by itself (Esc, Close, backdrop).
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const openRow = rows.find((row) => row.key === openKey)
 
   if (rows.length === 0) return <p className="muted">No finding matches the filters.</p>
 
@@ -127,39 +112,55 @@ export function FindingsTable({ rows, notInFormat, secretFixSteps, connection, f
             <th role="columnheader" scope="col" className="number">Findings</th>
             <th role="columnheader" scope="col">Highest severity</th>
             <th role="columnheader" scope="col">Fix</th>
+            <th role="columnheader" scope="col"><span className="visually-hidden">Details</span></th>
           </tr>
         </thead>
         <tbody role="rowgroup">
-          {rows.map((row, index) => (
-            <FindingRows
+          {rows.map((row) => (
+            <FindingRow
               key={row.key}
               row={row}
-              listId={`details-${index}`}
-              isOpen={open.has(row.key)}
-              onToggle={() => toggle(row.key)}
               notInFormat={notInFormat}
               secretFixSteps={secretFixSteps}
-              connection={connection}
-              fixFor={fixFor}
-              onExplain={onExplain}
+              onOpen={() => setOpenKey(row.key)}
             />
           ))}
         </tbody>
       </table>
+      {openRow !== undefined && (
+        <DetailsDialog
+          title={cellsOf(openRow, secretFixSteps, notInFormat).name}
+          subtitle={
+            <>
+              {kindLabel(openRow.kind)} <SeverityBadge severity={openRow.severity} />
+            </>
+          }
+          onClose={() => setOpenKey(null)}
+        >
+          {openRow.kind === 'vulnerability' && (
+            <>
+              <FixPanel
+                fix={fixFor(openRow.shown.group)}
+                connection={connection}
+                onExplain={() => onExplain(openRow.shown.group)}
+              />
+              <CveList findings={openRow.shown.findings} />
+            </>
+          )}
+          {openRow.kind === 'misconfiguration' && <MisconfigurationDetails item={openRow.item} notInFormat={notInFormat} />}
+          {openRow.kind === 'secret' && <SecretDetails item={openRow.item} steps={secretFixSteps} />}
+          {openRow.kind === 'license' && <LicenseDetails item={openRow.item} />}
+        </DetailsDialog>
+      )}
     </div>
   )
 }
 
 interface RowProps {
   row: Row
-  listId: string
-  isOpen: boolean
-  onToggle: () => void
   notInFormat: string[]
   secretFixSteps: string[]
-  connection: AiConnection
-  fixFor: (group: PackageGroup) => FixState | undefined
-  onExplain: (group: PackageGroup) => void
+  onOpen: () => void
 }
 
 /** What a row shows in its cells, whatever the kind. */
@@ -230,62 +231,36 @@ function cellsOf(row: Row, secretFixSteps: string[], notInFormat: string[]): Cel
   }
 }
 
-/** One row, plus its details underneath when it is open. */
-function FindingRows(props: RowProps) {
-  const { row, listId, isOpen, onToggle, notInFormat, secretFixSteps, connection, fixFor, onExplain } = props
+/** One row of the table, with the button that opens its details. */
+function FindingRow({ row, notInFormat, secretFixSteps, onOpen }: RowProps) {
   const cells = cellsOf(row, secretFixSteps, notInFormat)
   return (
-    <>
-      <tr role="row" className={`group-row worst-${row.severity.toLowerCase()}${isOpen ? ' is-open' : ''}`}>
-        <td role="cell">
-          <button
-            type="button"
-            className="row-toggle"
-            aria-expanded={isOpen}
-            // Points at the details only while they exist.
-            aria-controls={isOpen ? listId : undefined}
-            onClick={onToggle}
-          >
-            <Chevron />
-            <span translate="no">{visibleText(cells.name)}</span>
-          </button>
-        </td>
-        {/* data-label names each cell when narrow screens show a row as a card. */}
-        <td role="cell" className="nowrap" data-label="Kind">
-          {kindLabel(row.kind)}
-        </td>
-        <td role="cell" translate="no" className="target" data-label="Where">
-          {cells.where}
-        </td>
-        <td role="cell" className="number" data-label="Findings">
-          {cells.count}
-        </td>
-        <td role="cell" data-label="Highest severity">
-          <SeverityBadge severity={row.severity} />
-        </td>
-        <td role="cell" className="fix-cell" data-label="Fix">
-          {cells.fix}
-        </td>
-      </tr>
-      {isOpen && (
-        <tr role="row" id={listId} className={`detail-row worst-${row.severity.toLowerCase()}`}>
-          <td role="cell" colSpan={6}>
-            {row.kind === 'vulnerability' && (
-              <>
-                <FixPanel
-                  fix={fixFor(row.shown.group)}
-                  connection={connection}
-                  onExplain={() => onExplain(row.shown.group)}
-                />
-                <CveList findings={row.shown.findings} />
-              </>
-            )}
-            {row.kind === 'misconfiguration' && <MisconfigurationDetails item={row.item} notInFormat={notInFormat} />}
-            {row.kind === 'secret' && <SecretDetails item={row.item} steps={secretFixSteps} />}
-            {row.kind === 'license' && <LicenseDetails item={row.item} />}
-          </td>
-        </tr>
-      )}
-    </>
+    <tr role="row" className={`group-row worst-${row.severity.toLowerCase()}`}>
+      <td role="cell" className="item-name">
+        <span translate="no">{visibleText(cells.name)}</span>
+      </td>
+      {/* data-label names each cell when narrow screens show a row as a card. */}
+      <td role="cell" className="nowrap" data-label="Kind">
+        {kindLabel(row.kind)}
+      </td>
+      <td role="cell" translate="no" className="target" data-label="Where">
+        {cells.where}
+      </td>
+      <td role="cell" className="number" data-label="Findings">
+        {cells.count}
+      </td>
+      <td role="cell" data-label="Highest severity">
+        <SeverityBadge severity={row.severity} />
+      </td>
+      <td role="cell" className="fix-cell" data-label="Fix">
+        {cells.fix}
+      </td>
+      <td role="cell" className="details-cell">
+        <button type="button" className="secondary" aria-haspopup="dialog" onClick={onOpen}>
+          View details
+          <span className="visually-hidden"> of {visibleText(cells.name)}</span>
+        </button>
+      </td>
+    </tr>
   )
 }

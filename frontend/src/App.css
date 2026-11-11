@@ -520,9 +520,8 @@ th {
   border-bottom: 0;
 }
 
-/* Worst-severity stripe on the left edge of each group. */
-.group-row > td:first-child,
-.detail-row > td {
+/* Worst-severity stripe on the left edge of each row. */
+.group-row > td:first-child {
   box-shadow: inset 3px 0 0 var(--stripe, var(--unknown));
 }
 
@@ -546,40 +545,16 @@ th {
   --stripe: var(--unknown);
 }
 
-.group-row:hover > td,
-.group-row.is-open > td {
+.group-row:hover > td {
   background: #f9fafb;
 }
 
-.group-row.is-open > td {
-  border-bottom-color: transparent;
-}
-
-.row-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: -0.3rem 0 -0.3rem -0.35rem;
-  padding: 0.3rem 0.5rem 0.3rem 0.35rem;
-  border: 0;
-  background: none;
-  color: var(--ink);
+.item-name {
   font-weight: 600;
-  text-align: left;
 }
 
-.row-toggle:hover {
-  background: var(--line);
-}
-
-.chevron {
-  flex: none;
-  color: var(--muted);
-  transition: transform 150ms ease-out;
-}
-
-.row-toggle[aria-expanded='true'] .chevron {
-  transform: rotate(90deg);
+.details-cell {
+  white-space: nowrap;
 }
 
 .number {
@@ -633,12 +608,7 @@ th {
   color: var(--critical-text);
 }
 
-/* Opened group: AI card, then the CVE list. */
-.detail-row > td {
-  padding: 0.25rem 1rem 1.25rem 1.75rem;
-  background: #f9fafb;
-}
-
+/* In the details dialog: the AI card, then the CVE list. */
 .fix-panel {
   margin: 0 0 1rem;
   padding: 1rem 1.15rem;
@@ -685,7 +655,6 @@ th {
     animation: none;
   }
 
-  .chevron,
   button,
   .dropzone {
     transition: none;
@@ -786,8 +755,7 @@ th {
   color: var(--accent);
 }
 
-/* Narrow screens: each package row becomes a card (labels from data-label),
-   so the opened AI card is as wide as the screen instead of the table. */
+/* Narrow screens: each row becomes a card (labels from data-label). */
 @media (max-width: 720px) {
   .groups > thead {
     position: absolute;
@@ -814,7 +782,7 @@ th {
     box-shadow: inset 3px 0 0 var(--stripe, var(--unknown));
   }
 
-  /* Specific enough to beat the desktop hover and open-row rules. */
+  /* Specific enough to beat the desktop hover rule. */
   .groups > tbody > .group-row > td {
     padding: 0;
     border: 0;
@@ -822,13 +790,10 @@ th {
     background: none;
   }
 
-  .groups > tbody > .group-row.is-open {
-    background: #f9fafb;
-  }
-
   .group-row > td:first-child,
   .group-row > .target,
-  .group-row > .fix-cell {
+  .group-row > .fix-cell,
+  .group-row > .details-cell {
     grid-column: 1 / -1;
   }
 
@@ -847,10 +812,6 @@ th {
   .target {
     min-width: 0;
     max-width: none;
-  }
-
-  .detail-row > td {
-    padding: 0.25rem 0.85rem 1rem;
   }
 
   .advice {
