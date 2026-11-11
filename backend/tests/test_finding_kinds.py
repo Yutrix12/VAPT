@@ -21,7 +21,7 @@ from app.main import app
 from app.parsers.json.parser import parse_report, parse_report_bytes
 from app.parsers.models import ReportError
 from cli import main as cli_main
-from tests.reports import SAMPLES_DIR, SAMPLES_FOUND, SAMPLES_SKIP_REASON
+from tests.support.reports import SAMPLES_DIR, SAMPLES_FOUND, SAMPLES_SKIP_REASON
 
 
 def report_with(*results: dict) -> bytes:

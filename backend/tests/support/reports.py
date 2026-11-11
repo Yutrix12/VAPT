@@ -8,7 +8,7 @@ contains this project is used.
 import os
 from pathlib import Path
 
-PROJECT_DIR = Path(__file__).resolve().parents[2]
+PROJECT_DIR = Path(__file__).resolve().parents[3]
 REPORTS_DIR = Path(os.environ.get("TRIVY_REPORTS_DIR", PROJECT_DIR.parent))
 IMAGE_JSON = REPORTS_DIR / "image.json"
 FS_JSON = REPORTS_DIR / "fs.json"

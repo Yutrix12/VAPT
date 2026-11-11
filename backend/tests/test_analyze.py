@@ -11,7 +11,7 @@ from app.api.schemas import PackageGroupOut, ReportDetails
 from app.main import app
 from app.middleware import MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
 from app.parsers.models import PackageGroup, Report
-from tests.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
+from tests.support.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
 
 
 def upload(client: TestClient, name: str, content: bytes) -> httpx2.Response:

@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 from app.llm.client import (LLMError, LLMSettings, chat_json, list_models,
                             normalize_base_url)
 from app.main import app
-from tests.fake_ollama import CHAT_ANSWER, FakeOllama
-from tests.llm_override import backend_llm, clean_llm_environment
+from tests.support.fake_ollama import CHAT_ANSWER, FakeOllama
+from tests.support.llm_override import backend_llm, clean_llm_environment
 
 KEY = "sk-test-0123456789-do-not-leak"
 SCHEMA = {"type": "object", "properties": {"summary": {"type": "string"}}}

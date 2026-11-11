@@ -10,8 +10,8 @@ from app.fixes.schemas import DISCLAIMER, FixGroup
 from app.fixes.validation import FixError, validate_answer
 from app.llm.client import LLMSettings
 from app.main import app
-from tests.fake_ollama import FakeOllama
-from tests.llm_override import backend_llm, clean_llm_environment
+from tests.support.fake_ollama import FakeOllama
+from tests.support.llm_override import backend_llm, clean_llm_environment
 
 KEY = "sk-test-0123456789-do-not-leak"
 FIXED = ["3.5.4-1~deb13u2", "3.5.5-1~deb13u2"]
