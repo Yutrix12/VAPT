@@ -12,10 +12,10 @@ import {
   type PackageGroup,
   type Severity,
 } from '../../api/types'
+import { artifactTypeLabel, fieldOrNotInFormat } from '../../shared/reportText'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
 import { ALL_STATUSES, type ShownGroup } from '../filters/filterGroups'
-import { artifactTypeLabel, fieldOrNotInFormat } from '../report/reportText'
 import { openAfterUpgradeText } from './fixLogic'
 
 /** Line breaks become spaces, so text cannot start a heading or a list. */
