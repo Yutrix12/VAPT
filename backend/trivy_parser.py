@@ -7,14 +7,13 @@ import json
 import os
 import reprlib
 import sys
-from collections import Counter
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from app.analysis.grouping import GroupKey, group_by_package, group_key
-from app.parsers.common import SEVERITIES
+from app.analysis.grouping import group_by_package
+from app.analysis.summary import summarize
 from app.parsers.json.parser import parse_report
 from app.parsers.models import PackageGroup, Report, ReportError
 
@@ -25,50 +24,6 @@ MAX_TARGET_WIDTH = 30
 
 # One parsed report together with its summary and package groups.
 AnalysedReport = tuple[Report, dict[str, Any], list[PackageGroup]]
-
-
-def summarize(report: Report) -> dict[str, Any]:
-    """Count the findings of one report in a single pass.
-
-    "unique_vuln_ids" counts every distinct vulnerability ID: CVE- and also
-    GHSA-, DSA- or TEMP- IDs. A package is one (target, name, installed
-    version), the same key the package groups use.
-    """
-    severity_counts = dict.fromkeys(SEVERITIES, 0)
-    status_counts: Counter[str] = Counter()
-    vuln_ids: set[str] = set()
-    packages: set[GroupKey] = set()
-    fingerprints: set[str] = set()
-    without_fixed_version = 0
-    for finding in report.findings:
-        severity_counts[finding.severity] += 1
-        status_counts[finding.status] += 1
-        if finding.vuln_id is not None:
-            vuln_ids.add(finding.vuln_id)
-        if finding.pkg_name is not None:
-            packages.add(group_key(finding))
-        fingerprints.add(finding.fingerprint)
-        if finding.fixed_version is None:
-            without_fixed_version += 1
-    return {
-        "total": len(report.findings),
-        "by_severity": severity_counts,
-        "by_status": dict(status_counts.most_common()),
-        "unique_vuln_ids": len(vuln_ids),
-        "unique_packages": len(packages),
-        "without_fixed_version": without_fixed_version,
-        "distinct_fingerprints": len(fingerprints),
-        # The other finding kinds (U2). The keys above count vulnerabilities
-        # only, so their expected numbers never change.
-        "by_kind": {
-            "vulnerability": len(report.findings),
-            "misconfiguration": len(report.misconfigurations),
-            "secret": len(report.secrets),
-            "license": len(report.licenses),
-        },
-        "misconfig_passed": report.misconfig_passed,
-        "misconfig_exceptions": report.misconfig_exceptions,
-    }
 
 
 def positive_int(text: str) -> int:
