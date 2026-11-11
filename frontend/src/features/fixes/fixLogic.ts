@@ -1,5 +1,6 @@
-// Plain functions behind the AI status and the AI explanations (no React).
-import { type FixGroupRequest, type PackageGroup, type ReportDetails } from './api/types'
+// Plain functions behind the AI explanations (no React).
+import { type FixGroupRequest, type PackageGroup, type ReportDetails } from '../../api/types'
+import { countText } from '../../shared/text'
 
 /** The body of /api/fix: this group only, nothing else from the report. */
 export function toFixGroup(group: PackageGroup, report: ReportDetails): FixGroupRequest {
@@ -33,4 +34,13 @@ export function serialQueue(): (task: () => Promise<void>) => Promise<void> {
     last = run.catch(() => undefined)
     return run
   }
+}
+
+/** The sentence for vulnerabilities that no upgrade closes (page and fix summary). */
+export function openAfterUpgradeText(count: number): string {
+  const one = count === 1
+  return (
+    `${countText(count, 'vulnerability', 'vulnerabilities')} in this package ${one ? 'has' : 'have'} ` +
+    `no fixed version yet and ${one ? 'stays' : 'stay'} open after any upgrade.`
+  )
 }

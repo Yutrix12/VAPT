@@ -1,9 +1,9 @@
 import { Fragment, useState } from 'react'
 import type { AiConnection, Finding, FixState, PackageGroup, Severity } from '../../api/types'
-import { FixPanel } from '../../components/FixPanel'
 import { severityLabel } from '../../shared/severity'
 import { safeLink, visibleText } from '../../shared/text'
 import { type ShownGroup } from '../filters/filterGroups'
+import { FixPanel } from '../fixes/FixPanel'
 import { groupKey } from './groupKey'
 
 function SeverityBadge({ severity }: { severity: Severity }) {

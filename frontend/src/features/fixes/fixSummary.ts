@@ -11,12 +11,12 @@ import {
   type FixState,
   type PackageGroup,
   type Severity,
-} from './api/types'
-import { ALL_STATUSES, type ShownGroup } from './features/filters/filterGroups'
-import { artifactTypeLabel, fieldOrNotInFormat } from './features/report/reportText'
-import { openAfterUpgradeText } from './reportLogic'
-import { RATED_SEVERITIES, severityLabel } from './shared/severity'
-import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from './shared/text'
+} from '../../api/types'
+import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
+import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
+import { ALL_STATUSES, type ShownGroup } from '../filters/filterGroups'
+import { artifactTypeLabel, fieldOrNotInFormat } from '../report/reportText'
+import { openAfterUpgradeText } from './fixLogic'
 
 /** Line breaks become spaces, so text cannot start a heading or a list. */
 function oneLine(text: string): string {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isFixAdvice, isLlmStatus } from './api/guards'
 import type { Finding, PackageGroup, ReportDetails } from './api/types'
 import { connectionFromStatus } from './features/ai-status/connection'
-import { serialQueue, toFixGroup } from './llmLogic'
+import { serialQueue, toFixGroup } from './features/fixes/fixLogic'
 
 function finding(id: string | null, fixed: string | null): Finding {
   return {
