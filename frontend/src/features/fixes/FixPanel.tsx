@@ -1,5 +1,4 @@
 import { useEffect, useEffectEvent, useState } from 'react'
-import { isOtherAdvice } from '../../api/guards'
 import type { AiConnection, AiState, FixAdvice, OtherAdvice } from '../../api/types'
 import { KEEP_LINE_BREAKS, countText, visibleText } from '../../shared/text'
 import { answerState, openAfterUpgradeText, otherAnswerState } from './fixLogic'
@@ -136,7 +135,8 @@ function FixContent({ fix, connection, needsClick, onExplain, fallback }: Props 
         </div>
       )
     case 'done':
-      return isOtherAdvice(fix.advice) ? <OtherAdviceView advice={fix.advice} /> : <Advice advice={fix.advice} />
+      // Only the advice for the other kinds has a `kind`.
+      return 'kind' in fix.advice ? <OtherAdviceView advice={fix.advice} /> : <Advice advice={fix.advice} />
   }
 }
 
@@ -157,30 +157,8 @@ function Advice({ advice }: { advice: FixAdvice }) {
       <dl className="advice">
         <dt>Summary</dt>
         <dd>{visibleText(advice.summary, KEEP_LINE_BREAKS)}</dd>
-        {advice.solutions.length > 0 && (
-          <>
-            <dt>Solutions</dt>
-            <dd>
-              <ol className="steps">
-                {advice.solutions.map((text, index) => (
-                  <li key={`${index}-${text}`}>{visibleText(text, KEEP_LINE_BREAKS)}</li>
-                ))}
-              </ol>
-            </dd>
-          </>
-        )}
-        {advice.mitigations.length > 0 && (
-          <>
-            <dt>Mitigations until a fix exists</dt>
-            <dd>
-              <ul className="steps">
-                {advice.mitigations.map((text, index) => (
-                  <li key={`${index}-${text}`}>{visibleText(text, KEEP_LINE_BREAKS)}</li>
-                ))}
-              </ul>
-            </dd>
-          </>
-        )}
+        <Steps title="Solutions" steps={advice.solutions} ordered />
+        <Steps title="Mitigations until a fix exists" steps={advice.mitigations} />
         <dt>Risks</dt>
         <dd>{visibleText(advice.risk_notes, KEEP_LINE_BREAKS)}</dd>
       </dl>
@@ -208,18 +186,13 @@ function Advice({ advice }: { advice: FixAdvice }) {
 }
 
 /** A list of steps from the AI (solutions or mitigations). */
-function Steps({ title, steps }: { title: string; steps: string[] }) {
+function Steps({ title, steps, ordered = false }: { title: string; steps: string[]; ordered?: boolean }) {
   if (steps.length === 0) return null
+  const items = steps.map((text, index) => <li key={`${index}-${text}`}>{visibleText(text, KEEP_LINE_BREAKS)}</li>)
   return (
     <>
       <dt>{title}</dt>
-      <dd>
-        <ul className="steps">
-          {steps.map((text, index) => (
-            <li key={`${index}-${text}`}>{visibleText(text, KEEP_LINE_BREAKS)}</li>
-          ))}
-        </ul>
-      </dd>
+      <dd>{ordered ? <ol className="steps">{items}</ol> : <ul className="steps">{items}</ul>}</dd>
     </>
   )
 }
@@ -233,7 +206,7 @@ function OtherAdviceView({ advice }: { advice: OtherAdvice }) {
       <dl className="advice">
         <dt>Summary</dt>
         <dd>{visibleText(advice.summary, KEEP_LINE_BREAKS)}</dd>
-        <Steps title="Solutions" steps={advice.solutions} />
+        <Steps title="Solutions" steps={advice.solutions} ordered />
         <Steps title="Mitigations until it is fixed" steps={advice.mitigations} />
         <dt>Risks</dt>
         <dd>{visibleText(advice.risk_notes, KEEP_LINE_BREAKS)}</dd>

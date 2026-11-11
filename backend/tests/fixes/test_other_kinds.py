@@ -147,5 +147,19 @@ class ValidationTest(unittest.TestCase):
         self.assertEqual(set(OtherAnswer.model_fields), {"summary", "solutions", "mitigations", "risk_notes"})
 
 
+class PromptTextTest(unittest.TestCase):
+    def test_braces_in_a_rule_text_or_in_the_schema_do_not_break_the_prompt(self) -> None:
+        from app.fixes.other import prompts
+
+        original = dict(prompts.KIND_RULES)
+        try:
+            prompts.KIND_RULES["secret"] = "Use {curly} braces {0} {} carefully."
+            system = build_other_messages(REQUEST.validate_python(SECRET))[0]["content"]
+        finally:
+            prompts.KIND_RULES.update(original)
+        self.assertIn("Use {curly} braces {0} {} carefully.", system)
+        self.assertIn(json.dumps(OTHER_FIX_SCHEMA), system)
+
+
 if __name__ == "__main__":
     unittest.main()

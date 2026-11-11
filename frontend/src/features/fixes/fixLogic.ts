@@ -73,17 +73,22 @@ export function answerState(status: FixStatus): string {
   }
 }
 
+/** A text cut to the length the backend accepts (null stays null). */
+function cut(text: string | null, max: number): string | null {
+  return text === null ? null : text.slice(0, max)
+}
+
 /** The body of /api/fix/other for a misconfiguration: what is wrong and Trivy's fix text, no message or code. */
 export function misconfigurationRequest(item: Misconfiguration): MisconfigurationRequest {
   return {
     kind: 'misconfiguration',
-    check_id: item.check_id,
-    title: item.title,
-    description: item.description,
-    resolution: item.resolution,
+    check_id: cut(item.check_id, 100),
+    title: cut(item.title, 1000),
+    description: cut(item.description, 5000),
+    resolution: cut(item.resolution, 5000),
     severity: item.severity,
-    misconf_type: item.misconf_type,
-    target: item.target,
+    misconf_type: cut(item.misconf_type, 100),
+    target: item.target.slice(0, 2000),
     start_line: item.start_line,
     end_line: item.end_line,
   }
@@ -93,11 +98,11 @@ export function misconfigurationRequest(item: Misconfiguration): Misconfiguratio
 export function secretRequest(item: Secret): SecretRequest {
   return {
     kind: 'secret',
-    rule_id: item.rule_id,
-    category: item.category,
+    rule_id: cut(item.rule_id, 200),
+    category: cut(item.category, 200),
     severity: item.severity,
-    title: item.title,
-    target: item.target,
+    title: cut(item.title, 1000),
+    target: item.target.slice(0, 2000),
     start_line: item.start_line,
     end_line: item.end_line,
   }
@@ -107,10 +112,10 @@ export function secretRequest(item: Secret): SecretRequest {
 export function licenseRequest(item: License): LicenseRequest {
   return {
     kind: 'license',
-    name: item.name,
-    category: item.category,
-    license_class: item.license_class,
-    package: item.pkg_name ?? item.file_path,
+    name: cut(item.name, 500),
+    category: cut(item.category, 100),
+    license_class: cut(item.license_class, 100),
+    package: cut(item.pkg_name ?? item.file_path, 500),
     severity: item.severity,
   }
 }

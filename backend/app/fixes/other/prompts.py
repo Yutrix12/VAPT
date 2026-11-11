@@ -55,12 +55,12 @@ Rules:
 5. Write summary, solutions, mitigations and risk_notes in plain words. Do
    not describe the answer format.
 6. Answer only with JSON that matches this schema:
-{{schema}}"""
+{schema}"""
 
 
 def system_prompt(kind: str) -> str:
-    text = SYSTEM_PROMPT.format(what=KIND_NAMES[kind], rules=KIND_RULES[kind].replace("\n", "\n   "), steps=MAX_STEPS)
-    return text.format(schema=json.dumps(OTHER_FIX_SCHEMA)) if "{schema}" in text else text
+    rules = KIND_RULES[kind].replace("\n", "\n   ")
+    return SYSTEM_PROMPT.format(what=KIND_NAMES[kind], rules=rules, steps=MAX_STEPS, schema=json.dumps(OTHER_FIX_SCHEMA))
 
 
 def prompt_data(request: MisconfigurationIn | SecretIn | LicenseIn) -> dict[str, Any]:

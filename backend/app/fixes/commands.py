@@ -13,8 +13,10 @@ from dataclasses import dataclass
 
 MAX_VERSIONS = 8  # one command per fixed version, up to this many
 
-# Letters, digits and ._+ plus @ and / (scoped npm names, Go module paths); never a leading "-".
-SAFE_NAME = re.compile(r"[A-Za-z0-9._+@/][A-Za-z0-9._+@/-]*")
+# A name only in the shape its package manager uses; never a leading "-".
+PLAIN_NAME = re.compile(r"[A-Za-z0-9._+][A-Za-z0-9._+-]*")
+NPM_NAME = re.compile(r"(?:@[A-Za-z0-9._-]+/)?[A-Za-z0-9._+][A-Za-z0-9._+-]*")  # name or @scope/name
+GO_NAME = re.compile(r"[A-Za-z0-9._~][A-Za-z0-9._~-]*(?:/[A-Za-z0-9._~-]+)*")  # a module path
 # The same plus ":" (a Debian epoch) and "~"; never a leading "-".
 SAFE_VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+:~-]*")
 SAFE_TYPE = re.compile(r"[A-Za-z0-9._-]{1,40}")
@@ -38,10 +40,18 @@ UNSAFE_FLAGS = (
     "--ignore-scripts",
     "--ignore-rust-version",
     "-insecure",
+    "--insecure",
+    "--trusted-host",
+    "--no-check-certificate",
+    "--no-verify",
+    "allowinsecurerepositories",
+    "allowunauthenticated",
     "GOSUMDB=off",
     "GONOSUMDB",
     "GOINSECURE",
 )
+# A download piped straight into a shell runs code nobody checked.
+PIPE_TO_SHELL = re.compile(r"\|\s*(?:sh|bash)\b")
 
 
 @dataclass(frozen=True)
@@ -84,21 +94,23 @@ def _cargo(name: str, version: str) -> tuple[str, ...]:
     return (f"cargo update {name} --precise {version}",)
 
 
-# Trivy package type -> how to build the command (only verified ones, see the skill).
-BUILDERS: dict[str, Callable[[str, str], tuple[str, ...]]] = {
-    "debian": _apt,
-    "ubuntu": _apt,
-    "fedora": _dnf,
-    "rocky": _dnf,
-    "alma": _dnf,
-    "pip": _pip,
-    "python-pkg": _pip,
-    "npm": _npm,
-    "node-pkg": _npm,
-    "gomod": _go,
-    "gobinary": _go,
-    "cargo": _cargo,
+# Trivy package type -> (the name shape, how to build the command); only verified ones, see the skill.
+BUILDERS: dict[str, tuple[re.Pattern[str], Callable[[str, str], tuple[str, ...]]]] = {
+    "debian": (PLAIN_NAME, _apt),
+    "ubuntu": (PLAIN_NAME, _apt),
+    "fedora": (PLAIN_NAME, _dnf),
+    "rocky": (PLAIN_NAME, _dnf),
+    "alma": (PLAIN_NAME, _dnf),
+    "pip": (PLAIN_NAME, _pip),
+    "python-pkg": (PLAIN_NAME, _pip),
+    "npm": (NPM_NAME, _npm),
+    "node-pkg": (NPM_NAME, _npm),
+    "gomod": (GO_NAME, _go),
+    "gobinary": (GO_NAME, _go),
+    "cargo": (PLAIN_NAME, _cargo),
 }
+# Go reports the standard library as a package; it is fixed by upgrading Go itself.
+GO_TOOLCHAIN_NAMES = ("stdlib", "toolchain")
 
 
 def distinct_versions(fixed_versions: list[str]) -> list[str]:
@@ -118,11 +130,14 @@ def build_fix_commands(name: str | None, package_type: str | None, fixed_version
         return BuiltFix((), "Trivy lists no fixed version, so there is no upgrade command.")
     if not package_type:
         return BuiltFix((), "The report does not say the package type, so no command is built.")
-    builder = BUILDERS.get(package_type)
-    if builder is None:
+    entry = BUILDERS.get(package_type)
+    if entry is None:
         shown = f" for {package_type}" if SAFE_TYPE.fullmatch(package_type) else ""
         return BuiltFix((), f"No command is built{shown}: its syntax is not verified.")
-    if not name or not SAFE_NAME.fullmatch(name) or not all(SAFE_VERSION.fullmatch(v) for v in versions):
+    name_shape, builder = entry
+    if builder is _go and name in GO_TOOLCHAIN_NAMES:
+        return BuiltFix((), "The Go standard library is fixed by upgrading Go itself, so no go get command is built.")
+    if not name or not name_shape.fullmatch(name) or not all(SAFE_VERSION.fullmatch(v) for v in versions):
         return BuiltFix((), "The package name or version has unusual characters, so no command is built.")
     chosen = versions[:MAX_VERSIONS]
     label = (lambda version: f"Fixed version {version}") if len(versions) > 1 else (lambda version: None)
@@ -141,4 +156,4 @@ def build_fix_commands(name: str | None, package_type: str | None, fixed_version
 def is_unsafe_command(command: str) -> bool:
     """True if the command contains a flag or setting that skips a safety check."""
     lowered = command.lower()
-    return any(flag.lower() in lowered for flag in UNSAFE_FLAGS)
+    return any(flag.lower() in lowered for flag in UNSAFE_FLAGS) or bool(PIPE_TO_SHELL.search(lowered))

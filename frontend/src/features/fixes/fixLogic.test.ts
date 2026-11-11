@@ -126,6 +126,18 @@ describe('requests for the other kinds', () => {
         'target', 'title'])
   })
 
+  it('cuts long texts to the limits of the backend, so a long description never makes the request fail', () => {
+    const long = 'x'.repeat(20_000)
+    const request = misconfigurationRequest({ ...misconfiguration, title: long, description: long, resolution: long, target: long })
+    expect(request.title?.length).toBe(1000)
+    expect(request.description?.length).toBe(5000)
+    expect(request.resolution?.length).toBe(5000)
+    expect(request.target.length).toBe(2000)
+    expect(secretRequest({ ...secret, title: long, target: long }).title?.length).toBe(1000)
+    expect(licenseRequest({ ...license, name: long }).name?.length).toBe(500)
+    expect(misconfigurationRequest(misconfiguration).description).toBe('Root is risky.') // short texts stay
+  })
+
   it('a license request names the package, or the file when there is no package', () => {
     expect(licenseRequest(license)).toEqual({
       kind: 'license', name: 'EPL-1.0', category: 'reciprocal', license_class: 'license', package: 'org.a:a',

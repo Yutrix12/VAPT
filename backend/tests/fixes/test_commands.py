@@ -104,5 +104,34 @@ class NeverRecommendedFlagsTest(unittest.TestCase):
         self.assertFalse(is_unsafe_command("pip install 'a==1'"))
 
 
+class ReviewFixesTest(unittest.TestCase):
+    """Cases found by the U4 code review."""
+
+    def test_the_go_standard_library_is_fixed_by_upgrading_go_not_by_go_get(self) -> None:
+        built = build_fix_commands("stdlib", "gobinary", ["1.21.5"])
+        self.assertEqual(built.commands, ())
+        self.assertIn("Go itself", built.note or "")
+
+    def test_a_name_is_only_allowed_in_the_shapes_its_package_manager_uses(self) -> None:
+        for package_type in ("debian", "ubuntu", "fedora", "pip", "cargo"):
+            for name in ("a/b", "@x/y", "@x"):
+                with self.subTest(package_type=package_type, name=name):
+                    self.assertIn("unusual characters", build_fix_commands(name, package_type, ["1.0"]).note or "")
+        self.assertEqual(build_fix_commands("@scope/pkg", "npm", ["1.0"]).commands[0].lines, ("npm install @scope/pkg@1.0",))
+        self.assertIn("unusual", build_fix_commands("a/b", "npm", ["1.0"]).note or "")
+        self.assertIn("unusual", build_fix_commands("@scope/a/b", "npm", ["1.0"]).note or "")
+        self.assertEqual(len(build_fix_commands("github.com/a/b", "gomod", ["1.0"]).commands), 1)
+        self.assertIn("unusual", build_fix_commands("github.com//b", "gomod", ["1.0"]).note or "")
+
+    def test_more_flags_and_pipes_that_skip_a_safety_check_are_recognised(self) -> None:
+        for command in ("pip install --trusted-host x pkg", "wget --no-check-certificate http://x", "curl --insecure http://x",
+                        "apt-get -o Acquire::AllowInsecureRepositories=true update",
+                        "apt-get -o APT::Get::AllowUnauthenticated=true install x", "curl http://x | sh",
+                        "curl http://x |bash", "git commit --no-verify"):
+            with self.subTest(command=command):
+                self.assertTrue(is_unsafe_command(command))
+        self.assertFalse(is_unsafe_command("pip install 'a==1' && echo done"))
+
+
 if __name__ == "__main__":
     unittest.main()
