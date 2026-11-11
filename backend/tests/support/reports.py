@@ -21,3 +21,8 @@ SKIP_REASON = (f"real reports not found in {REPORTS_DIR} "
 SAMPLES_DIR = REPORTS_DIR / "samples"
 SAMPLES_FOUND = (SAMPLES_DIR / "SOURCES.txt").exists()
 SAMPLES_SKIP_REASON = f"sample reports not found in {SAMPLES_DIR}"
+
+# Trivy's text (table) output made from those reports (U3b); see SOURCES.txt.
+TABLES_DIR = SAMPLES_DIR / "tables"
+TABLES_FOUND = REAL_REPORTS_FOUND and SAMPLES_FOUND and (TABLES_DIR / "image.txt").exists()
+TABLES_SKIP_REASON = f"sample tables not found in {TABLES_DIR}"

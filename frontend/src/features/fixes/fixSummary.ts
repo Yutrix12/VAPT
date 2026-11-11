@@ -12,7 +12,7 @@ import {
   type PackageGroup,
   type Severity,
 } from '../../api/types'
-import { artifactTypeLabel, fieldOrNotInFormat } from '../../shared/reportText'
+import { artifactTypeLabel, fieldOrNotInFormat, missingFieldsText } from '../../shared/reportText'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
 import { ALL_STATUSES, type ShownGroup } from '../filters/filterGroups'
@@ -87,7 +87,7 @@ function scannedLine(result: AnalyzeResult): string {
   }
   const os = [report.os_family, report.os_name].filter(Boolean).join(' ')
   return (
-    `- Artifact type: ${escapeMarkdown(artifactTypeLabel(report.artifact_type))}; ` +
+    `- Artifact type: ${escapeMarkdown(fieldOrNotInFormat(report, 'artifact_type', artifactTypeLabel(report.artifact_type)))}; ` +
     `operating system: ${escapeMarkdown(fieldOrNotInFormat(report, 'os', os || 'unknown'))}`
   )
 }
@@ -190,14 +190,16 @@ function groupSection(item: ShownGroup, index: number, fix: FixState | undefined
 /** The whole summary: header, then one section per shown package, worst first. */
 export function buildFixSummary(input: SummaryInput): string {
   const { report } = input.result
+  const missing = missingFieldsText(report)
   const scanDate = fieldOrNotInFormat(report, 'created_at',
     formatScanDate(report.created_at, input.locale, input.timeZone))
   const lines = [
-    `# Fix summary: ${escapeMarkdown(report.artifact_name ?? 'unknown artifact')}`,
+    `# Fix summary: ${escapeMarkdown(fieldOrNotInFormat(report, 'artifact_name', report.artifact_name ?? 'unknown artifact'))}`,
     '',
     `- Report file: ${codeSpan(report.file_name)}. Scan date: ${escapeMarkdown(scanDate)}. ` +
-      `Trivy version: ${escapeMarkdown(report.trivy_version ?? 'unknown')}.`,
+      `Trivy version: ${escapeMarkdown(fieldOrNotInFormat(report, 'trivy_version', report.trivy_version ?? 'unknown'))}.`,
     `- Report format: ${escapeMarkdown(report.report_format)}`,
+    ...(missing === null ? [] : [`- Not in this format: ${escapeMarkdown(missing)}`]),
     scannedLine(input.result),
     countsLine(input.result),
     filtersLine(input),

@@ -11,8 +11,11 @@ runs on your own computer. Nothing is saved.
 
 ## What it does
 
-- **Upload** one Trivy JSON report. Other files get “only Trivy JSON reports
-  are supported right now”.
+- **Upload** one Trivy report: JSON, or Trivy’s text (table) output. The
+  format is found from the content, not the file name. A table carries less
+  than JSON (no scan date, Trivy version, CVSS scores or full titles), and
+  the page lists what is missing. Other files get “not a supported Trivy
+  report” and the list of supported formats.
 - **Report details**: what was scanned, Trivy version, scan date, and the
   operating system or the git repository, branch and commit.
 - **Counts** by severity: Critical, High, Medium and Low are ranked (levels
@@ -92,7 +95,7 @@ For the AI explanation, Ollama must be running (the Ollama app, or
 
 ## Use
 
-1. Drop a Trivy JSON report on the **Upload a report** panel in the sidebar (or
+1. Drop a Trivy report (JSON or text table) on the **Upload a report** panel in the sidebar (or
    click it to choose one) and click **Analyze report**.
 2. Read the report details and the severity bar. Use the severity chips
    and the status list under **Filters** to narrow the packages.
@@ -199,5 +202,6 @@ Not built in this prototype:
   comparing reports. The `fingerprint` of each finding and the
   `file_sha256` of each report are kept for this.
 - Several users and login.
-- Report formats other than Trivy JSON.
+- Report formats other than Trivy JSON and the Trivy text table (HTML from
+  Trivy’s html.tpl is planned next).
 - Agents or MCP integration.

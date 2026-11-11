@@ -1,5 +1,5 @@
 import type { ReportDetails as Details } from '../../api/types'
-import { artifactTypeLabel, fieldOrNotInFormat } from '../../shared/reportText'
+import { artifactTypeLabel, fieldOrNotInFormat, missingFieldsText } from '../../shared/reportText'
 import { countText, formatScanDate, visibleText } from '../../shared/text'
 
 /** What was scanned: the artifact as the title, then the facts about the scan. */
@@ -8,17 +8,20 @@ export function ReportDetails({ report }: { report: Details }) {
   const hasGit = Boolean(report.repo_url || report.branch || report.commit)
   const os = [report.os_family, report.os_name].filter(Boolean).join(' ')
   const typeLabel = artifactTypeLabel(report.artifact_type)
+  const missing = missingFieldsText(report)
 
   return (
     <section aria-labelledby="details-heading">
       <h2 id="details-heading" className="report-title" translate="no">
-        {visibleText(report.artifact_name ?? 'Unknown artifact')}
+        {visibleText(fieldOrNotInFormat(report, 'artifact_name', report.artifact_name ?? 'Unknown artifact'))}
       </h2>
       <dl className="facts">
         <div>
           <dt>Artifact type</dt>
           {/* A type without a friendly name is shown as Trivy wrote it: not translated. */}
-          <dd translate={typeLabel === report.artifact_type ? 'no' : undefined}>{visibleText(typeLabel)}</dd>
+          <dd translate={typeLabel === report.artifact_type ? 'no' : undefined}>
+            {visibleText(fieldOrNotInFormat(report, 'artifact_type', typeLabel))}
+          </dd>
         </div>
         {isRepository ? (
           <>
@@ -53,7 +56,7 @@ export function ReportDetails({ report }: { report: Details }) {
         </div>
         <div>
           <dt>Trivy version</dt>
-          <dd translate="no">{visibleText(report.trivy_version ?? 'unknown')}</dd>
+          <dd translate="no">{visibleText(fieldOrNotInFormat(report, 'trivy_version', report.trivy_version ?? 'unknown'))}</dd>
         </div>
         <div>
           <dt>Report format</dt>
@@ -63,6 +66,12 @@ export function ReportDetails({ report }: { report: Details }) {
           <dt>Report file</dt>
           <dd translate="no">{visibleText(report.file_name)}</dd>
         </div>
+        {missing !== null && (
+          <div className="wide-fact">
+            <dt>Not in this format</dt>
+            <dd>{missing}</dd>
+          </div>
+        )}
         <div>
           <dt>Also found</dt>
           <dd>

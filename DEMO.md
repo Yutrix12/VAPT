@@ -56,8 +56,8 @@
 
 ## 3. When something goes wrong
 
-1. Upload any file that is not JSON (for example an .html file): “only
-   Trivy JSON reports are supported right now”.
+1. Upload any file that is not a Trivy report (for example an .html file):
+   “not a supported Trivy report”, with the list of supported formats.
 2. Stop Ollama (close the Ollama app, or Ctrl+C on `ollama serve`), click
    **Check connection** and open another package: one clear error, and
    its fixed versions are still there. The app works without the LLM. Start Ollama

@@ -183,6 +183,22 @@ describe('buildFixSummary', () => {
     expect(text).toContain('operating system: not in this format')
   })
 
+  it('names the artifact and the Trivy version "not in this format" for a table, and lists what is missing', () => {
+    const table = {
+      ...result,
+      report: { ...result.report, report_format: 'Trivy text (table)', artifact_name: null, artifact_type: null,
+                trivy_version: null, created_at: null,
+                not_in_format: ['artifact_name', 'artifact_type', 'trivy_version', 'created_at', 'cvss_score'] },
+    }
+    const text = buildFixSummary({
+      result: table, shown: [], severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
+    })
+    expect(text).toContain('# Fix summary: not in this format')
+    expect(text).toContain('Trivy version: not in this format.')
+    expect(text).toContain('Artifact type: not in this format;')
+    expect(text).toContain('- Not in this format: CVSS scores')
+  })
+
   it('says "no packages" for a report without any', () => {
     const empty = { ...result, package_groups: [] }
     const text = buildFixSummary({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { artifactTypeLabel, fieldOrNotInFormat } from './reportText'
+import { artifactTypeLabel, fieldOrNotInFormat, missingFieldsText } from './reportText'
 
 describe('fieldOrNotInFormat', () => {
   it('says "not in this format" only for the fields the format lacks', () => {
@@ -22,5 +22,18 @@ describe('artifactTypeLabel', () => {
   it('shows any other value as Trivy wrote it, and unknown when missing', () => {
     expect(artifactTypeLabel('something_new')).toBe('something_new')
     expect(artifactTypeLabel(null)).toBe('unknown')
+  })
+})
+
+describe('missingFieldsText', () => {
+  it('lists, in plain words, what the format lacks and is not shown elsewhere', () => {
+    const text = { not_in_format: ['created_at', 'os', 'cvss_score', 'published_date', 'full_titles', 'resolution'] }
+    expect(missingFieldsText(text)).toBe(
+      'CVSS scores, published dates, full vulnerability titles (Trivy shortens them), fix texts for misconfigurations')
+  })
+
+  it('is null for a report that lacks nothing of these', () => {
+    expect(missingFieldsText({ not_in_format: [] })).toBeNull()
+    expect(missingFieldsText({ not_in_format: ['created_at', 'os'] })).toBeNull()
   })
 })

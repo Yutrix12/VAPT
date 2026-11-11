@@ -46,7 +46,7 @@ class AnalyzeErrorsTest(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json(), {"detail": (
             "Skipped report.html: not a supported Trivy report. "
-            "Supported formats: Trivy JSON")})
+            "Supported formats: Trivy JSON, Trivy text (table)")})
 
     def test_broken_json_is_skipped(self) -> None:
         response = upload(self.client, "broken.json", b'{"Results": [')

@@ -8,6 +8,25 @@ export function fieldOrNotInFormat(report: { not_in_format: string[] }, field: s
   return report.not_in_format.includes(field) ? NOT_IN_FORMAT : value
 }
 
+// Fields a format can lack that the page shows nowhere else, in plain words.
+const MISSING_FIELD_WORDS: Record<string, string> = {
+  cvss_score: 'CVSS scores',
+  published_date: 'published dates',
+  full_titles: 'full vulnerability titles (Trivy shortens them)',
+  misconfiguration_title: 'misconfiguration titles',
+  resolution: 'fix texts for misconfigurations',
+  link: 'license links',
+  confidence: 'license confidence',
+}
+
+/** What the report's format does not carry, as one list; null when nothing of it needs saying. */
+export function missingFieldsText(report: { not_in_format: string[] }): string | null {
+  const words = Object.entries(MISSING_FIELD_WORDS)
+    .filter(([field]) => report.not_in_format.includes(field))
+    .map(([, text]) => text)
+  return words.length > 0 ? words.join(', ') : null
+}
+
 // Trivy 0.76.2's artifact types (pkg/fanal/types/artifact.go) in plain words.
 const ARTIFACT_TYPE_LABELS: Record<string, string> = {
   container_image: 'Container image',
