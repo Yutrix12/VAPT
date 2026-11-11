@@ -1,14 +1,15 @@
-"""Tests for fixes.py and POST /api/fix, with a fake LLM."""
+"""Tests for app/fixes/ and POST /api/fix, with a fake LLM."""
 
 import json
 import unittest
 
 from fastapi.testclient import TestClient
 
+from app.fixes.prompts import MAX_CVES_IN_PROMPT, MAX_TITLE_CHARS, build_messages
+from app.fixes.schemas import DISCLAIMER, FixGroup
+from app.fixes.validation import FixError, validate_answer
 from app.llm.client import LLMSettings
 from app.main import app
-from fixes import (DISCLAIMER, MAX_CVES_IN_PROMPT, MAX_TITLE_CHARS, FixError,
-                   FixGroup, build_messages, validate_answer)
 from tests.fake_ollama import FakeOllama
 from tests.llm_override import backend_llm, clean_llm_environment
 

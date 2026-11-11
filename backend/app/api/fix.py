@@ -3,8 +3,10 @@
 from fastapi import APIRouter, HTTPException
 
 from app.api.dependencies import BackendLLM
+from app.fixes.prompts import build_messages
+from app.fixes.schemas import FIX_SCHEMA, FixAdvice, FixGroup
+from app.fixes.validation import FixError, validate_answer
 from app.llm.client import LLMError, chat_json
-from fixes import FIX_SCHEMA, FixAdvice, FixError, FixGroup, build_messages, validate_answer
 
 router = APIRouter()
 
