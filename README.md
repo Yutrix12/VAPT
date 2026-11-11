@@ -39,13 +39,13 @@ runs on your own computer. Nothing is saved.
 
 | Part | What it is |
 |---|---|
-| `backend/` | Python 3.11, FastAPI. `trivy_parser.py` (parse, group, count), `llm_client.py` (Ollama client), `fixes.py` (LLM request and answer check), `main.py` (the API) |
-| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status, filters) and the results (report, severity bar, packages with AI explanations) |
+| `backend/` | Python 3.11, FastAPI, the `app` package: `parsers/` (find the format, parse), `analysis/` (group, count), `fixes/` (LLM request and answer check), `llm/` (Ollama client and settings), `api/` (one router per endpoint), `main.py`. `cli.py` is the command line, `tests/` mirrors `app/` |
+| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status, filters) and the results (report, severity bar, packages with AI explanations). `src/api/` (backend client), `src/features/` (one folder per part of the page, with its tests), `src/shared/` (helpers several parts use) |
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/check`
 (Check connection), `POST /api/fix` (AI explanation; the body is one
 package). The browser talks only to the backend; the backend talks to Ollama.
-The backend alone chooses the LLM (`backend/llm_config.py`): the page has no
+The backend alone chooses the LLM (`backend/app/llm/config.py`): the page has no
 LLM settings and never sees a key.
 
 ## Install (first time only)
@@ -74,7 +74,7 @@ ollama pull qwen3:8b
 
 ```powershell
 cd backend
-.venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000
+.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 **Terminal 2, frontend:**
@@ -118,11 +118,11 @@ example in PowerShell:
 
 ```powershell
 $env:LLM_MODE = "api"; $env:OLLAMA_API_KEY = "<your key>"
-.venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000
+.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 When the app has moved to the API for good, delete the “Local LLM” part of
-`backend/llm_config.py` and its branch in `current_settings()`.
+`backend/app/llm/config.py` and its branch in `current_settings()`.
 
 The key stays in the backend’s environment only: it is never sent to the
 page, never logged, never put in a URL, and only sent over https. Nothing
@@ -158,7 +158,7 @@ The parser also runs on its own and prints the same summary:
 
 ```powershell
 cd backend
-.venv\Scripts\python trivy_parser.py ..\..\image.json ..\..\fs.json --limit 5
+.venv\Scripts\python cli.py ..\..\image.json ..\..\fs.json --limit 5
 ```
 
 `--json OUT.json` writes everything to a file.
