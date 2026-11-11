@@ -67,3 +67,39 @@ describe('filterGroups', () => {
     expect(filterGroups(groups, all, ALL_STATUSES)[0].worst).toBe('CRITICAL')
   })
 })
+
+describe('filterGroups search and fix available', () => {
+  const withFix = (id: string, title: string, fixed: string | null): Finding =>
+    ({ ...finding('HIGH', 'fixed', id), title, fixed_version: fixed })
+  const groups = [
+    { ...group('openssl', [withFix('CVE-1', 'heap overflow', '3.0.1'), withFix('CVE-2', 'timing leak', null)]), installed_version: '3.0.0' },
+    group('Bash', [withFix('CVE-3', 'privilege escalation', null)]),
+  ]
+  const all = new Set<Severity>(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'])
+  const ids = (shown: ReturnType<typeof filterGroups>) =>
+    shown.map((g) => `${g.group.pkg_name}:${g.findings.map((f) => f.vuln_id).join('+')}`)
+
+  it('ignores an empty or blank search', () => {
+    expect(ids(filterGroups(groups, all, ALL_STATUSES, { search: '   ' }))).toEqual(['openssl:CVE-1+CVE-2', 'Bash:CVE-3'])
+  })
+
+  it('keeps every finding of a package whose name, version or target matches, ignoring case', () => {
+    expect(ids(filterGroups(groups, all, ALL_STATUSES, { search: 'BASH' }))).toEqual(['Bash:CVE-3'])
+    expect(ids(filterGroups(groups, all, ALL_STATUSES, { search: '3.0.0' }))).toEqual(['openssl:CVE-1+CVE-2'])
+  })
+
+  it('keeps only the findings whose ID or title matches when the package itself does not', () => {
+    expect(ids(filterGroups(groups, all, ALL_STATUSES, { search: 'cve-2' }))).toEqual(['openssl:CVE-2'])
+    expect(ids(filterGroups(groups, all, ALL_STATUSES, { search: 'escalation' }))).toEqual(['Bash:CVE-3'])
+    expect(ids(filterGroups(groups, all, ALL_STATUSES, { search: 'no such thing' }))).toEqual([])
+  })
+
+  it('fix available keeps the findings that have a fixed version, and drops packages without one', () => {
+    expect(ids(filterGroups(groups, all, ALL_STATUSES, { fixOnly: true }))).toEqual(['openssl:CVE-1'])
+  })
+
+  it('combines search, fix available, severity and status', () => {
+    expect(ids(filterGroups(groups, all, ALL_STATUSES, { search: 'openssl', fixOnly: true }))).toEqual(['openssl:CVE-1'])
+    expect(ids(filterGroups(groups, new Set<Severity>(['LOW']), ALL_STATUSES, { search: 'openssl' }))).toEqual([])
+  })
+})

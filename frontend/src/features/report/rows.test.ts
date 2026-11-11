@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AnalyzeResult, Finding, License, Misconfiguration, PackageGroup, Secret, Severity } from '../../api/types'
+import { defaultFilters, type FilterState } from '../filters/filterState'
 import { buildRows, severityCounts } from './rows'
 
 function finding(severity: Severity, status: string, id: string): Finding {
@@ -49,7 +50,10 @@ const result: Pick<AnalyzeResult, 'package_groups' | 'misconfigurations' | 'secr
   },
 }
 
-const ALL = new Set<Severity>(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'])
+/** The default filters (nothing filtered) with some changed. */
+function filters(changes: Partial<FilterState> = {}): FilterState {
+  return { ...defaultFilters(), ...changes }
+}
 
 function summary(rows: ReturnType<typeof buildRows>): string[] {
   return rows.map((row) => `${row.kind}:${row.severity}`)
@@ -57,7 +61,7 @@ function summary(rows: ReturnType<typeof buildRows>): string[] {
 
 describe('buildRows', () => {
   it('puts every kind in one list, most severe first, ties in the order vulnerabilities, misconfigurations, secrets, licenses', () => {
-    expect(summary(buildRows(result, ALL, ''))).toEqual([
+    expect(summary(buildRows(result, filters()))).toEqual([
       'vulnerability:CRITICAL', // openssl
       'secret:CRITICAL',
       'misconfiguration:HIGH',
@@ -68,20 +72,20 @@ describe('buildRows', () => {
   })
 
   it('keeps a vulnerability row to the findings that match the filters', () => {
-    const rows = buildRows(result, new Set<Severity>(['LOW']), '')
+    const rows = buildRows(result, filters({ severities: new Set<Severity>(['LOW']) }))
     expect(rows[0].kind === 'vulnerability' && rows[0].shown.findings.map((f) => f.vuln_id)).toEqual(['B'])
   })
 
   it('hides the rows of a severity that is switched off, for every kind', () => {
-    expect(summary(buildRows(result, new Set<Severity>(['CRITICAL']), ''))).toEqual([
+    expect(summary(buildRows(result, filters({ severities: new Set<Severity>(['CRITICAL']) })))).toEqual([
       'vulnerability:CRITICAL',
       'secret:CRITICAL',
     ])
-    expect(buildRows(result, new Set(), '')).toEqual([])
+    expect(buildRows(result, filters({ severities: new Set() }))).toEqual([])
   })
 
   it('applies the status filter to vulnerabilities only: the other kinds have no status', () => {
-    expect(summary(buildRows(result, ALL, 'fixed'))).toEqual([
+    expect(summary(buildRows(result, filters({ status: 'fixed' })))).toEqual([
       'vulnerability:CRITICAL',
       'secret:CRITICAL',
       'misconfiguration:HIGH',
@@ -91,8 +95,53 @@ describe('buildRows', () => {
   })
 
   it('gives every row its own key', () => {
-    const keys = buildRows(result, ALL, '').map((row) => row.key)
+    const keys = buildRows(result, filters()).map((row) => row.key)
     expect(new Set(keys).size).toBe(keys.length)
+  })
+})
+
+describe('buildRows: kind, search and fix available', () => {
+  const withFix = {
+    ...result,
+    misconfigurations: [
+      { ...misconfiguration('HIGH', 'DS-0002'), resolution: 'Add a USER line.' },
+      misconfiguration('LOW', 'DS-0026'),
+    ],
+    package_groups: [
+      group('openssl', [{ ...finding('CRITICAL', 'fixed', 'A'), fixed_version: '3.0.1' }, finding('LOW', 'affected', 'B')]),
+      group('bash', [finding('LOW', 'affected', 'C')]),
+    ],
+  }
+
+  it('shows one kind only', () => {
+    expect(summary(buildRows(withFix, filters({ kind: 'secret' })))).toEqual(['secret:CRITICAL'])
+    expect(summary(buildRows(withFix, filters({ kind: 'vulnerability' })))).toEqual([
+      'vulnerability:CRITICAL', 'vulnerability:LOW'])
+    expect(summary(buildRows(withFix, filters({ kind: 'license' })))).toEqual(['license:MEDIUM'])
+  })
+
+  it('searches the item name and place of every kind', () => {
+    expect(summary(buildRows(withFix, filters({ search: 'ds-0026' })))).toEqual(['misconfiguration:LOW'])
+    expect(summary(buildRows(withFix, filters({ search: 'deploy.sh' })))).toEqual(['secret:CRITICAL'])
+    expect(summary(buildRows(withFix, filters({ search: 'epl-1' })))).toEqual(['license:MEDIUM'])
+    expect(summary(buildRows(withFix, filters({ search: 'dockerfile' })))).toEqual([
+      'misconfiguration:HIGH', 'misconfiguration:LOW'])
+  })
+
+  it('fix available: a fixed version, Trivy fix text or any secret; never a license', () => {
+    expect(summary(buildRows(withFix, filters({ fixOnly: true })))).toEqual([
+      'vulnerability:CRITICAL', // openssl, with only its fixed finding
+      'secret:CRITICAL',
+      'misconfiguration:HIGH', // has a resolution
+    ])
+    const first = buildRows(withFix, filters({ fixOnly: true }))[0]
+    expect(first.kind === 'vulnerability' && first.shown.findings.map((f) => f.vuln_id)).toEqual(['A'])
+  })
+
+  it('combines the filters', () => {
+    expect(summary(buildRows(withFix, filters({ fixOnly: true, kind: 'misconfiguration', search: 'ds' })))).toEqual([
+      'misconfiguration:HIGH'])
+    expect(buildRows(withFix, filters({ kind: 'secret', search: 'nothing' }))).toEqual([])
   })
 })
 

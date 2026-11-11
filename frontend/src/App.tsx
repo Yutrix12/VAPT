@@ -11,6 +11,7 @@ import {
 import { AiStatusPanel } from './features/ai-status/AiStatusPanel'
 import { connectionFromStatus } from './features/ai-status/connection'
 import { ALL_STATUSES } from './features/filters/filterGroups'
+import { defaultFilters } from './features/filters/filterState'
 import { Filters } from './features/filters/Filters'
 import { serialQueue, toFixGroup } from './features/fixes/fixLogic'
 import { buildFixSummary, summaryFileName } from './features/fixes/fixSummary'
@@ -122,7 +123,7 @@ function App() {
     return fixes.get(fixKey(group))
   }
 
-  const rows = useMemo(() => (result ? buildRows(result, severities, status) : []), [result, severities, status])
+  const rows = useMemo(() => (result ? buildRows(result, { ...defaultFilters(), severities, status }) : []), [result, severities, status])
   // The fix summary lists vulnerabilities only until U9 adds the other kinds.
   const shown = useMemo(() => rows.flatMap((row) => (row.kind === 'vulnerability' ? [row.shown] : [])), [rows])
   const counts = useMemo(() => (result ? severityCounts(result) : null), [result])
