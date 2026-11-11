@@ -26,7 +26,7 @@ const TONES: Record<AiConnection['state'], string> = {
 
 /**
  * Whether the AI explanations work. The backend chooses the LLM (see
- * backend/llm_config.py); the page has no settings and never sees a key.
+ * backend/app/llm/config.py); the page has no settings and never sees a key.
  */
 export function AiStatusPanel({ connection, onCheck }: Props) {
   return (

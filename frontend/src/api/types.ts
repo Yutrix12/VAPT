@@ -1,5 +1,5 @@
 // The shapes /api/analyze returns. They mirror the Pydantic models in
-// backend/main.py (ReportDetails, Summary, PackageGroupOut, AnalyzeResponse).
+// backend/app/api/schemas.py (ReportDetails, Summary, PackageGroupOut, AnalyzeResponse).
 
 export const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] as const // display order
 export type Severity = (typeof SEVERITIES)[number]
@@ -89,7 +89,7 @@ export interface LlmStatus {
   leaves_this_computer: boolean
 }
 
-// /api/fix request body "group" (backend/fixes.py FixGroup).
+// /api/fix request body "group" (backend/app/fixes/schemas.py FixGroup).
 export interface FixGroupRequest {
   target: string
   pkg_name: string | null
@@ -103,7 +103,7 @@ export interface FixGroupRequest {
 export const FIX_STATUSES = ['verified', 'unverified', 'no_version_suggested', 'no_fix_available'] as const
 export type FixStatus = (typeof FIX_STATUSES)[number]
 
-// /api/fix answer (backend/fixes.py FixAdvice). The code, not the model,
+// /api/fix answer (backend/app/fixes/schemas.py FixAdvice). The code, not the model,
 // set `status`: target_version is set only when it is one of Trivy's.
 export interface FixAdvice {
   status: FixStatus
