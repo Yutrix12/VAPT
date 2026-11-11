@@ -16,11 +16,11 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.analysis.summary import summarize
+from app.fixes.secret_steps import SECRET_FIX_STEPS
 from app.main import app
 from app.parsers.json.parser import parse_report, parse_report_bytes
 from app.parsers.models import ReportError
 from cli import main as cli_main
-from fix_steps import SECRET_FIX_STEPS
 from tests.reports import SAMPLES_DIR, SAMPLES_FOUND, SAMPLES_SKIP_REASON
 
 

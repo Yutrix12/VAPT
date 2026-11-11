@@ -15,10 +15,10 @@ from app.api.schemas import (
     SecretOut,
     Summary,
 )
+from app.fixes.secret_steps import SECRET_FIX_STEPS
 from app.middleware import MAX_UPLOAD_BYTES
 from app.parsers import parse_report_file
 from app.parsers.models import ReportError
-from fix_steps import SECRET_FIX_STEPS
 
 router = APIRouter()
 
