@@ -1,4 +1,4 @@
-"""Parse Trivy JSON vulnerability reports into simple Python objects."""
+"""Command line: print the summary of one or more Trivy JSON reports."""
 
 import argparse
 import errno
@@ -296,7 +296,7 @@ def main(argv: list[str] | None = None) -> int:
 def is_closed_pipe(error: OSError) -> bool:
     """True if printing failed because the reader of our output went away.
 
-    Example: `python trivy_parser.py ... | head -1`. Linux and macOS raise
+    Example: `python cli.py ... | head -1`. Linux and macOS raise
     BrokenPipeError; Windows raises OSError EINVAL instead. main() catches
     every other OSError itself, so one reaching here comes from stdout.
     """

@@ -59,7 +59,7 @@ class ReportDetails(BaseModel):
 
 
 class Summary(BaseModel):
-    """The counts from trivy_parser.summarize()."""
+    """The counts from app.analysis.summary.summarize()."""
 
     total: int
     by_severity: dict[str, int]

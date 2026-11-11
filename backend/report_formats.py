@@ -1,7 +1,7 @@
 """Detect an uploaded report's format from its CONTENT and parse it.
 
 The file name and its extension never decide (owner's brief A). Every
-parser returns the same Report structure (trivy_parser), so the API and the
+parser returns the same Report structure (app.parsers.models), so the API and the
 page do not care which format was uploaded. Supported (owner's decision
 2026-11-11): Trivy JSON, Trivy's text (table) output and Trivy HTML from
 html.tpl; text and HTML are added in the next sub-steps of U3, and

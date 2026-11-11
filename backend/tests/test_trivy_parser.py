@@ -1,4 +1,4 @@
-"""Tests for trivy_parser: loading, parsing, summarize and group_by_package.
+"""Tests for the JSON parser: loading, parsing, summarize and group_by_package.
 
 The real-report tests need image.json and fs.json (see tests/reports.py)
 and are skipped with a reason when they are missing. Expected numbers come

@@ -1,8 +1,8 @@
 """Fixes that code gives without the LLM (deterministic fix first, U2).
 
-Vulnerabilities: Trivy's fixed versions (in trivy_parser). Misconfigurations:
-Trivy's own Resolution text (in trivy_parser; None when the report has
-none). Licenses: name, category and link (in trivy_parser). Secrets: the
+Vulnerabilities: Trivy's fixed versions (in app.parsers). Misconfigurations:
+Trivy's own Resolution text (in app.parsers; None when the report has
+none). Licenses: name, category and link (in app.parsers). Secrets: the
 fixed steps below. Step U4 adds the code-built upgrade commands here.
 """
 
