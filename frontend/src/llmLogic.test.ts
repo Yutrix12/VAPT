@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { connectionFromStatus, isFixAdvice, isLlmStatus, serialQueue, toFixGroup } from './llmLogic'
-import type { Finding, PackageGroup, ReportDetails } from './types'
+import { isFixAdvice, isLlmStatus } from './api/guards'
+import type { Finding, PackageGroup, ReportDetails } from './api/types'
+import { connectionFromStatus, serialQueue, toFixGroup } from './llmLogic'
 
 function finding(id: string | null, fixed: string | null): Finding {
   return {

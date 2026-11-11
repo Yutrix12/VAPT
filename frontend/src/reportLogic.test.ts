@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest'
+import { isAnalyzeResult } from './api/guards'
+import type { Finding, PackageGroup, Severity } from './api/types'
 import {
-  ALL_STATUSES, artifactTypeLabel, checkFileBeforeUpload, fieldOrNotInFormat, openAfterUpgradeText, countText, filterGroups, formatScanDate, isAnalyzeResult,
-  formatFileSize, KEEP_LINE_BREAKS, RATED_SEVERITIES, safeLink, severityLabel, severityLevel, visibleText,
+  ALL_STATUSES,
+  artifactTypeLabel,
+  checkFileBeforeUpload,
+  fieldOrNotInFormat,
+  openAfterUpgradeText,
+  countText,
+  filterGroups,
+  formatScanDate,
+  formatFileSize,
+  KEEP_LINE_BREAKS,
+  RATED_SEVERITIES,
+  safeLink,
+  severityLabel,
+  severityLevel,
+  visibleText,
   worstSeverity,
 } from './reportLogic'
-import type { Finding, PackageGroup, Severity } from './types'
 
 function finding(severity: Severity, status: string, id: string): Finding {
   return {

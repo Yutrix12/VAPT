@@ -5,6 +5,14 @@
 // escapeMarkdown, codeSpan or codeBlock, so it can never become a link,
 // HTML, a heading or formatting, and hidden characters show as codes.
 import {
+  SEVERITIES,
+  type AnalyzeResult,
+  type FixAdvice,
+  type FixState,
+  type PackageGroup,
+  type Severity,
+} from './api/types'
+import {
   ALL_STATUSES,
   artifactTypeLabel,
   countText,
@@ -17,7 +25,6 @@ import {
   visibleText,
   type ShownGroup,
 } from './reportLogic'
-import { SEVERITIES, type AnalyzeResult, type FixAdvice, type FixState, type PackageGroup, type Severity } from './types'
 
 /** Line breaks become spaces, so text cannot start a heading or a list. */
 function oneLine(text: string): string {

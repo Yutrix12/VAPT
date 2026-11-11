@@ -1,5 +1,5 @@
+import type { Summary } from '../api/types'
 import { countText, RATED_SEVERITIES, severityLabel } from '../reportLogic'
-import type { Summary } from '../types'
 
 /**
  * The severity rail: one bar for the rated findings, a part per severity as

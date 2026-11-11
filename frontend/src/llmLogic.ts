@@ -1,15 +1,12 @@
 // Plain functions behind the AI status and the AI explanations (no React).
-import type { ApiResult } from './api'
-import { isObject } from './reportLogic'
+import type { ApiResult } from './api/client'
 import {
-  FIX_STATUSES,
   type AiConnection,
-  type FixAdvice,
   type FixGroupRequest,
   type LlmStatus,
   type PackageGroup,
   type ReportDetails,
-} from './types'
+} from './api/types'
 
 /** The body of /api/fix: this group only, nothing else from the report. */
 export function toFixGroup(group: PackageGroup, report: ReportDetails): FixGroupRequest {
@@ -56,38 +53,4 @@ export function serialQueue(): (task: () => Promise<void>) => Promise<void> {
     last = run.catch(() => undefined)
     return run
   }
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string')
-}
-
-export function isLlmStatus(body: unknown): body is LlmStatus {
-  return (
-    isObject(body) &&
-    typeof body.model === 'string' &&
-    typeof body.model_found === 'boolean' &&
-    typeof body.leaves_this_computer === 'boolean'
-  )
-}
-
-export function isFixAdvice(body: unknown): body is FixAdvice {
-  if (
-    !isObject(body) ||
-    typeof body.status !== 'string' ||
-    !(FIX_STATUSES as readonly string[]).includes(body.status) ||
-    !isStringArray(body.commands) ||
-    !isStringArray(body.trivy_fixed_versions) ||
-    typeof body.mitigation_only !== 'boolean' ||
-    typeof body.cves_without_fix !== 'number' ||
-    ![body.summary, body.recommended_action, body.risk_notes, body.disclaimer].every(
-      (text) => typeof text === 'string',
-    )
-  ) {
-    return false
-  }
-  // The verdict needs the version its status talks about.
-  if (body.status === 'verified') return typeof body.target_version === 'string'
-  if (body.status === 'unverified') return typeof body.unverified_version === 'string'
-  return true
 }

@@ -1,5 +1,5 @@
+import type { AiConnection } from '../api/types'
 import { visibleText } from '../reportLogic'
-import type { AiConnection } from '../types'
 
 interface Props {
   connection: AiConnection

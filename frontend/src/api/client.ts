@@ -1,6 +1,5 @@
 // Calls to our backend. The Vite dev proxy forwards /api/ to FastAPI.
-import { isFixAdvice, isLlmStatus } from './llmLogic'
-import { isAnalyzeResult, isObject } from './reportLogic'
+import { isAnalyzeResult, isObject, isFixAdvice, isLlmStatus } from './guards'
 import type { AnalyzeResult, FixAdvice, FixGroupRequest, LlmStatus } from './types'
 
 export type Health =

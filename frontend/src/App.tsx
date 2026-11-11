@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { checkHealth, checkLlm, explainFix, type Health } from './api'
-import { Filters } from './components/Filters'
-import { GroupTable } from './components/GroupTable'
-import { AiStatusPanel } from './components/AiStatusPanel'
-import { ReportDetails } from './components/ReportDetails'
-import { SeverityCounts } from './components/SeverityCounts'
-import { UploadForm } from './components/UploadForm'
-import { downloadText } from './download'
-import { buildFixSummary, summaryFileName } from './fixSummary'
-import { connectionFromStatus, serialQueue, toFixGroup } from './llmLogic'
-import { ALL_STATUSES, countText, filterGroups, groupKey, visibleText } from './reportLogic'
+import { checkHealth, checkLlm, explainFix, type Health } from './api/client'
 import {
   SEVERITIES,
   type AiConnection,
@@ -17,7 +7,17 @@ import {
   type FixState,
   type PackageGroup,
   type Severity,
-} from './types'
+} from './api/types'
+import { AiStatusPanel } from './components/AiStatusPanel'
+import { Filters } from './components/Filters'
+import { GroupTable } from './components/GroupTable'
+import { ReportDetails } from './components/ReportDetails'
+import { SeverityCounts } from './components/SeverityCounts'
+import { UploadForm } from './components/UploadForm'
+import { downloadText } from './download'
+import { buildFixSummary, summaryFileName } from './fixSummary'
+import { connectionFromStatus, serialQueue, toFixGroup } from './llmLogic'
+import { ALL_STATUSES, countText, filterGroups, groupKey, visibleText } from './reportLogic'
 import './App.css'
 
 /** A small status line with a coloured dot; the words carry the meaning. */

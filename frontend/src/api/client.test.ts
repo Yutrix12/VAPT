@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { analyzeReport } from './api'
+import { analyzeReport } from './client'
 
 // Hidden characters are made visible only where text is shown. The data the
 // page keeps (and sends back to /api/fix) must stay exactly as it arrived.

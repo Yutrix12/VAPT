@@ -1,5 +1,5 @@
+import type { ReportDetails as Details } from '../api/types'
 import { artifactTypeLabel, countText, fieldOrNotInFormat, formatScanDate, visibleText } from '../reportLogic'
-import type { ReportDetails as Details } from '../types'
 
 /** What was scanned: the artifact as the title, then the facts about the scan. */
 export function ReportDetails({ report }: { report: Details }) {

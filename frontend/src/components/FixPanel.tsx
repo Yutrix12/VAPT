@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useState } from 'react'
+import type { AiConnection, FixAdvice, FixState } from '../api/types'
 import { KEEP_LINE_BREAKS, openAfterUpgradeText, visibleText } from '../reportLogic'
-import type { AiConnection, FixAdvice, FixState } from '../types'
 
 interface Props {
   fix: FixState | undefined // undefined: not asked yet

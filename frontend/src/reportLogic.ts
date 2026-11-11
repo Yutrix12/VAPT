@@ -1,6 +1,6 @@
 // Plain functions behind the results page (no React here), so they are easy
 // to test.
-import { SEVERITIES, type AnalyzeResult, type Finding, type PackageGroup, type RatedSeverity, type Severity } from './types'
+import { SEVERITIES, type Finding, type PackageGroup, type RatedSeverity, type Severity } from './api/types'
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
@@ -154,23 +154,6 @@ export function visibleText(text: string, keep = ''): string {
     // Braces above U+FFFF, so "\u{E0041}" is not read as \uE004 plus "1".
     return code > 0xffff ? `\\u{${hex}}` : `\\u${hex.padStart(4, '0')}`
   })
-}
-
-/** True for a plain JSON object (not null, not an array). */
-export function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-/** A light check that an answer has the shape of /api/analyze's response. */
-export function isAnalyzeResult(body: unknown): body is AnalyzeResult {
-  return (
-    isObject(body) &&
-    isObject(body.report) &&
-    isObject(body.summary) &&
-    isObject(body.summary.by_severity) &&
-    isObject(body.summary.by_status) &&
-    Array.isArray(body.package_groups)
-  )
 }
 
 /** The link if it is a plain http(s) address, else null (no javascript: etc.). */
