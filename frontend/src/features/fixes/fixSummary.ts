@@ -9,15 +9,26 @@ import {
   type AnalyzeResult,
   type FixAdvice,
   type FixState,
-  type PackageGroup,
   type Kind,
+  type OtherAdvice,
+  type OtherFixState,
+  type PackageGroup,
 } from '../../api/types'
-import { artifactTypeLabel, fieldOrNotInFormat, missingFieldsText } from '../../shared/reportText'
+import {
+  NOT_IN_FORMAT,
+  artifactTypeLabel,
+  fieldOrNotInFormat,
+  kindLabel,
+  lineText,
+  missingFieldsText,
+  overviewText,
+} from '../../shared/reportText'
 import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
-import { ALL_STATUSES, type ShownGroup } from '../filters/filterGroups'
+import { ALL_STATUSES } from '../filters/filterGroups'
 import { ALL_KINDS, type FilterState } from '../filters/filterState'
-import { answerState, openAfterUpgradeText } from './fixLogic'
+import { severityCounts, totalRows, type OtherRow, type Row } from '../report/rows'
+import { answerState, openAfterUpgradeText, otherAnswerState } from './fixLogic'
 
 /** Line breaks become spaces, so text cannot start a heading or a list. */
 function oneLine(text: string): string {
@@ -71,9 +82,10 @@ export function summaryFileName(reportFileName: string): string {
 
 export interface SummaryInput {
   result: AnalyzeResult
-  shown: ShownGroup[] // the groups and findings the filters show
+  rows: Row[] // every finding the filters show, worst first, whatever its kind
   filters: FilterState // the filters that were on; the summary says which
   fixFor: (group: PackageGroup) => FixState | undefined
+  otherFixFor: (row: OtherRow) => OtherFixState | undefined
   model: string | null // the model the answers came from (last successful check)
   locale?: string // for tests; the browser's own by default
   timeZone?: string
@@ -93,12 +105,10 @@ function scannedLine(result: AnalyzeResult): string {
 }
 
 function countsLine(result: AnalyzeResult): string {
-  const { summary } = result
-  const rated = RATED_SEVERITIES.map((s) => `${summary.by_severity[s]} ${severityLabel(s)}`).join(', ')
-  return (
-    `- ${countText(summary.total, 'finding')} in ${countText(summary.unique_packages, 'package')}: ` +
-    `${rated}; ${summary.by_severity.UNKNOWN} Unknown (not rated)`
-  )
+  const counts = severityCounts(result) // all kinds together, like the page
+  const rated = RATED_SEVERITIES.map((s) => `${counts[s]} ${severityLabel(s)}`).join(', ')
+  const headline = overviewText(result.summary.by_kind, result.summary.unique_packages)
+  return `- ${headline}: ${rated}; ${counts.UNKNOWN} Unknown (not rated)`
 }
 
 const KIND_PLURALS: Record<Kind, string> = {
@@ -119,10 +129,10 @@ function filtersLine(input: SummaryInput): string {
   }
   if (on.status !== ALL_STATUSES) filters.push(`status ${codeSpan(on.status)}`)
   if (on.fixOnly) filters.push('fix available')
-  const total = input.result.package_groups.length
-  let listed = `${input.shown.length} of ${countText(total, 'package')}`
-  if (total === 0) listed = 'no packages'
-  else if (input.shown.length === total) listed = total === 1 ? '1 package' : `all ${countText(total, 'package')}`
+  const total = totalRows(input.result)
+  let listed = `${input.rows.length} of ${countText(total, 'item')}`
+  if (total === 0) listed = 'no items'
+  else if (input.rows.length === total) listed = total === 1 ? '1 item' : `all ${countText(total, 'item')}`
   return `- Filters: ${filters.length > 0 ? filters.join('; ') : 'none'}. This summary lists ${listed}.`
 }
 
@@ -186,8 +196,26 @@ function aiLines(fix: FixState | undefined): string[] {
   }
 }
 
-function groupSection(item: ShownGroup, index: number, fix: FixState | undefined): string[] {
-  const { group, findings, worst } = item
+/** The upgrade commands the backend built from Trivy's fixed versions, or why there are none. */
+function builtCommandLines(group: PackageGroup): string[] {
+  if (group.fix_commands.length === 0) {
+    return [`- Fix commands: ${escapeMarkdown(group.fix_commands_note ?? 'none in the report')}`]
+  }
+  return [
+    '',
+    "Fix commands, built by code from Trivy's fixed versions (this app never runs them):",
+    '',
+    ...group.fix_commands.flatMap((command) => [
+      ...(command.label === null ? [] : [escapeMarkdown(command.label), '']),
+      codeBlock(command.lines),
+      '',
+    ]),
+    ...(group.fix_commands_note === null ? [] : [escapeMarkdown(group.fix_commands_note), '']),
+  ]
+}
+
+function groupSection(row: Extract<Row, { kind: 'vulnerability' }>, index: number, fix: FixState | undefined): string[] {
+  const { group, findings } = row.shown
   const count =
     findings.length === group.finding_count
       ? String(group.finding_count)
@@ -195,16 +223,99 @@ function groupSection(item: ShownGroup, index: number, fix: FixState | undefined
   return [
     `## ${index + 1}. ${escapeMarkdown(group.pkg_name ?? 'unknown package')}`,
     '',
+    `- Kind: ${kindLabel('vulnerability')}`,
     `- Installed version: ${codeSpan(group.installed_version ?? 'unknown')}`,
     `- Target: ${escapeMarkdown(group.target)}`,
-    `- Findings: ${count} (highest severity: ${severityLabel(worst)})`,
+    `- Findings: ${count} (highest severity: ${severityLabel(row.severity)})`,
     `- Fixed versions: ${trivyFixText(group)}`,
+    ...builtCommandLines(group),
     ...aiLines(fix),
     '',
   ]
 }
 
-/** The whole summary: header, then one section per shown package, worst first. */
+/** The AI advice for a misconfiguration, a secret or a license. */
+function otherAdviceLines(advice: OtherAdvice): string[] {
+  const lines = [`- AI answer: ${otherAnswerState(advice.status)}`, `- Summary: ${escapeMarkdown(advice.summary)}`]
+  if (advice.solutions.length > 0) {
+    lines.push('- Solutions:', ...advice.solutions.map((text, index) => `  ${index + 1}. ${escapeMarkdown(text)}`))
+  }
+  if (advice.mitigations.length > 0) {
+    lines.push('- Mitigations until it is fixed:', ...advice.mitigations.map((text) => `  - ${escapeMarkdown(text)}`))
+  }
+  lines.push(`- Risks: ${escapeMarkdown(advice.risk_notes)}`)
+  return lines
+}
+
+function otherAiLines(fix: OtherFixState | undefined): string[] {
+  if (fix === undefined) return ['- AI explanation: not requested yet']
+  switch (fix.state) {
+    case 'queued':
+    case 'loading':
+      return ['- AI explanation: still running when this summary was made']
+    case 'error':
+      return [`- AI explanation failed: ${escapeMarkdown(fix.message)}`]
+    case 'done':
+      return otherAdviceLines(fix.advice)
+  }
+}
+
+function whereText(target: string, start: number | null, end: number | null): string {
+  const lines = lineText(start, end)
+  return escapeMarkdown(lines === null ? target : `${target}, ${lines}`)
+}
+
+function otherSection(row: OtherRow, index: number, result: AnalyzeResult, fix: OtherFixState | undefined): string[] {
+  const head = (name: string) => [`## ${index + 1}. ${escapeMarkdown(name)}`, '', `- Kind: ${kindLabel(row.kind)}`]
+  const severity = `- Severity: ${severityLabel(row.severity)}`
+  switch (row.kind) {
+    case 'misconfiguration': {
+      const { item } = row
+      const noFix = result.report.not_in_format.includes('resolution') ? NOT_IN_FORMAT : 'none in the report'
+      return [
+        ...head([item.check_id, item.title].filter(Boolean).join(': ') || 'unknown check'),
+        severity,
+        `- Where: ${whereText(item.target, item.start_line, item.end_line)}`,
+        `- What is wrong: ${escapeMarkdown(item.description ?? 'the report gives no description')}`,
+        `- Trivy's fix: ${item.resolution === null ? noFix : escapeMarkdown(item.resolution)}`,
+        ...otherAiLines(fix),
+        '',
+      ]
+    }
+    case 'secret': {
+      const { item } = row
+      return [
+        ...head([item.rule_id, item.category && `(${item.category})`].filter(Boolean).join(' ') || 'unknown rule'),
+        severity,
+        `- Where: ${whereText(item.target, item.start_line, item.end_line)}`,
+        '- How to fix it:',
+        ...result.secret_fix_steps.map((step, number) => `  ${number + 1}. ${escapeMarkdown(step)}`),
+        "- The secret's value is never part of this file.",
+        ...otherAiLines(fix),
+        '',
+      ]
+    }
+    case 'license': {
+      const { item } = row
+      return [
+        ...head(item.name ?? 'unknown license'),
+        severity,
+        `- Category: ${escapeMarkdown(item.category ?? 'unknown')}`,
+        `- Found in: ${escapeMarkdown(item.pkg_name ?? item.file_path ?? 'unknown')}, ${escapeMarkdown(item.target)}`,
+        '- Ask your legal or compliance team what this license means for you; this summary lists it and does not judge it.',
+        ...otherAiLines(fix),
+        '',
+      ]
+    }
+  }
+}
+
+function rowSection(row: Row, index: number, input: SummaryInput): string[] {
+  if (row.kind === 'vulnerability') return groupSection(row, index, input.fixFor(row.shown.group))
+  return otherSection(row, index, input.result, input.otherFixFor(row))
+}
+
+/** The whole summary: header, then one section per finding the filters show, worst first. */
 export function buildFixSummary(input: SummaryInput): string {
   const { report } = input.result
   const missing = missingFieldsText(report)
@@ -225,7 +336,7 @@ export function buildFixSummary(input: SummaryInput): string {
     "> AI suggestions: verify before applying. Only Trivy's fixed versions are ever shown as a fix, " +
       'and the commands were never run.',
     '',
-    ...input.shown.flatMap((item, index) => groupSection(item, index, input.fixFor(item.group))),
+    ...input.rows.flatMap((row, index) => rowSection(row, index, input)),
   ]
   return lines.join('\n')
 }

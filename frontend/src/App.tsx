@@ -24,7 +24,7 @@ import { buildFixSummary, summaryFileName } from './features/fixes/fixSummary'
 import { FindingsTable } from './features/report/FindingsTable'
 import { groupKey } from './features/report/groupKey'
 import { ReportDetails } from './features/report/ReportDetails'
-import { buildRows, severityCounts, type OtherRow } from './features/report/rows'
+import { buildRows, severityCounts, totalRows, type OtherRow } from './features/report/rows'
 import { SeverityCounts } from './features/report/SeverityCounts'
 import { UploadForm } from './features/upload/UploadForm'
 import { downloadText } from './shared/download'
@@ -42,16 +42,6 @@ function otherRequest(row: OtherRow): OtherRequest {
     case 'license':
       return licenseRequest(row.item)
   }
-}
-
-/** The rows the table has before any filter: one per package, plus one per other finding. */
-function totalRows(result: AnalyzeResult): number {
-  return result.package_groups.length + result.misconfigurations.length + result.secrets.length + result.licenses.length
-}
-
-/** True if the report has findings other than vulnerabilities. */
-function hasOtherKinds(result: AnalyzeResult): boolean {
-  return result.misconfigurations.length + result.secrets.length + result.licenses.length > 0
 }
 
 /** A small status line with a coloured dot; the words carry the meaning. */
@@ -151,8 +141,6 @@ function App() {
   }
 
   const rows = useMemo(() => (result ? buildRows(result, filters) : []), [result, filters])
-  // The fix summary lists vulnerabilities only until U9 adds the other kinds.
-  const shown = useMemo(() => rows.flatMap((row) => (row.kind === 'vulnerability' ? [row.shown] : [])), [rows])
   const counts = useMemo(() => (result ? severityCounts(result) : null), [result])
 
   function showResult(next: AnalyzeResult) {
@@ -180,9 +168,10 @@ function App() {
     if (result === null) return
     const text = buildFixSummary({
       result,
-      shown,
+      rows,
       filters,
       fixFor,
+      otherFixFor,
       model: aiModel,
     })
     downloadText(summaryFileName(result.report.file_name), text, 'text/markdown;charset=utf-8')
@@ -264,9 +253,6 @@ function App() {
                 counts={counts ?? result.summary.by_severity}
                 statuses={Object.keys(result.summary.by_status)}
               />
-              {hasOtherKinds(result) && (
-                <p className="muted">The fix summary lists vulnerabilities only for now.</p>
-              )}
               <FindingsTable
                 key={tableKey}
                 rows={rows}

@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import type { AnalyzeResult, Finding, FixAdvice, FixState, PackageGroup, Severity } from '../../api/types'
+import type {
+  AnalyzeResult,
+  Finding,
+  FixAdvice,
+  FixState,
+  License,
+  Misconfiguration,
+  OtherAdvice,
+  OtherFixState,
+  PackageGroup,
+  Secret,
+  Severity,
+} from '../../api/types'
 import { SEVERITIES } from '../../api/types'
-import { filterGroups } from '../filters/filterGroups'
+import { buildRows } from '../report/rows'
 import { defaultFilters, type FilterState } from '../filters/filterState'
 import { buildFixSummary, codeBlock, codeSpan, escapeMarkdown, summaryFileName } from './fixSummary'
 
@@ -107,7 +119,8 @@ function summaryOf(fixes: Map<string, FixState>, severities: ReadonlySet<Severit
   const filters = { ...defaultFilters(), severities }
   return buildFixSummary({
     result,
-    shown: filterGroups(result.package_groups, severities, ''),
+    rows: buildRows(result, filters),
+    otherFixFor: () => undefined,
     filters,
     fixFor: (g) => fixes.get(g.pkg_name ?? ''),
     model: 'qwen3:8b',
@@ -129,7 +142,7 @@ describe('buildFixSummary', () => {
     expect(text).toContain('- Artifact type: Container image; operating system: debian 13.1')
     expect(text).toContain('- Report format: Trivy JSON')
     expect(text).toContain('4 findings in 3 packages: 1 Critical, 1 High, 1 Medium, 1 Low; 0 Unknown (not rated)')
-    expect(text).toContain('Filters: none. This summary lists all 3 packages.')
+    expect(text).toContain('Filters: none. This summary lists all 3 items.')
     expect(text).toContain('- AI model used: `qwen3:8b`')
     expect(text).toContain('> AI suggestions: verify before applying.')
   })
@@ -161,20 +174,20 @@ describe('buildFixSummary', () => {
     expect(text).toContain('- AI explanation: not requested yet')
   })
 
-  it('says "1 package", not "all 1 package", for a one-package report', () => {
+  it('says "1 item", not "all 1 item", for a one-item report', () => {
     const single = { ...result, package_groups: [zlib] }
     const text = buildFixSummary({
-      result: single, shown: filterGroups(single.package_groups, new Set(SEVERITIES), ''),
+      result: single, rows: buildRows(single, defaultFilters()), otherFixFor: () => undefined,
       filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
-    expect(text).toContain('Filters: none. This summary lists 1 package.')
+    expect(text).toContain('Filters: none. This summary lists 1 item.')
     expect(text).toContain('- AI model used: none connected yet')
   })
 
   it('writes the repository line like the page, also without git details', () => {
     const repo = { ...result, report: { ...result.report, artifact_type: 'repository' } }
     const text = buildFixSummary({
-      result: repo, shown: [], filters: defaultFilters(), fixFor: () => undefined, model: null,
+      result: repo, rows: [], otherFixFor: () => undefined, filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
     expect(text).toContain('- Repository: No git details in the report')
   })
@@ -186,7 +199,7 @@ describe('buildFixSummary', () => {
                 not_in_format: ['created_at', 'os', 'status'] },
     }
     const text = buildFixSummary({
-      result: lacking, shown: [], filters: defaultFilters(), fixFor: () => undefined, model: null,
+      result: lacking, rows: [], otherFixFor: () => undefined, filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
     expect(text).toContain('- Report format: Trivy table')
     expect(text).toContain('Scan date: not in this format.')
@@ -201,7 +214,7 @@ describe('buildFixSummary', () => {
                 not_in_format: ['artifact_name', 'artifact_type', 'trivy_version', 'created_at', 'cvss_score'] },
     }
     const text = buildFixSummary({
-      result: table, shown: [], filters: defaultFilters(), fixFor: () => undefined, model: null,
+      result: table, rows: [], otherFixFor: () => undefined, filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
     expect(text).toContain('# Fix summary: not in this format')
     expect(text).toContain('Trivy version: not in this format.')
@@ -213,29 +226,159 @@ describe('buildFixSummary', () => {
     const filters: FilterState = {
       search: 'open*ssl', kind: 'vulnerability', severities: new Set<Severity>(['HIGH']), status: 'fixed', fixOnly: true,
     }
-    const text = buildFixSummary({ result, shown: [], filters, fixFor: () => undefined, model: null })
+    const text = buildFixSummary({ result, rows: [], otherFixFor: () => undefined, filters, fixFor: () => undefined, model: null })
     expect(text).toContain(
       'Filters: search `open*ssl`; kind Vulnerabilities; severity High; status `fixed`; fix available.')
   })
 
   it('keeps hidden characters in the search text out of the summary', () => {
     const filters = { ...defaultFilters(), search: `a${RLO}b` }
-    const text = buildFixSummary({ result, shown: [], filters, fixFor: () => undefined, model: null })
+    const text = buildFixSummary({ result, rows: [], otherFixFor: () => undefined, filters, fixFor: () => undefined, model: null })
     expect(text).not.toContain(RLO)
   })
 
-  it('says "no packages" for a report without any', () => {
+  it('says "no items" for a report without any', () => {
     const empty = { ...result, package_groups: [] }
     const text = buildFixSummary({
-      result: empty, shown: [], filters: defaultFilters(), fixFor: () => undefined, model: null,
+      result: empty, rows: [], otherFixFor: () => undefined, filters: defaultFilters(), fixFor: () => undefined, model: null,
     })
-    expect(text).toContain('Filters: none. This summary lists no packages.')
+    expect(text).toContain('Filters: none. This summary lists no items.')
   })
 
   it('follows the filters and says which ones were on', () => {
     const highOnly = summaryOf(fixes, new Set<Severity>(['HIGH']))
-    expect(highOnly).toContain('Filters: severity High. This summary lists 1 of 3 packages.')
+    expect(highOnly).toContain('Filters: severity High. This summary lists 1 of 3 items.')
     expect(highOnly).toContain('## 1. zlib')
     expect(highOnly).not.toMatch(/^## \d+\. openssl$/m) // no section for the filtered-out package
+  })
+})
+
+describe('buildFixSummary for every kind and the built commands', () => {
+  const misconfiguration: Misconfiguration = {
+    fingerprint: 'm', target: 'Dockerfile', misconf_type: 'dockerfile', check_type: null, check_id: 'DS-0002',
+    title: 'Image user should not be root', description: 'Root is risky.', resolution: 'Add a USER line.',
+    severity: 'HIGH', status: 'FAIL', primary_url: 'https://example.invalid/ds-0002', references: [], resource: null,
+    start_line: 3, end_line: 4,
+  }
+  const secret: Secret = {
+    fingerprint: 's', target: 'deploy.sh', rule_id: 'aws-access-key-id', category: 'AWS', severity: 'CRITICAL',
+    title: 'AWS Access Key ID', start_line: 3, end_line: 3,
+  }
+  const license: License = {
+    fingerprint: 'l', target: 'Java', license_class: 'license', pkg_name: 'org.a:a', file_path: null, name: 'EPL-1.0',
+    category: 'reciprocal', severity: 'MEDIUM', confidence: null, link: 'https://example.invalid/epl',
+  }
+  const withCommands: PackageGroup = {
+    ...openssl,
+    fix_commands: [
+      { label: 'Fixed version 3.5.4', lines: ['apt-get update', 'apt-get install --only-upgrade openssl=3.5.4'] },
+      { label: 'Fixed version 3.5.5', lines: ['apt-get update', 'apt-get install --only-upgrade openssl=3.5.5'] },
+    ],
+    fix_commands_note: 'Trivy lists several fixed versions (often one per release). Use the one that fits your release.',
+  }
+  const everything: AnalyzeResult = {
+    ...result,
+    summary: { ...result.summary, by_kind: { vulnerability: 4, misconfiguration: 1, secret: 1, license: 1 } },
+    package_groups: [withCommands, { ...zlib, fix_commands_note: 'No command is built for alpine: its syntax is not verified.' }, curl],
+    misconfigurations: [misconfiguration],
+    secrets: [secret],
+    licenses: [license],
+    secret_fix_steps: ['Revoke or rotate the credential.', 'Remove it from the code.'],
+  }
+  const advice: OtherAdvice = {
+    kind: 'secret', status: 'solution_options', summary: 'Revoke it now.', solutions: ['Revoke the key.', 'Rotate the key.'],
+    mitigations: ['Watch the logs.'], risk_notes: 'It may be used already.', disclaimer: 'AI suggestion: verify before applying',
+  }
+
+  function build(otherFixes: Map<string, OtherFixState> = new Map(), filters = defaultFilters(), data = everything) {
+    return buildFixSummary({
+      result: data,
+      rows: buildRows(data, filters),
+      filters,
+      fixFor: () => undefined,
+      otherFixFor: (row) => otherFixes.get(row.key),
+      model: 'qwen3:8b',
+      locale: 'en-GB',
+      timeZone: 'UTC',
+    })
+  }
+
+  it('describes the report with the counts of all kinds', () => {
+    expect(build()).toContain('7 findings: 4 vulnerabilities in 3 packages, 1 misconfiguration, 1 secret, 1 license')
+  })
+
+  it('has one section per finding, worst first, whatever its kind', () => {
+    const headings = build().split('\n').filter((line) => line.startsWith('## '))
+    expect(headings).toEqual([
+      '## 1. openssl',
+      '## 2. aws-access-key-id (AWS)',
+      '## 3. zlib',
+      '## 4. DS-0002: Image user should not be root',
+      '## 5. cu\\\\u202Erl', // the hidden character shows as a visible code (its backslash is escaped)
+      '## 6. EPL-1.0',
+    ])
+  })
+
+  it('shows the commands built by code for a package, with their labels and note', () => {
+    const text = build()
+    expect(text).toContain("Fix commands, built by code from Trivy's fixed versions (this app never runs them):")
+    expect(text).toContain('Fixed version 3.5.4\n\n```\napt-get update\napt-get install --only-upgrade openssl=3.5.4\n```')
+    expect(text).toContain('Trivy lists several fixed versions')
+  })
+
+  it('says why a package has no command', () => {
+    const text = build()
+    expect(text).toContain('- Fix commands: No command is built for alpine: its syntax is not verified.')
+  })
+
+  it('lists a misconfiguration with what is wrong and Trivy fix text', () => {
+    const text = build()
+    expect(text).toContain('- Kind: Misconfiguration')
+    expect(text).toContain('- Where: Dockerfile, lines 3 to 4')
+    expect(text).toContain('- What is wrong: Root is risky.')
+    expect(text).toContain("- Trivy's fix: Add a USER line.")
+  })
+
+  it('says when a misconfiguration has no fix text, or its format cannot carry it', () => {
+    const none = { ...everything, misconfigurations: [{ ...misconfiguration, resolution: null }] }
+    expect(build(new Map(), defaultFilters(), none)).toContain("- Trivy's fix: none in the report")
+    const table = { ...none, report: { ...none.report, not_in_format: ['resolution'] } }
+    expect(build(new Map(), defaultFilters(), table)).toContain("- Trivy's fix: not in this format")
+  })
+
+  it('lists a secret with its place and the fixed steps, and says its value is never in the file', () => {
+    const text = build()
+    expect(text).toContain('- Kind: Secret')
+    expect(text).toContain('- Where: deploy.sh, line 3')
+    expect(text).toContain('- How to fix it:\n  1. Revoke or rotate the credential.\n  2. Remove it from the code.')
+    expect(text).toContain("The secret's value is never part of this file.")
+  })
+
+  it('lists a license and points to the legal team without judging it', () => {
+    const text = build()
+    expect(text).toContain('- Kind: License')
+    expect(text).toContain('- Category: reciprocal')
+    expect(text).toContain('Ask your legal or compliance team')
+  })
+
+  it('adds the AI answer for a finding that is not a package, in its state', () => {
+    const text = build(new Map([['secret:0', { state: 'done', advice }]]))
+    expect(text).toContain('- AI answer: Solution options')
+    expect(text).toContain('- Solutions:\n  1. Revoke the key.\n  2. Rotate the key.')
+    expect(text).toContain('- Mitigations until it is fixed:\n  - Watch the logs.')
+    expect(text).toContain('- Risks: It may be used already.')
+  })
+
+  it('says what became of an AI request for such a finding', () => {
+    expect(build()).toContain('- AI explanation: not requested yet')
+    expect(build(new Map([['secret:0', { state: 'error', message: 'No AI' }]]))).toContain('- AI explanation failed: No AI')
+    expect(build(new Map([['secret:0', { state: 'loading', startedAt: 1 }]]))).toContain('still running when this summary was made')
+  })
+
+  it('follows the filters for every kind and names them', () => {
+    const text = build(new Map(), { ...defaultFilters(), kind: 'secret' })
+    expect(text).toContain('Filters: kind Secrets. This summary lists 1 of 6 items.')
+    expect(text).toContain('## 1. aws-access-key-id (AWS)')
+    expect(text).not.toContain('DS-0002')
   })
 })

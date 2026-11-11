@@ -54,11 +54,14 @@ runs on your own computer. Nothing is saved.
   (see `.claude/skills/fix-commands`). Other package types get no command and
   the page says so.
 - **Download fix summary**: a Markdown file (`fix-summary-<report>.md`) of
-  what the page shows (the filters apply): the report, the counts, and per
-  package its fixed versions plus the AI verdict, advice and commands for every
-  package explained so far. It is built in the browser; nothing is sent.
-  Report and AI text in it are escaped, so it cannot contain links, HTML or
-  hidden characters.
+  what the page shows (the filters apply, and the file names them): the
+  report, the counts, and one section per finding of any kind. A package has
+  its fixed versions, the commands built by code and the AI’s answer; a
+  misconfiguration its description and Trivy’s fix text; a secret its place and
+  the fixed steps (never its value); a license its category and the pointer to
+  your legal team; each with the AI’s answer when it was asked. It is built in
+  the browser; nothing is sent. Report and AI text in it are escaped, so it
+  cannot contain links, HTML or hidden characters.
 - The app works fully without an LLM; only the AI explanation needs one.
 
 ## How it is built

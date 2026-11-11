@@ -11,6 +11,11 @@ export type Row =
   | { kind: 'secret'; key: string; severity: Severity; item: Secret }
   | { kind: 'license'; key: string; severity: Severity; item: License }
 
+/** The rows there are before any filter: one per package, plus one per other finding. */
+export function totalRows(result: Kinds): number {
+  return result.package_groups.length + result.misconfigurations.length + result.secrets.length + result.licenses.length
+}
+
 /** A row that is not a vulnerable package. */
 export type OtherRow = Exclude<Row, { kind: 'vulnerability' }>
 
