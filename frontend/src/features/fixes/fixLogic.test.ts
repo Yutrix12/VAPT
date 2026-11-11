@@ -33,6 +33,7 @@ const group: PackageGroup = {
   target: 'python:3.9-slim (debian 13.1)', pkg_name: 'openssl', installed_version: '3.5.1',
   finding_count: 3, worst_severity: 'HIGH', fixed_versions: ['3.5.4'], has_unfixed: true,
   findings: [finding('CVE-1', '3.5.4'), finding('CVE-2', null), finding(null, null)],
+  fix_commands: [], fix_commands_note: null,
 }
 
 const image = { os_family: 'debian', os_name: '13.1', artifact_type: 'container_image' } as ReportDetails

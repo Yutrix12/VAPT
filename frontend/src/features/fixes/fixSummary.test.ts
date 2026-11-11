@@ -65,7 +65,7 @@ function group(name: string, findings: Finding[], fixed: string[]): PackageGroup
   return {
     target: 'python:3.9-slim (debian 13.1)', pkg_name: name, installed_version: '3.5.1',
     finding_count: findings.length, worst_severity: findings[0].severity, fixed_versions: fixed,
-    has_unfixed: findings.some((f) => f.fixed_version === null), findings,
+    has_unfixed: findings.some((f) => f.fixed_version === null), findings, fix_commands: [], fix_commands_note: null,
   }
 }
 

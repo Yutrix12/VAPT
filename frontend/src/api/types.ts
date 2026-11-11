@@ -103,6 +103,12 @@ export interface License {
   link: string | null
 }
 
+/** One block of upgrade commands built by the backend; the label names the fixed version when there are several. */
+export interface BuiltCommand {
+  label: string | null
+  lines: string[]
+}
+
 export interface PackageGroup {
   target: string
   pkg_name: string | null
@@ -112,6 +118,8 @@ export interface PackageGroup {
   fixed_versions: string[]
   has_unfixed: boolean
   findings: Finding[]
+  fix_commands: BuiltCommand[] // built by code from Trivy's fixed versions
+  fix_commands_note: string | null // why there is no command, or what to know about the ones shown
 }
 
 export interface AnalyzeResult {

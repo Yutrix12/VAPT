@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { countText, formatScanDate, formatFileSize, KEEP_LINE_BREAKS, safeLink, visibleText } from './text'
+import {
+  countText,
+  formatScanDate,
+  formatFileSize,
+  hasHiddenCharacters,
+  KEEP_LINE_BREAKS,
+  safeLink,
+  visibleText,
+} from './text'
+
+describe('hasHiddenCharacters', () => {
+  it('is true when what is shown would differ from the text itself', () => {
+    expect(hasHiddenCharacters('apt-get install openssl‮')).toBe(true)
+    expect(hasHiddenCharacters('pip install ​pkg')).toBe(true)
+    expect(hasHiddenCharacters('echo\u001b[31m')).toBe(true)
+  })
+
+  it('is false for plain commands, with line breaks and tabs', () => {
+    expect(hasHiddenCharacters('apt-get update\napt-get install --only-upgrade openssl=1:3.0')).toBe(false)
+    expect(hasHiddenCharacters('a\tb')).toBe(false)
+    expect(hasHiddenCharacters('')).toBe(false)
+  })
+})
 
 describe('visibleText', () => {
   it('makes invisible and direction-changing characters visible', () => {

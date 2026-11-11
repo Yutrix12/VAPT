@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import type { AiConnection, AiState, FixAdvice, OtherAdvice } from '../../api/types'
 import { KEEP_LINE_BREAKS, countText, visibleText } from '../../shared/text'
+import { CodeBlock } from './CodeBlock'
 import { answerState, openAfterUpgradeText, otherAnswerState } from './fixLogic'
 
 interface Props {
@@ -175,9 +176,7 @@ function Advice({ advice }: { advice: FixAdvice }) {
             AI-suggested, verify before running. This page only shows these commands; it never runs them.
           </p>
           {advice.commands.map((command, index) => (
-            <pre key={index} translate="no">
-              <code>{visibleText(command, KEEP_LINE_BREAKS)}</code>
-            </pre>
+            <CodeBlock key={`${index}-${command}`} text={command} />
           ))}
         </div>
       )}

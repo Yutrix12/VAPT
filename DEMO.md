@@ -33,7 +33,9 @@
    itself (“Asking the AI… 5 s”). Esc, the Close button or a click on the
    dimmed background closes the dialog.
 5. Show the **Fixed versions** column: straight from the report, and
-   always shown, with or without AI.
+   always shown, with or without AI. In the dialog click **Show fix code**:
+   the `apt-get` commands built by our code from Trivy’s fixed versions, one
+   per version, each with a **Copy** button. They never run.
 6. When the answer arrives (around 25 seconds), point out:
    - “AI suggestion: verify before applying” at the top.
    - The verdict is made by our code, not by the model. A version is shown

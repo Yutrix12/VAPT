@@ -14,7 +14,8 @@ function finding(severity: Severity, status: string, id: string): Finding {
 function group(name: string, findings: Finding[]): PackageGroup {
   return {
     target: 't', pkg_name: name, installed_version: '1', finding_count: findings.length,
-    worst_severity: findings[0].severity, fixed_versions: [], has_unfixed: true, findings,
+    worst_severity: findings[0].severity, fixed_versions: [], has_unfixed: true, findings, fix_commands: [],
+    fix_commands_note: null,
   }
 }
 

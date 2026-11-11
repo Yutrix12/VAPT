@@ -3,6 +3,7 @@ import type { AiConnection, Finding, FixState, OtherFixState, PackageGroup, Seve
 import { severityLabel } from '../../shared/severity'
 import { NOT_IN_FORMAT, kindLabel, lineText } from '../../shared/reportText'
 import { safeLink, visibleText } from '../../shared/text'
+import { FixCommands } from '../fixes/FixCommands'
 import { FixPanel } from '../fixes/FixPanel'
 import { DetailsDialog } from './DetailsDialog'
 import { LicenseDetails, MisconfigurationDetails, SecretDetails } from './KindDetails'
@@ -149,6 +150,7 @@ export function FindingsTable({
         >
           {openRow.kind === 'vulnerability' && (
             <>
+              <FixCommands commands={openRow.shown.group.fix_commands} note={openRow.shown.group.fix_commands_note} />
               <FixPanel
                 fix={fixFor(openRow.shown.group)}
                 connection={connection}

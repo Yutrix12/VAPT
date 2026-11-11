@@ -15,7 +15,7 @@ function group(name: string, findings: Finding[]): PackageGroup {
   return {
     target: 't', pkg_name: name, installed_version: '1.0',
     finding_count: findings.length, worst_severity: findings[0].severity,
-    fixed_versions: [], has_unfixed: true, findings,
+    fixed_versions: [], has_unfixed: true, findings, fix_commands: [], fix_commands_note: null,
   }
 }
 

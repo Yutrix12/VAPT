@@ -47,7 +47,8 @@ runs on your own computer. Nothing is saved.
   verify before applying”. The AI’s own commands are shown apart as
   “AI-suggested, verify before running”, and any with a flag that skips a safety
   check is removed. Commands are only shown, never run.
-- **Fix commands built by code** (shown from step U8 on): for debian, ubuntu,
+- **Fix commands built by code**, behind a **Show fix code** button in a
+  package’s details (each block has a **Copy** button): for debian, ubuntu,
   fedora, rocky, alma, pip, npm, Go modules and Cargo, from the package
   name and Trivy’s fixed version, with syntax checked in the official docs
   (see `.claude/skills/fix-commands`). Other package types get no command and

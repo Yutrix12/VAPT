@@ -62,3 +62,12 @@ export function formatScanDate(value: string | null, locale?: string, timeZone?:
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(date)
 }
+
+/**
+ * True if showing the text would change it (hidden or direction-changing
+ * characters become visible codes). A command like that must not be copied: what
+ * would be pasted differs from what is on the screen. Line breaks and tabs are fine.
+ */
+export function hasHiddenCharacters(text: string): boolean {
+  return visibleText(text, KEEP_LINE_BREAKS) !== text
+}
