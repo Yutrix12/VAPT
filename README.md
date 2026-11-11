@@ -54,7 +54,7 @@ runs on your own computer. Nothing is saved.
 | Part | What it is |
 |---|---|
 | `backend/` | Python 3.11, FastAPI, the `app` package: `parsers/` (find the format, parse), `analysis/` (group, count), `fixes/` (LLM request and answer check), `llm/` (Ollama client and settings), `api/` (one router per endpoint), `main.py`. `cli.py` is the command line, `tests/` mirrors `app/` |
-| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status) and the results (filter bar, (report, severity bar, findings with AI explanations). `src/api/` (backend client), `src/features/` (one folder per part of the page, with its tests), `src/shared/` (helpers several parts use) |
+| `frontend/` | React + Vite + TypeScript. A sidebar (upload, AI status) and the results (filter bar, report, severity bar, findings with AI explanations). `src/api/` (backend client), `src/features/` (one folder per part of the page, with its tests), `src/shared/` (helpers several parts use) |
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/check`
 (Check connection), `POST /api/fix` (AI explanation; the body is one
