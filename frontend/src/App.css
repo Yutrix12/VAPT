@@ -877,3 +877,68 @@ th {
   margin: 0.5rem 0 0.75rem;
   padding-left: 1.25rem;
 }
+
+/* The details of one finding: a centred modal dialog. */
+.details-dialog {
+  padding: 0;
+  width: min(56rem, calc(100vw - 2rem));
+  max-width: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  overflow: hidden;
+}
+
+.details-dialog::backdrop {
+  background: rgb(17 24 39 / 0.45);
+}
+
+.details-box {
+  display: flex;
+  flex-direction: column;
+  max-height: min(85vh, 60rem);
+}
+
+.details-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.details-title {
+  margin: 0;
+  font-size: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.details-sub {
+  margin: 0.3rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--muted);
+}
+
+.details-body {
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .details-dialog {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .details-box {
+    height: 100%;
+    max-height: none;
+  }
+}
