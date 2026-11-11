@@ -11,6 +11,9 @@ export type Row =
   | { kind: 'secret'; key: string; severity: Severity; item: Secret }
   | { kind: 'license'; key: string; severity: Severity; item: License }
 
+/** A row that is not a vulnerable package. */
+export type OtherRow = Exclude<Row, { kind: 'vulnerability' }>
+
 type Kinds = Pick<AnalyzeResult, 'package_groups' | 'misconfigurations' | 'secrets' | 'licenses'>
 
 // Among equal severities the kinds keep the owner's order.

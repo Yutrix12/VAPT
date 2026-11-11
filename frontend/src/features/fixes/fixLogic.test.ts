@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import type { Finding, PackageGroup, ReportDetails } from '../../api/types'
-import { answerState, openAfterUpgradeText, serialQueue, toFixGroup } from './fixLogic'
+import type { Finding, License, Misconfiguration, PackageGroup, ReportDetails, Secret } from '../../api/types'
+import {
+  answerState,
+  licenseRequest,
+  misconfigurationRequest,
+  openAfterUpgradeText,
+  otherAnswerState,
+  secretRequest,
+  serialQueue,
+  toFixGroup,
+} from './fixLogic'
 
 describe('openAfterUpgradeText', () => {
   it('says how many vulnerabilities stay open, in singular or plural', () => {
@@ -86,5 +95,49 @@ describe('answerState', () => {
     expect(answerState('unverified')).toBe('Solution options')
     expect(answerState('no_version_suggested')).toBe('Solution options')
     expect(answerState('no_fix_available')).toBe('No fix yet: mitigations')
+  })
+})
+
+describe('requests for the other kinds', () => {
+  const secret: Secret = {
+    fingerprint: 'fp', target: 'deploy.sh', rule_id: 'aws-access-key-id', category: 'AWS', severity: 'CRITICAL',
+    title: 'AWS Access Key ID', start_line: 3, end_line: 3,
+  }
+  const misconfiguration: Misconfiguration = {
+    fingerprint: 'fp', target: 'Dockerfile', misconf_type: 'dockerfile', check_type: 'x', check_id: 'DS-0002',
+    title: 'Image user should not be root', description: 'Root is risky.', resolution: 'Add a USER line.',
+    severity: 'HIGH', status: 'FAIL', primary_url: 'https://example.invalid', references: ['r'], resource: 'res',
+    start_line: null, end_line: null,
+  }
+  const license: License = {
+    fingerprint: 'fp', target: 'Java', license_class: 'license', pkg_name: 'org.a:a', file_path: null,
+    name: 'EPL-1.0', category: 'reciprocal', severity: 'MEDIUM', confidence: 0.9, link: 'https://example.invalid',
+  }
+
+  it('a secret request holds the rule, place and severity and nothing else', () => {
+    expect(Object.keys(secretRequest(secret)).sort()).toEqual(
+      ['category', 'end_line', 'kind', 'rule_id', 'severity', 'start_line', 'target', 'title'])
+    expect(secretRequest(secret)).toMatchObject({ kind: 'secret', rule_id: 'aws-access-key-id', start_line: 3 })
+  })
+
+  it('a misconfiguration request holds what is wrong and Trivy fix text, never a message or code', () => {
+    expect(Object.keys(misconfigurationRequest(misconfiguration)).sort()).toEqual(
+      ['check_id', 'description', 'end_line', 'kind', 'misconf_type', 'resolution', 'severity', 'start_line',
+        'target', 'title'])
+  })
+
+  it('a license request names the package, or the file when there is no package', () => {
+    expect(licenseRequest(license)).toEqual({
+      kind: 'license', name: 'EPL-1.0', category: 'reciprocal', license_class: 'license', package: 'org.a:a',
+      severity: 'MEDIUM',
+    })
+    expect(licenseRequest({ ...license, pkg_name: null, file_path: 'LICENSE.txt' }).package).toBe('LICENSE.txt')
+  })
+})
+
+describe('otherAnswerState', () => {
+  it('names the state of the advice for a misconfiguration, a secret or a license', () => {
+    expect(otherAnswerState('solution_options')).toBe('Solution options')
+    expect(otherAnswerState('mitigations_only')).toBe('Mitigations only')
   })
 })

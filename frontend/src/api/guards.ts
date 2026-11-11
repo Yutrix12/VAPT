@@ -1,5 +1,13 @@
 // Light checks that an answer from the backend has the shape the page expects.
-import { type AnalyzeResult, FIX_STATUSES, type FixAdvice, type Kind, type LlmStatus } from './types'
+import {
+  type AnalyzeResult,
+  FIX_STATUSES,
+  type FixAdvice,
+  type Kind,
+  type LlmStatus,
+  OTHER_STATUSES,
+  type OtherAdvice,
+} from './types'
 
 const KINDS: readonly Kind[] = ['vulnerability', 'misconfiguration', 'secret', 'license']
 
@@ -61,4 +69,18 @@ export function isFixAdvice(body: unknown): body is FixAdvice {
   if (body.status === 'verified') return typeof body.target_version === 'string'
   if (body.status === 'unverified') return typeof body.unverified_version === 'string'
   return true
+}
+
+/** The advice for a misconfiguration, a secret or a license (not for a vulnerable package). */
+export function isOtherAdvice(body: unknown): body is OtherAdvice {
+  return (
+    isObject(body) &&
+    typeof body.kind === 'string' &&
+    ['misconfiguration', 'secret', 'license'].includes(body.kind) &&
+    typeof body.status === 'string' &&
+    (OTHER_STATUSES as readonly string[]).includes(body.status) &&
+    isStringArray(body.solutions) &&
+    isStringArray(body.mitigations) &&
+    [body.summary, body.risk_notes, body.disclaimer].every((text) => typeof text === 'string')
+  )
 }

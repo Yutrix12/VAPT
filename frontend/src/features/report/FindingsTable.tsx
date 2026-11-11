@@ -1,12 +1,12 @@
 import { Fragment, useState, type ReactNode } from 'react'
-import type { AiConnection, Finding, FixState, PackageGroup, Severity } from '../../api/types'
+import type { AiConnection, Finding, FixState, OtherFixState, PackageGroup, Severity } from '../../api/types'
 import { severityLabel } from '../../shared/severity'
 import { NOT_IN_FORMAT, kindLabel, lineText } from '../../shared/reportText'
 import { safeLink, visibleText } from '../../shared/text'
 import { FixPanel } from '../fixes/FixPanel'
 import { DetailsDialog } from './DetailsDialog'
 import { LicenseDetails, MisconfigurationDetails, SecretDetails } from './KindDetails'
-import type { Row } from './rows'
+import type { OtherRow, Row } from './rows'
 
 function SeverityBadge({ severity }: { severity: Severity }) {
   return <span className={`badge-severity severity-${severity.toLowerCase()}`}>{severityLabel(severity)}</span>
@@ -82,6 +82,8 @@ interface TableProps {
   connection: AiConnection
   fixFor: (group: PackageGroup) => FixState | undefined
   onExplain: (group: PackageGroup) => void
+  otherFixFor: (row: OtherRow) => OtherFixState | undefined
+  onExplainOther: (row: OtherRow) => void
 }
 
 /** A text cut at a space once it is longer than `max`, with " ..." at the end. */
@@ -92,7 +94,16 @@ function shorten(text: string, max = 80): string {
 }
 
 /** Every finding kind in one table, worst first; "View details" opens a finding in a dialog. */
-export function FindingsTable({ rows, notInFormat, secretFixSteps, connection, fixFor, onExplain }: TableProps) {
+export function FindingsTable({
+  rows,
+  notInFormat,
+  secretFixSteps,
+  connection,
+  fixFor,
+  onExplain,
+  otherFixFor,
+  onExplainOther,
+}: TableProps) {
   // The key of the finding whose dialog is open; the dialog closes by itself (Esc, Close, backdrop).
   const [openKey, setOpenKey] = useState<string | null>(null)
   const openRow = rows.find((row) => row.key === openKey)
@@ -149,6 +160,15 @@ export function FindingsTable({ rows, notInFormat, secretFixSteps, connection, f
           {openRow.kind === 'misconfiguration' && <MisconfigurationDetails item={openRow.item} notInFormat={notInFormat} />}
           {openRow.kind === 'secret' && <SecretDetails item={openRow.item} steps={secretFixSteps} />}
           {openRow.kind === 'license' && <LicenseDetails item={openRow.item} />}
+          {openRow.kind !== 'vulnerability' && (
+            // The built-in details and fix come first; the AI explanation adds to them.
+            <FixPanel
+              fix={otherFixFor(openRow)}
+              connection={connection}
+              onExplain={() => onExplainOther(openRow)}
+              fallback="The details above still apply."
+            />
+          )}
         </DetailsDialog>
       )}
     </div>

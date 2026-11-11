@@ -34,13 +34,24 @@ runs on your own computer. Nothing is saved.
   place and the
   fixed steps (revoke it, remove it from the code and history); its value is
   never shown. A license’s dialog shows its name and category, with a pointer to
-  your legal team. The AI explanation is only for vulnerabilities so far.
-- **AI explanation** when a package is opened: the LLM (`qwen3:8b`) explains
-  the fix and suggests
-  commands. The code, not the LLM, decides what counts as a fix: a version
-  is shown as the recommended upgrade only if it is one of Trivy’s fixed
-  versions. Every answer says “AI suggestion: verify before applying”, and
-  commands are only shown, never run.
+  your legal team.
+- **AI explanation** when a finding’s details are opened: the LLM
+  (`qwen3:8b`) explains it, with its own prompt for each kind. The answer
+  keeps **solutions** (options that remove the problem) apart from
+  **mitigations** (until a fix exists), and says plainly when Trivy lists no
+  fix. The code, not the LLM, decides what counts as a fix: a version is
+  shown as the recommended upgrade only if it is one of Trivy’s fixed
+  versions. For a secret the AI never gets a value (the page has none, and the
+  backend refuses any extra field); for a license it gives options only and
+  says to ask your legal or compliance team. Every answer says “AI suggestion:
+  verify before applying”. The AI’s own commands are shown apart as
+  “AI-suggested, verify before running”, and any with a flag that skips a safety
+  check is removed. Commands are only shown, never run.
+- **Fix commands built by code** (shown from step U8 on): for debian, ubuntu,
+  fedora, rocky, alma, pip, npm, Go modules and Cargo, from the package
+  name and Trivy’s fixed version, with syntax checked in the official docs
+  (see `.claude/skills/fix-commands`). Other package types get no command and
+  the page says so.
 - **Download fix summary**: a Markdown file (`fix-summary-<report>.md`) of
   what the page shows (the filters apply): the report, the counts, and per
   package its fixed versions plus the AI verdict, advice and commands for every
@@ -58,7 +69,8 @@ runs on your own computer. Nothing is saved.
 
 API: `GET /api/health`, `POST /api/analyze` (upload), `POST /api/llm/check`
 (Check connection), `POST /api/fix` (AI explanation; the body is one
-package). The browser talks only to the backend; the backend talks to Ollama.
+package) and `POST /api/fix/other` (AI explanation of a misconfiguration, a
+secret or a license; the body holds only that finding’s own fields). The browser talks only to the backend; the backend talks to Ollama.
 The backend alone chooses the LLM (`backend/app/llm/config.py`): the page has no
 LLM settings and never sees a key.
 

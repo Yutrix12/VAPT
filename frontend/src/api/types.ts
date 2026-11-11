@@ -124,12 +124,18 @@ export interface AnalyzeResult {
   secret_fix_steps: string[] // the same fixed steps for every secret
 }
 
-/** The AI explanation of one package group in the page; undefined means not asked yet. */
-export type FixState =
+/** The AI explanation of one finding in the page; undefined means not asked yet. */
+export type AiState<Advice> =
   | { state: 'queued' } // waiting while another explanation runs
   | { state: 'loading'; startedAt: number }
-  | { state: 'done'; advice: FixAdvice }
+  | { state: 'done'; advice: Advice }
   | { state: 'error'; message: string }
+
+/** The explanation of one package group (vulnerabilities). */
+export type FixState = AiState<FixAdvice>
+
+/** The explanation of a misconfiguration, a secret or a license. */
+export type OtherFixState = AiState<OtherAdvice>
 
 /** Whether AI explanations can run: the backend's LLM answers and has its model. */
 export type AiConnection =
@@ -172,6 +178,60 @@ export interface FixAdvice {
   mitigations: string[] // steps that reduce the risk until a fix exists
   commands: string[] // the AI's own; shown apart as AI-suggested
   unsafe_commands_removed: number // AI commands dropped for a flag that skips a safety check
+  risk_notes: string
+  disclaimer: string
+}
+
+/** The kinds that are explained apart from vulnerable packages. */
+export type OtherKind = Exclude<Kind, 'vulnerability'>
+
+// POST /api/fix/other request bodies (backend/app/fixes/other/schemas.py). Each holds that
+// kind's own fields and nothing else: the backend refuses extra fields, so a secret's value,
+// a misconfiguration's message or its code lines can never be sent.
+export interface MisconfigurationRequest {
+  kind: 'misconfiguration'
+  check_id: string | null
+  title: string | null
+  description: string | null
+  resolution: string | null
+  severity: Severity
+  misconf_type: string | null
+  target: string
+  start_line: number | null
+  end_line: number | null
+}
+
+export interface SecretRequest {
+  kind: 'secret'
+  rule_id: string | null
+  category: string | null
+  severity: Severity
+  title: string | null
+  target: string
+  start_line: number | null
+  end_line: number | null
+}
+
+export interface LicenseRequest {
+  kind: 'license'
+  name: string | null
+  category: string | null
+  license_class: string | null
+  package: string | null // the package, or the file when there is no package
+  severity: Severity
+}
+
+export type OtherRequest = MisconfigurationRequest | SecretRequest | LicenseRequest
+
+export const OTHER_STATUSES = ['solution_options', 'mitigations_only'] as const
+
+/** The checked AI advice for a misconfiguration, a secret or a license. */
+export interface OtherAdvice {
+  kind: OtherKind
+  status: (typeof OTHER_STATUSES)[number] // decided by the backend's code from the answer
+  summary: string
+  solutions: string[]
+  mitigations: string[]
   risk_notes: string
   disclaimer: string
 }

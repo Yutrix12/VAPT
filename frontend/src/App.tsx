@@ -1,27 +1,48 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { checkHealth, checkLlm, explainFix, type Health } from './api/client'
+import { checkHealth, checkLlm, explainFix, explainOther, type ApiResult, type Health } from './api/client'
 import {
   type AiConnection,
+  type AiState,
   type AnalyzeResult,
   type FixState,
+  type OtherFixState,
+  type OtherRequest,
   type PackageGroup,
 } from './api/types'
 import { AiStatusPanel } from './features/ai-status/AiStatusPanel'
 import { connectionFromStatus } from './features/ai-status/connection'
 import { FilterBar } from './features/filters/FilterBar'
 import { defaultFilters, type FilterState } from './features/filters/filterState'
-import { serialQueue, toFixGroup } from './features/fixes/fixLogic'
+import {
+  licenseRequest,
+  misconfigurationRequest,
+  secretRequest,
+  serialQueue,
+  toFixGroup,
+} from './features/fixes/fixLogic'
 import { buildFixSummary, summaryFileName } from './features/fixes/fixSummary'
 import { FindingsTable } from './features/report/FindingsTable'
 import { groupKey } from './features/report/groupKey'
 import { ReportDetails } from './features/report/ReportDetails'
-import { buildRows, severityCounts } from './features/report/rows'
+import { buildRows, severityCounts, type OtherRow } from './features/report/rows'
 import { SeverityCounts } from './features/report/SeverityCounts'
 import { UploadForm } from './features/upload/UploadForm'
 import { downloadText } from './shared/download'
 import { overviewText, shownText } from './shared/reportText'
 import { visibleText } from './shared/text'
 import './App.css'
+
+/** The body of /api/fix/other for a row that is not a vulnerable package. */
+function otherRequest(row: OtherRow): OtherRequest {
+  switch (row.kind) {
+    case 'misconfiguration':
+      return misconfigurationRequest(row.item)
+    case 'secret':
+      return secretRequest(row.item)
+    case 'license':
+      return licenseRequest(row.item)
+  }
+}
 
 /** The rows the table has before any filter: one per package, plus one per other finding. */
 function totalRows(result: AnalyzeResult): number {
@@ -75,6 +96,8 @@ function App() {
   const [enqueue] = useState(() => serialQueue())
   // AI answers per group and model, in React state only (gone on reload).
   const [fixes, setFixes] = useState<ReadonlyMap<string, FixState>>(new Map())
+  // The same for misconfigurations, secrets and licenses, by row.
+  const [otherFixes, setOtherFixes] = useState<ReadonlyMap<string, OtherFixState>>(new Map())
   // Requests on their way right now, so a quick second click never calls the
   // LLM again, even before React has re-rendered.
   const inFlight = useRef(new Set<string>())
@@ -119,6 +142,14 @@ function App() {
     return fixes.get(fixKey(group))
   }
 
+  function otherKey(row: OtherRow): string {
+    return JSON.stringify([row.key, aiModel])
+  }
+
+  function otherFixFor(row: OtherRow): OtherFixState | undefined {
+    return otherFixes.get(otherKey(row))
+  }
+
   const rows = useMemo(() => (result ? buildRows(result, filters) : []), [result, filters])
   // The fix summary lists vulnerabilities only until U9 adds the other kinds.
   const shown = useMemo(() => rows.flatMap((row) => (row.kind === 'vulnerability' ? [row.shown] : [])), [rows])
@@ -133,10 +164,15 @@ function App() {
     setTableKey(reportNumber.current)
     inFlight.current.clear()
     setFixes(new Map())
+    setOtherFixes(new Map())
   }
 
   function setFix(key: string, fix: FixState) {
     setFixes((current) => new Map(current).set(key, fix))
+  }
+
+  function setOtherFix(key: string, fix: OtherFixState) {
+    setOtherFixes((current) => new Map(current).set(key, fix))
   }
 
   /** The fix summary of what the page shows now, as a Markdown file. */
@@ -152,23 +188,39 @@ function App() {
     downloadText(summaryFileName(result.report.file_name), text, 'text/markdown;charset=utf-8')
   }
 
+  /** Ask the AI about one finding: one request at a time, none twice, a late answer for an older report dropped. */
+  function ask<Advice>(
+    key: string,
+    store: (key: string, state: AiState<Advice>) => void,
+    call: () => Promise<ApiResult<Advice>>,
+  ) {
+    inFlight.current.add(key)
+    const askedFor = reportNumber.current
+    store(key, { state: 'queued' })
+    void enqueue(async () => {
+      if (reportNumber.current !== askedFor) return // a newer report is shown now
+      store(key, { state: 'loading', startedAt: Date.now() })
+      const answer = await call()
+      if (reportNumber.current !== askedFor) return
+      inFlight.current.delete(key)
+      store(key, answer.ok ? { state: 'done', advice: answer.data } : { state: 'error', message: answer.message })
+    })
+  }
+
   function explain(group: PackageGroup) {
     if (result === null) return
     const key = fixKey(group)
     // Already answered or on its way: no second call to the LLM.
     if (inFlight.current.has(key) || fixes.get(key)?.state === 'done') return
-    inFlight.current.add(key)
-    const askedFor = reportNumber.current
     const body = toFixGroup(group, result.report)
-    setFix(key, { state: 'queued' })
-    void enqueue(async () => {
-      if (reportNumber.current !== askedFor) return // a newer report is shown now
-      setFix(key, { state: 'loading', startedAt: Date.now() })
-      const answer = await explainFix(body)
-      if (reportNumber.current !== askedFor) return
-      inFlight.current.delete(key)
-      setFix(key, answer.ok ? { state: 'done', advice: answer.data } : { state: 'error', message: answer.message })
-    })
+    ask(key, setFix, () => explainFix(body))
+  }
+
+  function explainOtherRow(row: OtherRow) {
+    const key = otherKey(row)
+    if (inFlight.current.has(key) || otherFixes.get(key)?.state === 'done') return
+    const body = otherRequest(row)
+    ask(key, setOtherFix, () => explainOther(body))
   }
 
   return (
@@ -223,6 +275,8 @@ function App() {
                 connection={connection}
                 fixFor={fixFor}
                 onExplain={explain}
+                otherFixFor={otherFixFor}
+                onExplainOther={explainOtherRow}
               />
             </section>
           </>

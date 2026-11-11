@@ -1,5 +1,17 @@
 // Plain functions behind the AI explanations (no React).
-import { type FixGroupRequest, type FixStatus, type PackageGroup, type ReportDetails } from '../../api/types'
+import {
+  type FixGroupRequest,
+  type FixStatus,
+  type License,
+  type LicenseRequest,
+  type Misconfiguration,
+  type MisconfigurationRequest,
+  type OtherAdvice,
+  type PackageGroup,
+  type ReportDetails,
+  type Secret,
+  type SecretRequest,
+} from '../../api/types'
 import { countText } from '../../shared/text'
 
 /** The body of /api/fix: this group only, nothing else from the report. */
@@ -59,4 +71,51 @@ export function answerState(status: FixStatus): string {
     case 'no_fix_available':
       return 'No fix yet: mitigations'
   }
+}
+
+/** The body of /api/fix/other for a misconfiguration: what is wrong and Trivy's fix text, no message or code. */
+export function misconfigurationRequest(item: Misconfiguration): MisconfigurationRequest {
+  return {
+    kind: 'misconfiguration',
+    check_id: item.check_id,
+    title: item.title,
+    description: item.description,
+    resolution: item.resolution,
+    severity: item.severity,
+    misconf_type: item.misconf_type,
+    target: item.target,
+    start_line: item.start_line,
+    end_line: item.end_line,
+  }
+}
+
+/** The body of /api/fix/other for a secret: the rule and the place, never a value (the page has none). */
+export function secretRequest(item: Secret): SecretRequest {
+  return {
+    kind: 'secret',
+    rule_id: item.rule_id,
+    category: item.category,
+    severity: item.severity,
+    title: item.title,
+    target: item.target,
+    start_line: item.start_line,
+    end_line: item.end_line,
+  }
+}
+
+/** The body of /api/fix/other for a license: its name and category, and where it was found. */
+export function licenseRequest(item: License): LicenseRequest {
+  return {
+    kind: 'license',
+    name: item.name,
+    category: item.category,
+    license_class: item.license_class,
+    package: item.pkg_name ?? item.file_path,
+    severity: item.severity,
+  }
+}
+
+/** The state of the AI advice for a misconfiguration, a secret or a license, in plain words. */
+export function otherAnswerState(status: OtherAdvice['status']): string {
+  return status === 'solution_options' ? 'Solution options' : 'Mitigations only'
 }

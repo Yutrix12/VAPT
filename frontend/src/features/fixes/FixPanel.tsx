@@ -1,13 +1,17 @@
 import { useEffect, useEffectEvent, useState } from 'react'
-import type { AiConnection, FixAdvice, FixState } from '../../api/types'
+import { isOtherAdvice } from '../../api/guards'
+import type { AiConnection, AiState, FixAdvice, OtherAdvice } from '../../api/types'
 import { KEEP_LINE_BREAKS, countText, visibleText } from '../../shared/text'
-import { answerState, openAfterUpgradeText } from './fixLogic'
+import { answerState, openAfterUpgradeText, otherAnswerState } from './fixLogic'
 
 interface Props {
-  fix: FixState | undefined // undefined: not asked yet
+  fix: AiState<FixAdvice | OtherAdvice> | undefined // undefined: not asked yet
   connection: AiConnection
   onExplain: () => void
+  fallback?: string // what still applies while there is no explanation
 }
+
+const TRIVY_FIX_STILL_APPLIES = 'Trivy’s fixed versions above still apply.'
 
 /** What the code decided about the AI's version. The model never decides this. */
 function VersionVerdict({ advice }: { advice: FixAdvice }) {
@@ -69,7 +73,7 @@ function notReadyText(connection: AiConnection): string {
  * is ready; answers are cached, so each group is asked once. The live
  * region stays mounted in every state, so screen readers announce changes.
  */
-export function FixPanel({ fix, connection, onExplain }: Props) {
+export function FixPanel({ fix, connection, onExplain, fallback = TRIVY_FIX_STILL_APPLIES }: Props) {
   // With a hosted AI the notice must be on screen before data is sent: a
   // package opened before the AI was ready waits for a click instead.
   const [openedWhileReady] = useState(connection.state === 'ready')
@@ -84,34 +88,33 @@ export function FixPanel({ fix, connection, onExplain }: Props) {
 
   return (
     <div className="fix-panel" aria-live="polite">
-      <FixContent fix={fix} connection={connection} needsClick={needsClick} onExplain={onExplain} />
+      <FixContent fix={fix} connection={connection} needsClick={needsClick} onExplain={onExplain} fallback={fallback} />
     </div>
   )
 }
 
-function FixContent({ fix, connection, needsClick, onExplain }: Props & { needsClick: boolean }) {
+function FixContent({ fix, connection, needsClick, onExplain, fallback }: Props & { needsClick: boolean; fallback: string }) {
   if (fix === undefined && needsClick) {
     return (
       <div>
         <p className="muted">
-          The AI runs on a hosted service (see the notice under AI explanations). Trivy’s fixed versions
-          above still apply.
+          The AI runs on a hosted service (see the notice under AI explanations). {fallback}
         </p>
         <button type="button" className="secondary" onClick={onExplain}>
-          Send this package to the hosted AI
+          Send this finding to the hosted AI
         </button>
       </div>
     )
   }
   if (fix === undefined) {
-    return <p className="muted">{visibleText(notReadyText(connection))} Trivy’s fixed versions above still apply.</p>
+    return <p className="muted">{visibleText(notReadyText(connection))} {fallback}</p>
   }
   switch (fix.state) {
     case 'queued':
       return (
         <p className="ai-wait">
           <span className="pulse is-still" aria-hidden="true" />
-          <span>Waiting for the AI: it is explaining another package first.</span>
+          <span>Waiting for the AI: it is explaining another finding first.</span>
         </p>
       )
     case 'loading':
@@ -126,14 +129,14 @@ function FixContent({ fix, connection, needsClick, onExplain }: Props & { needsC
     case 'error':
       return (
         <div className="ai-error" role="alert">
-          <p>{visibleText(fix.message)} Trivy’s fixed versions above still apply.</p>
+          <p>{visibleText(fix.message)} {fallback}</p>
           <button type="button" className="secondary" onClick={onExplain} disabled={connection.state !== 'ready'}>
             Try again
           </button>
         </div>
       )
     case 'done':
-      return <Advice advice={fix.advice} />
+      return isOtherAdvice(fix.advice) ? <OtherAdviceView advice={fix.advice} /> : <Advice advice={fix.advice} />
   }
 }
 
@@ -200,6 +203,41 @@ function Advice({ advice }: { advice: FixAdvice }) {
           ))}
         </div>
       )}
+    </>
+  )
+}
+
+/** A list of steps from the AI (solutions or mitigations). */
+function Steps({ title, steps }: { title: string; steps: string[] }) {
+  if (steps.length === 0) return null
+  return (
+    <>
+      <dt>{title}</dt>
+      <dd>
+        <ul className="steps">
+          {steps.map((text, index) => (
+            <li key={`${index}-${text}`}>{visibleText(text, KEEP_LINE_BREAKS)}</li>
+          ))}
+        </ul>
+      </dd>
+    </>
+  )
+}
+
+/** The checked AI advice for a misconfiguration, a secret or a license. */
+function OtherAdviceView({ advice }: { advice: OtherAdvice }) {
+  return (
+    <>
+      <p className="disclaimer">{visibleText(advice.disclaimer)}</p>
+      <p className="answer-state">{otherAnswerState(advice.status)}</p>
+      <dl className="advice">
+        <dt>Summary</dt>
+        <dd>{visibleText(advice.summary, KEEP_LINE_BREAKS)}</dd>
+        <Steps title="Solutions" steps={advice.solutions} />
+        <Steps title="Mitigations until it is fixed" steps={advice.mitigations} />
+        <dt>Risks</dt>
+        <dd>{visibleText(advice.risk_notes, KEEP_LINE_BREAKS)}</dd>
+      </dl>
     </>
   )
 }

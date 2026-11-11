@@ -1,6 +1,6 @@
 // Calls to our backend. The Vite dev proxy forwards /api/ to FastAPI.
-import { isAnalyzeResult, isObject, isFixAdvice, isLlmStatus } from './guards'
-import type { AnalyzeResult, FixAdvice, FixGroupRequest, LlmStatus } from './types'
+import { isAnalyzeResult, isFixAdvice, isLlmStatus, isObject, isOtherAdvice } from './guards'
+import type { AnalyzeResult, FixAdvice, FixGroupRequest, LlmStatus, OtherAdvice, OtherRequest } from './types'
 
 export type Health =
   | { state: 'checking' }
@@ -91,4 +91,9 @@ export function checkLlm(): Promise<ApiResult<LlmStatus>> {
 /** The AI explanation for one group. Only the group is sent: the backend chooses the LLM. */
 export function explainFix(group: FixGroupRequest): Promise<ApiResult<FixAdvice>> {
   return callBackend('/api/fix', jsonPost(group), FIX_TIMEOUT_MS, isFixAdvice)
+}
+
+/** The AI explanation for one misconfiguration, secret or license. Only its own fields are sent. */
+export function explainOther(request: OtherRequest): Promise<ApiResult<OtherAdvice>> {
+  return callBackend('/api/fix/other', jsonPost(request), FIX_TIMEOUT_MS, isOtherAdvice)
 }

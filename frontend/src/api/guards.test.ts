@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isAnalyzeResult, isFixAdvice, isLlmStatus } from './guards'
+import { isAnalyzeResult, isFixAdvice, isLlmStatus, isOtherAdvice } from './guards'
 
 /** The shape /api/analyze returns, with every kind empty. */
 const answer = {
@@ -79,5 +79,27 @@ describe('answer shape checks', () => {
     expect(isFixAdvice({ ...base, status: 'unverified' })).toBe(false) // no unverified_version
     expect(isFixAdvice({ ...base, status: 'unverified', unverified_version: '9.9.9' })).toBe(true)
     expect(isFixAdvice({ ...base, status: 'no_fix_available', mitigation_only: 'yes' })).toBe(false)
+  })
+})
+
+describe('isOtherAdvice', () => {
+  const good = {
+    kind: 'secret', status: 'solution_options', summary: 's', solutions: ['a'], mitigations: [],
+    risk_notes: 'r', disclaimer: 'd',
+  }
+
+  it('accepts the advice for the three other kinds', () => {
+    for (const kind of ['misconfiguration', 'secret', 'license']) expect(isOtherAdvice({ ...good, kind })).toBe(true)
+    expect(isOtherAdvice({ ...good, status: 'mitigations_only' })).toBe(true)
+  })
+
+  it('refuses other answers, among them the advice for a vulnerable package', () => {
+    expect(isOtherAdvice({ ...good, kind: 'vulnerability' })).toBe(false)
+    expect(isOtherAdvice({ ...good, status: 'verified' })).toBe(false)
+    expect(isOtherAdvice({ ...good, solutions: 'a' })).toBe(false)
+    expect(isOtherAdvice({ ...good, mitigations: [1] })).toBe(false)
+    expect(isOtherAdvice({ ...good, risk_notes: 1 })).toBe(false)
+    expect(isOtherAdvice({})).toBe(false)
+    expect(isOtherAdvice(null)).toBe(false)
   })
 })
