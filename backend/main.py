@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.analysis.grouping import findings_by_group, group_by_package, group_key
 from app.parsers.models import Finding, ReportError
 from fix_steps import SECRET_FIX_STEPS
 from fixes import (FIX_SCHEMA, FixAdvice, FixError, FixGroup, build_messages,
@@ -18,12 +19,7 @@ from llm_client import (LLMError, LLMSettings, chat_json, is_this_computer,
                         list_models)
 from llm_config import current_settings
 from report_formats import parse_report_file
-from trivy_parser import (
-    findings_by_group,
-    group_by_package,
-    group_key,
-    summarize,
-)
+from trivy_parser import summarize
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 # A multipart request is a little bigger than the file inside it.
