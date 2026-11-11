@@ -4,11 +4,12 @@ import { SEVERITIES, type AnalyzeResult, type Finding, type PackageGroup, type R
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
-/** A reason to refuse the file before uploading it, or null if it is fine. */
+/**
+ * A reason to refuse the file before uploading it, or null if it is fine.
+ * Only the size is checked here: the backend detects the format from the
+ * content, never from the file name (U3).
+ */
 export function checkFileBeforeUpload(name: string, size: number): string | null {
-  if (!name.toLowerCase().endsWith('.json')) {
-    return `Skipped ${name}: only Trivy JSON reports are supported right now`
-  }
   if (size > MAX_UPLOAD_BYTES) {
     return `Skipped ${name}: the file is larger than 50 MB`
   }
@@ -52,6 +53,14 @@ export function formatFileSize(bytes: number): string {
   const kilobytes = Math.round(bytes / 1024)
   if (kilobytes < 1024) return `${kilobytes}${nbsp}KB` // rounded first, so never "1024 KB"
   return `${(bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')}${nbsp}MB`
+}
+
+/** What the page shows for a field the uploaded format does not carry (U3). */
+export const NOT_IN_FORMAT = 'not in this format'
+
+/** "not in this format" when the report's format lacks `field`, else `value`. */
+export function fieldOrNotInFormat(report: { not_in_format: string[] }, field: string, value: string): string {
+  return report.not_in_format.includes(field) ? NOT_IN_FORMAT : value
 }
 
 /** "1 package" or "2 packages"; give the plural when it is not word + "s" ("vulnerabilities"). */

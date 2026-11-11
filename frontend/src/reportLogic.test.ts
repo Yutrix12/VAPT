@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ALL_STATUSES, artifactTypeLabel, checkFileBeforeUpload, openAfterUpgradeText, countText, filterGroups, formatScanDate, isAnalyzeResult,
+  ALL_STATUSES, artifactTypeLabel, checkFileBeforeUpload, fieldOrNotInFormat, openAfterUpgradeText, countText, filterGroups, formatScanDate, isAnalyzeResult,
   formatFileSize, KEEP_LINE_BREAKS, RATED_SEVERITIES, safeLink, severityLabel, severityLevel, visibleText,
   worstSeverity,
 } from './reportLogic'
@@ -26,14 +26,11 @@ function group(name: string, findings: Finding[]): PackageGroup {
 const MB = 1024 * 1024
 
 describe('checkFileBeforeUpload', () => {
-  it('accepts a .json file up to 50 MB', () => {
+  it('accepts any file name up to 50 MB: the backend detects the format from the content', () => {
     expect(checkFileBeforeUpload('image.json', 3 * MB)).toBeNull()
     expect(checkFileBeforeUpload('REPORT.JSON', 50 * MB)).toBeNull()
-  })
-
-  it('refuses other file types with the agreed message', () => {
-    expect(checkFileBeforeUpload('report.html', 10)).toBe(
-      'Skipped report.html: only Trivy JSON reports are supported right now')
+    expect(checkFileBeforeUpload('report.txt', 10)).toBeNull()
+    expect(checkFileBeforeUpload('report.html', 10)).toBeNull()
   })
 
   it('refuses files over 50 MB before uploading', () => {
@@ -168,6 +165,15 @@ describe('formatScanDate', () => {
       .toBe('6 Nov 2026, 04:15')
     expect(formatScanDate('not a date', 'en-GB', 'UTC')).toBe('not a date')
     expect(formatScanDate(null, 'en-GB', 'UTC')).toBe('unknown')
+  })
+})
+
+describe('fieldOrNotInFormat', () => {
+  it('says "not in this format" only for the fields the format lacks', () => {
+    const lacking = { not_in_format: ['created_at', 'os'] }
+    expect(fieldOrNotInFormat(lacking, 'created_at', 'unknown')).toBe('not in this format')
+    expect(fieldOrNotInFormat(lacking, 'trivy_version', '0.76.2')).toBe('0.76.2')
+    expect(fieldOrNotInFormat({ not_in_format: [] }, 'created_at', 'unknown')).toBe('unknown')
   })
 })
 

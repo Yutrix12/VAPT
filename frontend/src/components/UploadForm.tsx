@@ -68,7 +68,6 @@ export function UploadForm({ onResult }: Props) {
           className="visually-hidden"
           name="report"
           type="file"
-          accept=".json,application/json"
           // Clear the old choice, so picking the same file again (e.g. after
           // fixing it) still counts as a change.
           // If the dialog is then cancelled, no file stays chosen unseen.
@@ -79,7 +78,7 @@ export function UploadForm({ onResult }: Props) {
           onChange={(event) => choose(event.target.files?.[0] ?? null)}
         />
         <span className="dropzone-title" translate={file ? 'no' : undefined}>
-          {file ? visibleText(file.name) : 'Drop a Trivy JSON report'}
+          {file ? visibleText(file.name) : 'Drop a Trivy report'}
         </span>
         <span className="dropzone-hint">{file ? formatFileSize(file.size) : 'or click to choose a file'}</span>
       </label>

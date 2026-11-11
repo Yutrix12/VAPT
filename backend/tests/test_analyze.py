@@ -39,12 +39,13 @@ class AnalyzeErrorsTest(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(app, base_url="http://localhost")
 
-    def test_non_json_file_is_skipped(self) -> None:
+    def test_unsupported_file_lists_the_formats(self) -> None:
+        # U3: the content decides, and the message names what is supported.
         response = upload(self.client, "report.html", b"<html></html>")
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json(), {"detail": (
-            "Skipped report.html: only Trivy JSON reports are supported "
-            "right now")})
+            "Skipped report.html: not a supported Trivy report. "
+            "Supported formats: Trivy JSON")})
 
     def test_broken_json_is_skipped(self) -> None:
         response = upload(self.client, "broken.json", b'{"Results": [')

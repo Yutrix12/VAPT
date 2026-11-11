@@ -8,6 +8,7 @@ import {
   ALL_STATUSES,
   artifactTypeLabel,
   countText,
+  fieldOrNotInFormat,
   formatScanDate,
   KEEP_LINE_BREAKS,
   openAfterUpgradeText,
@@ -88,7 +89,7 @@ function scannedLine(result: AnalyzeResult): string {
   const os = [report.os_family, report.os_name].filter(Boolean).join(' ')
   return (
     `- Artifact type: ${escapeMarkdown(artifactTypeLabel(report.artifact_type))}; ` +
-    `operating system: ${escapeMarkdown(os || 'unknown')}`
+    `operating system: ${escapeMarkdown(fieldOrNotInFormat(report, 'os', os || 'unknown'))}`
   )
 }
 
@@ -190,12 +191,14 @@ function groupSection(item: ShownGroup, index: number, fix: FixState | undefined
 /** The whole summary: header, then one section per shown package, worst first. */
 export function buildFixSummary(input: SummaryInput): string {
   const { report } = input.result
-  const scanDate = formatScanDate(report.created_at, input.locale, input.timeZone)
+  const scanDate = fieldOrNotInFormat(report, 'created_at',
+    formatScanDate(report.created_at, input.locale, input.timeZone))
   const lines = [
     `# Fix summary: ${escapeMarkdown(report.artifact_name ?? 'unknown artifact')}`,
     '',
     `- Report file: ${codeSpan(report.file_name)}. Scan date: ${escapeMarkdown(scanDate)}. ` +
       `Trivy version: ${escapeMarkdown(report.trivy_version ?? 'unknown')}.`,
+    `- Report format: ${escapeMarkdown(report.report_format)}`,
     scannedLine(input.result),
     countsLine(input.result),
     filtersLine(input),

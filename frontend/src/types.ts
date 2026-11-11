@@ -26,6 +26,8 @@ export interface Finding {
 export interface ReportDetails {
   file_name: string
   file_sha256: string
+  report_format: string // e.g. "Trivy JSON", detected by the backend from the content
+  not_in_format: string[] // fields this format does not carry
   schema_version: number | null
   trivy_version: string | null
   created_at: string | null

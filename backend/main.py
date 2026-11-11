@@ -16,13 +16,13 @@ from fixes import (FIX_SCHEMA, FixAdvice, FixError, FixGroup, build_messages,
 from llm_client import (LLMError, LLMSettings, chat_json, is_this_computer,
                         list_models)
 from llm_config import current_settings
+from report_formats import parse_report_file
 from trivy_parser import (
     Finding,
     ReportError,
     findings_by_group,
     group_by_package,
     group_key,
-    parse_report_bytes,
     summarize,
 )
 
@@ -47,6 +47,8 @@ class ReportDetails(BaseModel):
 
     file_name: str
     file_sha256: str
+    report_format: str
+    not_in_format: list[str]
     schema_version: int | None
     trivy_version: str | None
     created_at: str | None
@@ -244,7 +246,7 @@ def analyze(file: UploadFile) -> AnalyzeResponse:
         raise HTTPException(status_code=413,
                             detail="The file is larger than 50 MB.")
     try:
-        report = parse_report_bytes(file_name, raw)
+        report = parse_report_file(file_name, raw)
     except ReportError as error:
         raise HTTPException(status_code=422,
                             detail=f"Skipped {file_name}: {error}") from error

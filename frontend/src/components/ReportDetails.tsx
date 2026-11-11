@@ -1,4 +1,4 @@
-import { artifactTypeLabel, countText, formatScanDate, visibleText } from '../reportLogic'
+import { artifactTypeLabel, countText, fieldOrNotInFormat, formatScanDate, visibleText } from '../reportLogic'
 import type { ReportDetails as Details } from '../types'
 
 /** What was scanned: the artifact as the title, then the facts about the scan. */
@@ -43,16 +43,20 @@ export function ReportDetails({ report }: { report: Details }) {
         ) : (
           <div>
             <dt>Operating system</dt>
-            <dd translate="no">{visibleText(os || 'unknown')}</dd>
+            <dd translate="no">{visibleText(fieldOrNotInFormat(report, 'os', os || 'unknown'))}</dd>
           </div>
         )}
         <div>
           <dt>Scan date</dt>
-          <dd>{visibleText(formatScanDate(report.created_at))}</dd>
+          <dd>{visibleText(fieldOrNotInFormat(report, 'created_at', formatScanDate(report.created_at)))}</dd>
         </div>
         <div>
           <dt>Trivy version</dt>
           <dd translate="no">{visibleText(report.trivy_version ?? 'unknown')}</dd>
+        </div>
+        <div>
+          <dt>Report format</dt>
+          <dd translate="no">{visibleText(report.report_format)}</dd>
         </div>
         <div>
           <dt>Report file</dt>

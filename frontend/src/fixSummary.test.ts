@@ -74,7 +74,8 @@ const curl = group(`cu${RLO}rl`, [finding('CVE-4', 'MEDIUM', '8.0')], ['8.0'])
 
 const result: AnalyzeResult = {
   report: {
-    file_name: 'image.json', file_sha256: 'x', schema_version: 2, trivy_version: '0.76.2',
+    file_name: 'image.json', file_sha256: 'x', report_format: 'Trivy JSON', not_in_format: [],
+    schema_version: 2, trivy_version: '0.76.2',
     created_at: '2026-11-06T04:15:32Z', artifact_name: 'python:3.9-slim', artifact_type: 'container_image',
     os_family: 'debian', os_name: '13.1', repo_url: null, branch: null, commit: null,
     misconfig_count: 0, secret_count: 0,
@@ -121,6 +122,7 @@ describe('buildFixSummary', () => {
     expect(text.startsWith('# Fix summary: python:3.9-slim\n')).toBe(true)
     expect(text).toContain('- Report file: `image.json`. Scan date: 6 Nov 2026, 04:15. Trivy version: 0.76.2.')
     expect(text).toContain('- Artifact type: Container image; operating system: debian 13.1')
+    expect(text).toContain('- Report format: Trivy JSON')
     expect(text).toContain('4 findings in 3 packages: 1 Critical, 1 High, 1 Medium, 1 Low; 0 Unknown (not rated)')
     expect(text).toContain('Filters: none. This summary lists all 3 packages.')
     expect(text).toContain('- AI model used: `qwen3:8b`')
@@ -165,6 +167,20 @@ describe('buildFixSummary', () => {
       result: repo, shown: [], severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
     })
     expect(text).toContain('- Repository: No git details in the report')
+  })
+
+  it('says which fields a report format does not carry', () => {
+    const lacking = {
+      ...result,
+      report: { ...result.report, report_format: 'Trivy table', created_at: null, os_family: null, os_name: null,
+                not_in_format: ['created_at', 'os', 'status'] },
+    }
+    const text = buildFixSummary({
+      result: lacking, shown: [], severities: new Set(SEVERITIES), status: '', fixFor: () => undefined, model: null,
+    })
+    expect(text).toContain('- Report format: Trivy table')
+    expect(text).toContain('Scan date: not in this format.')
+    expect(text).toContain('operating system: not in this format')
   })
 
   it('says "no packages" for a report without any', () => {

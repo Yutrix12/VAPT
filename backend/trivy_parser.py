@@ -38,6 +38,10 @@ MISCONFIG_FILE_TEXT_FIELDS = ("Message",)
 MISCONFIG_FAILED = "FAIL"
 MISCONFIG_PASSED = "PASS"
 MISCONFIG_EXCEPTION = "EXCEPTION"
+TRIVY_JSON = "Trivy JSON"
+# The value of a field the uploaded format does not carry (U3): shown as
+# such, never guessed. Report.not_in_format names those fields.
+NOT_IN_FORMAT = "not in this format"
 MAX_SHOWN_FIXED_VERSIONS = 3
 MAX_TARGET_WIDTH = 30
 
@@ -127,6 +131,8 @@ class Report:
 
     file_name: str
     file_sha256: str
+    report_format: str  # e.g. "Trivy JSON", detected from the content (U3)
+    not_in_format: tuple[str, ...]  # fields this format does not carry
     schema_version: int | None
     trivy_version: str | None
     created_at: str | None
@@ -311,8 +317,8 @@ def read_report_file(path: Path) -> bytes:
         raise ReportError(f"cannot read file ({reason})") from error
 
 
-def decode_report_json(raw: bytes) -> dict[str, Any]:
-    """Parse raw file bytes as a Trivy JSON report and return it as a dict.
+def load_json(raw: bytes) -> Any:
+    """Parse raw file bytes as JSON (any JSON content).
 
     Raises ReportError with a one-line reason for any bad input.
     """
@@ -341,9 +347,32 @@ def decode_report_json(raw: bytes) -> dict[str, Any]:
         raise ReportError(f"not valid JSON ({error})") from error
     except RecursionError as error:
         raise ReportError("JSON is nested too deeply") from error
+    return data
+
+
+def prepare_report_data(data: Any) -> dict[str, Any]:
+    """Drop personal data and secret values (rules l, n), then check it is
+    a Trivy JSON report; return it with a Results list."""
     drop_git_personal_data(data)
     drop_secret_values(data)
     return to_report_dict(data)
+
+
+def decode_report_json(raw: bytes) -> dict[str, Any]:
+    """Parse raw file bytes as a Trivy JSON report and return it as a dict.
+
+    Raises ReportError with a one-line reason for any bad input.
+    """
+    return prepare_report_data(load_json(raw))
+
+
+def is_trivy_json(data: Any) -> bool:
+    """True if parsed JSON looks like a Trivy JSON report (new or old format).
+
+    to_report_dict still checks the details (e.g. the SchemaVersion).
+    """
+    return (isinstance(data, dict) and "SchemaVersion" in data) or (
+        is_result_list(data) and len(data) > 0)
 
 
 def get_text(item: dict[str, Any], key: str, where: str) -> str | None:
@@ -694,12 +723,22 @@ def parse_report(path: Path) -> Report:
 
 
 def parse_report_bytes(file_name: str, raw: bytes) -> Report:
-    """Parse the bytes of one Trivy JSON report (e.g. an uploaded file).
+    """Parse the bytes of one Trivy JSON report file (the command line).
 
-    Raises ReportError with a one-line reason for any bad input.
+    Uploads go through report_formats.parse_report_file instead, which
+    detects the format from the content. Raises ReportError with a
+    one-line reason for any bad input.
     """
     check_file_name(file_name)
-    data = decode_report_json(raw)
+    return parse_report_data(file_name, raw, load_json(raw))
+
+
+def parse_report_data(file_name: str, raw: bytes, loaded: Any) -> Report:
+    """Build a Report from the loaded JSON of a Trivy JSON report.
+
+    `raw` is only used for the file's sha256.
+    """
+    data = prepare_report_data(loaded)
     parsed = parse_results(data["Results"])
 
     trivy_info = get_object(data, "Trivy", "report")
@@ -717,6 +756,8 @@ def parse_report_bytes(file_name: str, raw: bytes) -> Report:
     return Report(
         file_name=file_name,
         file_sha256=hashlib.sha256(raw).hexdigest(),
+        report_format=TRIVY_JSON,
+        not_in_format=(),
         schema_version=data.get("SchemaVersion"),
         trivy_version=get_text(trivy_info, "Version", "report Trivy"),
         created_at=get_text(data, "CreatedAt", "report"),
