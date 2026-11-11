@@ -23,6 +23,8 @@ def backend_llm(settings: LLMSettings) -> Iterator[None]:
         app.dependency_overrides.pop(llm_settings, None)
 
 
+# A fake API key; tests check it never shows up in an answer or a message.
+KEY = "sk-test-0123456789-do-not-leak"
 LLM_VARIABLES = ("LLM_MODE", "OLLAMA_API_KEY", "OLLAMA_API_MODEL")
 
 
