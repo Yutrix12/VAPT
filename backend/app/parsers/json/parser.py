@@ -303,7 +303,7 @@ def parse_report(path: Path) -> Report:
 def parse_report_bytes(file_name: str, raw: bytes) -> Report:
     """Parse the bytes of one Trivy JSON report file (the command line).
 
-    Uploads go through report_formats.parse_report_file instead, which
+    Uploads go through app.parsers.parse_report_file instead, which
     detects the format from the content. Raises ReportError with a
     one-line reason for any bad input.
     """
