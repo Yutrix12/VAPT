@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { AnalyzeResult, Finding, FixAdvice, FixState, PackageGroup, Severity } from './api/types'
 import { SEVERITIES } from './api/types'
+import { filterGroups } from './features/filters/filterGroups'
 import { buildFixSummary, codeBlock, codeSpan, escapeMarkdown, summaryFileName } from './fixSummary'
-import { filterGroups } from './reportLogic'
 
 const RLO = String.fromCodePoint(0x202e) // right-to-left override: hidden
 

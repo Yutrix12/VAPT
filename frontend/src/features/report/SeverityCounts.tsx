@@ -1,6 +1,6 @@
-import type { Summary } from '../api/types'
-import { RATED_SEVERITIES, severityLabel } from '../shared/severity'
-import { countText } from '../shared/text'
+import type { Summary } from '../../api/types'
+import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
+import { countText } from '../../shared/text'
 
 /**
  * The severity rail: one bar for the rated findings, a part per severity as

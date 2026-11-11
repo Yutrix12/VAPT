@@ -12,13 +12,9 @@ import {
   type PackageGroup,
   type Severity,
 } from './api/types'
-import {
-  ALL_STATUSES,
-  artifactTypeLabel,
-  fieldOrNotInFormat,
-  openAfterUpgradeText,
-  type ShownGroup,
-} from './reportLogic'
+import { ALL_STATUSES, type ShownGroup } from './features/filters/filterGroups'
+import { artifactTypeLabel, fieldOrNotInFormat } from './features/report/reportText'
+import { openAfterUpgradeText } from './reportLogic'
 import { RATED_SEVERITIES, severityLabel } from './shared/severity'
 import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from './shared/text'
 
