@@ -106,6 +106,11 @@ class ListModelsTest(unittest.TestCase):
 
 class ChatJsonTest(unittest.TestCase):
 
+    def test_missing_model_points_to_the_real_config_file(self) -> None:
+        with self.assertRaises(LLMError) as caught:
+            chat_json(LLMSettings("http://localhost:11434", ""), [], SCHEMA)
+        self.assertIn("backend/app/llm/config.py", str(caught.exception))
+
     def test_sends_schema_and_parses_the_answer(self) -> None:
         with FakeOllama() as fake:
             answer = chat_json(LLMSettings(fake.base_url, "llama3.2"),
