@@ -5,8 +5,9 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from unittest.mock import patch
 
+from app.api.dependencies import llm_settings
 from llm_client import LLMSettings
-from main import app, llm_settings
+from main import app
 
 
 @contextmanager
