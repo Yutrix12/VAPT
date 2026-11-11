@@ -168,8 +168,10 @@ export interface FixAdvice {
   mitigation_only: boolean
   cves_without_fix: number
   summary: string
-  recommended_action: string
-  commands: string[]
+  solutions: string[] // options that remove the problem
+  mitigations: string[] // steps that reduce the risk until a fix exists
+  commands: string[] // the AI's own; shown apart as AI-suggested
+  unsafe_commands_removed: number // AI commands dropped for a flag that skips a safety check
   risk_notes: string
   disclaimer: string
 }

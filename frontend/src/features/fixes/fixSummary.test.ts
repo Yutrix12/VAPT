@@ -96,7 +96,8 @@ function advice(changes: Partial<FixAdvice>): FixAdvice {
   return {
     status: 'verified', target_version: '3.5.4', unverified_version: null, trivy_fixed_versions: ['3.5.4'],
     mitigation_only: false, cves_without_fix: 1, summary: 'Upgrade [now](https://evil.example).',
-    recommended_action: 'Upgrade openssl.\nThen restart.', commands: ['apt-get install openssl', 'echo ```'],
+    solutions: ['Upgrade openssl.\nThen restart.', 'Use a newer base image.'], mitigations: ['Limit exposure.'],
+    unsafe_commands_removed: 0, commands: ['apt-get install openssl', 'echo ```'],
     risk_notes: 'Restart services.', disclaimer: 'AI suggestion: verify before applying',
     ...changes,
   }
@@ -141,8 +142,13 @@ describe('buildFixSummary', () => {
     expect(text).toContain("- AI verdict: recommended upgrade `3.5.4` (one of Trivy's fixed versions)")
     expect(text).toContain('- 1 vulnerability in this package has no fixed version yet and stays open after any upgrade.')
     expect(text).toContain('- Summary: Upgrade \\[now\\](https\\:\\/\\/evil.example).')
-    expect(text).toContain('- What to do: Upgrade openssl. Then restart.')
-    expect(text).toContain('AI-suggested commands (verify before running; never run by this app):\n\n````\napt-get install openssl\necho ```\n````')
+    expect(text).toContain('- AI answer: Verified fix')
+    expect(text).toContain('- Solutions:')
+    expect(text).toContain('  1. Upgrade openssl. Then restart.')
+    expect(text).toContain('  2. Use a newer base image.')
+    expect(text).toContain('- Mitigations until a fix exists:')
+    expect(text).toContain('  - Limit exposure.')
+    expect(text).toContain('AI-suggested, verify before running (this app never runs them):\n\n````\napt-get install openssl\necho ```\n````')
   })
 
   it('marks a version that is not Trivy’s as not a fix', () => {

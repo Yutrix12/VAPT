@@ -32,7 +32,8 @@ def make_group(fixed: list[str] | None = None, cves: int = 3,
 
 def answer(**changes: object) -> dict:
     """A well-formed model answer, with some fields changed."""
-    base = {"summary": "Upgrade openssl.", "recommended_action": "Upgrade",
+    base = {"summary": "Upgrade openssl.", "solutions": ["Upgrade openssl to the fixed version."],
+            "mitigations": ["Limit exposure of the service until it is upgraded."],
             "target_version": FIXED[0],
             "commands": ["apt-get install openssl"],
             "risk_notes": "Restart services that use TLS."}

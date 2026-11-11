@@ -14,7 +14,7 @@ from typing import Any
 
 TAGS = {"models": [{"name": "llama3.2:latest", "model": "llama3.2:latest"},
                    {"name": "qwen3:8b", "model": "qwen3:8b"}]}
-CHAT_ANSWER = {"summary": "Update openssl.", "recommended_action": "Upgrade",
+CHAT_ANSWER = {"summary": "Update openssl.", "solutions": ["Upgrade"], "mitigations": [],
                "target_version": "3.5.4-1~deb13u2", "commands": [],
                "risk_notes": "none"}
 

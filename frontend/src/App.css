@@ -970,3 +970,22 @@ th {
 .filter-bar .chips {
   align-items: center;
 }
+
+/* The AI answer: its state, and the solutions and mitigations as lists. */
+.answer-state {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.steps li + li {
+  margin-top: 0.35rem;
+}

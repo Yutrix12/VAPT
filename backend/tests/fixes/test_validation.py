@@ -82,5 +82,46 @@ class ValidateAnswerTest(unittest.TestCase):
             FixGroup.model_validate(group)
 
 
+class SolutionsAndMitigationsTest(unittest.TestCase):
+    """The answer keeps solutions and mitigations apart (U4.2)."""
+
+    def test_both_parts_are_kept_apart_and_cleaned(self) -> None:
+        advice = validate_answer(
+            answer(solutions=["  Upgrade to 3.5.4.\x07 ", "", "Use a newer base image."],
+                   mitigations=["Restrict the port.", "   "]),
+            make_group())
+        self.assertEqual(advice.solutions, ["Upgrade to 3.5.4.", "Use a newer base image."])
+        self.assertEqual(advice.mitigations, ["Restrict the port."])
+
+    def test_a_group_without_a_fix_keeps_its_mitigations(self) -> None:
+        advice = validate_answer(answer(target_version=None, solutions=[]), make_group(fixed=[]))
+        self.assertEqual((advice.status, advice.mitigation_only), ("no_fix_available", True))
+        self.assertEqual(advice.mitigations, ["Limit exposure of the service until it is upgraded."])
+
+    def test_the_two_parts_must_be_lists_of_text_with_a_limit(self) -> None:
+        bad = [answer(solutions="Upgrade"), answer(mitigations=[1]), answer(solutions=[f"s{i}" for i in range(7)]),
+               answer(mitigations=[f"m{i}" for i in range(7)]), answer(solutions=None)]
+        for item in bad:
+            with self.subTest(item=item), self.assertRaises(FixError):
+                validate_answer(item, make_group())
+
+    def test_old_recommended_action_is_no_longer_part_of_the_answer(self) -> None:
+        with self.assertRaises(FixError):
+            validate_answer({**answer(), "recommended_action": "x", "solutions": None}, make_group())
+
+
+class UnsafeCommandsTest(unittest.TestCase):
+    def test_ai_commands_with_a_flag_that_skips_a_safety_check_are_removed_and_counted(self) -> None:
+        advice = validate_answer(
+            answer(commands=["apt-get install --allow-unauthenticated openssl", "apt-get install --only-upgrade openssl",
+                             "dnf install --nogpgcheck x", "pip install --break-system-packages y"]),
+            make_group())
+        self.assertEqual(advice.commands, ["apt-get install --only-upgrade openssl"])
+        self.assertEqual(advice.unsafe_commands_removed, 3)
+
+    def test_nothing_is_counted_when_all_commands_are_fine(self) -> None:
+        self.assertEqual(validate_answer(answer(), make_group()).unsafe_commands_removed, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

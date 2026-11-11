@@ -92,7 +92,23 @@ class BuildMessagesTest(unittest.TestCase):
     def test_schema_is_in_the_prompt(self) -> None:
         system = build_messages(make_group())[0]["content"]
         self.assertIn("target_version", system)
-        self.assertIn("recommended_action", system)
+        self.assertIn("solutions", system)
+        self.assertIn("mitigations", system)
+
+    def test_solutions_and_mitigations_are_asked_for_apart(self) -> None:
+        system = build_messages(make_group())[0]["content"]
+        self.assertIn("remove the problem", system)
+        self.assertIn("until a fix exists", system)
+        self.assertIn("newer base image", system)  # options when Trivy lists no fix
+
+    def test_the_model_never_claims_a_severity_for_unknown(self) -> None:
+        system = build_messages(make_group())[0]["content"]
+        self.assertIn("UNKNOWN", system)
+        self.assertIn("not rated", system)
+
+    def test_a_fixed_version_is_a_solution_whatever_the_severity(self) -> None:
+        system = build_messages(make_group())[0]["content"]
+        self.assertIn("whatever the severity", system)
 
 
 if __name__ == "__main__":

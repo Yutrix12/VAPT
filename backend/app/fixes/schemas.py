@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.parsers.common import SEVERITIES
 
 MAX_COMMANDS = 5
+MAX_STEPS = 5  # solutions and mitigations, each
 DISCLAIMER = "AI suggestion: verify before applying"
 FixStatus = Literal["verified", "unverified", "no_version_suggested",
                     "no_fix_available"]
@@ -52,7 +53,10 @@ class FixAnswer(BaseModel):
     # to the model, so it describes the answer, not the code.
 
     summary: str = Field(max_length=2000)
-    recommended_action: str = Field(max_length=2000)
+    solutions: list[Annotated[str, Field(max_length=1000)]] = Field(
+        max_length=MAX_STEPS, description="Concrete options that remove the problem.")
+    mitigations: list[Annotated[str, Field(max_length=1000)]] = Field(
+        max_length=MAX_STEPS, description="Steps that reduce the risk until a fix exists.")
     target_version: str | None = Field(max_length=200)
     commands: list[str] = Field(max_length=MAX_COMMANDS)
     risk_notes: str = Field(max_length=2000)
@@ -68,8 +72,10 @@ class FixAdvice(BaseModel):
     mitigation_only: bool
     cves_without_fix: int  # still open after any upgrade
     summary: str
-    recommended_action: str
-    commands: list[str]
+    solutions: list[str]  # options that remove the problem
+    mitigations: list[str]  # steps that reduce the risk until a fix exists
+    commands: list[str]  # the AI's own: the page labels them "AI-suggested, verify before running"
+    unsafe_commands_removed: int = 0  # AI commands dropped for a flag that skips a safety check
     risk_notes: str
     disclaimer: str = DISCLAIMER
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Finding, PackageGroup, ReportDetails } from '../../api/types'
-import { openAfterUpgradeText, serialQueue, toFixGroup } from './fixLogic'
+import { answerState, openAfterUpgradeText, serialQueue, toFixGroup } from './fixLogic'
 
 describe('openAfterUpgradeText', () => {
   it('says how many vulnerabilities stay open, in singular or plural', () => {
@@ -77,5 +77,14 @@ describe('serialQueue', () => {
     await expect(failed).rejects.toThrow('boom')
     await next
     expect(ranAfter).toBe(true)
+  })
+})
+
+describe('answerState', () => {
+  it('names the state of an AI answer in plain words', () => {
+    expect(answerState('verified')).toBe('Verified fix')
+    expect(answerState('unverified')).toBe('Solution options')
+    expect(answerState('no_version_suggested')).toBe('Solution options')
+    expect(answerState('no_fix_available')).toBe('No fix yet: mitigations')
   })
 })

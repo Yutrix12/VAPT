@@ -49,17 +49,31 @@ describe('answer shape checks', () => {
     expect(isLlmStatus({ model: 'qwen3:8b', model_found: true })).toBe(false)
     expect(isFixAdvice({
       status: 'verified', target_version: '1', unverified_version: null, trivy_fixed_versions: ['1'],
-      mitigation_only: false, cves_without_fix: 0, summary: 's', recommended_action: 'a',
-      commands: [], risk_notes: 'r', disclaimer: 'd',
+      mitigation_only: false, cves_without_fix: 0, summary: 's', solutions: ['a'], mitigations: [],
+      unsafe_commands_removed: 0, commands: [], risk_notes: 'r', disclaimer: 'd',
     })).toBe(true)
     expect(isFixAdvice({ status: 'made-up', commands: [] })).toBe(false)
+  })
+
+  it('refuses an answer whose solutions or mitigations are not lists of text, or that lacks the removed count', () => {
+    const good = {
+      status: 'no_fix_available', target_version: null, unverified_version: null, trivy_fixed_versions: [],
+      mitigation_only: true, cves_without_fix: 1, summary: 's', solutions: [], mitigations: ['m'],
+      unsafe_commands_removed: 0, commands: [], risk_notes: 'r', disclaimer: 'd',
+    }
+    expect(isFixAdvice(good)).toBe(true)
+    expect(isFixAdvice({ ...good, solutions: 'one' })).toBe(false)
+    expect(isFixAdvice({ ...good, mitigations: [1] })).toBe(false)
+    expect(isFixAdvice({ ...good, unsafe_commands_removed: 'x' })).toBe(false)
+    const { solutions: _removed, ...without } = good
+    expect(isFixAdvice(without)).toBe(false)
   })
 
   it('needs the version that its status promises', () => {
     const base = {
       target_version: null, unverified_version: null, trivy_fixed_versions: ['1'],
-      mitigation_only: false, cves_without_fix: 0, summary: 's', recommended_action: 'a',
-      commands: [], risk_notes: 'r', disclaimer: 'd',
+      mitigation_only: false, cves_without_fix: 0, summary: 's', solutions: ['a'], mitigations: [],
+      unsafe_commands_removed: 0, commands: [], risk_notes: 'r', disclaimer: 'd',
     }
     expect(isFixAdvice({ ...base, status: 'verified' })).toBe(false) // no target_version
     expect(isFixAdvice({ ...base, status: 'unverified' })).toBe(false) // no unverified_version

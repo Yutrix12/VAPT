@@ -17,7 +17,7 @@ import { RATED_SEVERITIES, severityLabel } from '../../shared/severity'
 import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
 import { ALL_STATUSES, type ShownGroup } from '../filters/filterGroups'
 import { ALL_KINDS, type FilterState } from '../filters/filterState'
-import { openAfterUpgradeText } from './fixLogic'
+import { answerState, openAfterUpgradeText } from './fixLogic'
 
 /** Line breaks become spaces, so text cannot start a heading or a list. */
 function oneLine(text: string): string {
@@ -151,15 +151,21 @@ function verdictText(advice: FixAdvice): string {
 function adviceLines(advice: FixAdvice): string[] {
   const lines = [`- AI verdict: ${verdictText(advice)}`]
   if (advice.cves_without_fix > 0) lines.push(`- ${openAfterUpgradeText(advice.cves_without_fix)}`)
-  lines.push(
-    `- Summary: ${escapeMarkdown(advice.summary)}`,
-    `- ${advice.mitigation_only ? 'Mitigation' : 'What to do'}: ${escapeMarkdown(advice.recommended_action)}`,
-    `- Risks: ${escapeMarkdown(advice.risk_notes)}`,
-  )
+  lines.push(`- AI answer: ${answerState(advice.status)}`, `- Summary: ${escapeMarkdown(advice.summary)}`)
+  if (advice.solutions.length > 0) {
+    lines.push('- Solutions:', ...advice.solutions.map((text, index) => `  ${index + 1}. ${escapeMarkdown(text)}`))
+  }
+  if (advice.mitigations.length > 0) {
+    lines.push('- Mitigations until a fix exists:', ...advice.mitigations.map((text) => `  - ${escapeMarkdown(text)}`))
+  }
+  lines.push(`- Risks: ${escapeMarkdown(advice.risk_notes)}`)
+  if (advice.unsafe_commands_removed > 0) {
+    lines.push(`- ${countText(advice.unsafe_commands_removed, 'AI command')} not shown: it skips a safety check`)
+  }
   if (advice.commands.length > 0) {
     lines.push(
       '',
-      'AI-suggested commands (verify before running; never run by this app):',
+      'AI-suggested, verify before running (this app never runs them):',
       '',
       codeBlock(advice.commands),
     )

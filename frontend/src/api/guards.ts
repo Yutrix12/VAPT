@@ -45,10 +45,13 @@ export function isFixAdvice(body: unknown): body is FixAdvice {
     typeof body.status !== 'string' ||
     !(FIX_STATUSES as readonly string[]).includes(body.status) ||
     !isStringArray(body.commands) ||
+    !isStringArray(body.solutions) ||
+    !isStringArray(body.mitigations) ||
+    typeof body.unsafe_commands_removed !== 'number' ||
     !isStringArray(body.trivy_fixed_versions) ||
     typeof body.mitigation_only !== 'boolean' ||
     typeof body.cves_without_fix !== 'number' ||
-    ![body.summary, body.recommended_action, body.risk_notes, body.disclaimer].every(
+    ![body.summary, body.risk_notes, body.disclaimer].every(
       (text) => typeof text === 'string',
     )
   ) {

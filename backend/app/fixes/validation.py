@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from app.fixes.commands import is_unsafe_command
 from app.fixes.prompts import cves_without_fix
 from app.fixes.schemas import FixAdvice, FixAnswer, FixGroup, FixStatus
 from app.llm.client import strip_control_chars
@@ -16,6 +17,11 @@ class FixError(Exception):
 def clean_text(text: str) -> str:
     """Model text without control characters (line breaks and tabs stay)."""
     return strip_control_chars(text, keep="\n\t").strip()
+
+
+def clean_lines(texts: list[str]) -> list[str]:
+    """Each text cleaned; empty ones dropped."""
+    return [text for text in map(clean_text, texts) if text]
 
 
 def trivy_versions(fixed_versions: list[str]) -> set[str]:
@@ -53,6 +59,9 @@ def validate_answer(answer: dict[str, Any], group: FixGroup) -> FixAdvice:
         raise FixError("The model's answer has an empty summary.")
     version = clean_text(parsed.target_version or "") or None
     status = decide_status(version, group)
+    commands = clean_lines(parsed.commands)
+    # A command with a flag that skips a safety check is never shown as recommended.
+    safe_commands = [command for command in commands if not is_unsafe_command(command)]
     return FixAdvice(
         status=status,
         target_version=version if status == "verified" else None,
@@ -62,7 +71,9 @@ def validate_answer(answer: dict[str, Any], group: FixGroup) -> FixAdvice:
         mitigation_only=not group.fixed_versions,
         cves_without_fix=cves_without_fix(group),
         summary=summary,
-        recommended_action=clean_text(parsed.recommended_action),
-        commands=[text for text in map(clean_text, parsed.commands) if text],
+        solutions=clean_lines(parsed.solutions),
+        mitigations=clean_lines(parsed.mitigations),
+        commands=safe_commands,
+        unsafe_commands_removed=len(commands) - len(safe_commands),
         risk_notes=clean_text(parsed.risk_notes),
     )

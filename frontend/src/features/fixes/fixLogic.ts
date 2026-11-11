@@ -1,5 +1,5 @@
 // Plain functions behind the AI explanations (no React).
-import { type FixGroupRequest, type PackageGroup, type ReportDetails } from '../../api/types'
+import { type FixGroupRequest, type FixStatus, type PackageGroup, type ReportDetails } from '../../api/types'
 import { countText } from '../../shared/text'
 
 /** The body of /api/fix: this group only, nothing else from the report. */
@@ -43,4 +43,20 @@ export function openAfterUpgradeText(count: number): string {
     `${countText(count, 'vulnerability', 'vulnerabilities')} in this package ${one ? 'has' : 'have'} ` +
     `no fixed version yet and ${one ? 'stays' : 'stay'} open after any upgrade.`
   )
+}
+
+/**
+ * The state of an AI answer in plain words (a failed request is the "error"
+ * state of the panel, not an answer). Which version is a fix is decided by code.
+ */
+export function answerState(status: FixStatus): string {
+  switch (status) {
+    case 'verified':
+      return 'Verified fix'
+    case 'unverified':
+    case 'no_version_suggested':
+      return 'Solution options'
+    case 'no_fix_available':
+      return 'No fix yet: mitigations'
+  }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import type { AiConnection, FixAdvice, FixState } from '../../api/types'
-import { KEEP_LINE_BREAKS, visibleText } from '../../shared/text'
-import { openAfterUpgradeText } from './fixLogic'
+import { KEEP_LINE_BREAKS, countText, visibleText } from '../../shared/text'
+import { answerState, openAfterUpgradeText } from './fixLogic'
 
 interface Props {
   fix: FixState | undefined // undefined: not asked yet
@@ -144,6 +144,7 @@ function Advice({ advice }: { advice: FixAdvice }) {
       <p className="disclaimer">
         {visibleText(advice.disclaimer)}
       </p>
+      <p className="answer-state">{answerState(advice.status)}</p>
       <VersionVerdict advice={advice} />
       {advice.cves_without_fix > 0 && (
         <p className="verdict verdict-warn">
@@ -153,16 +154,44 @@ function Advice({ advice }: { advice: FixAdvice }) {
       <dl className="advice">
         <dt>Summary</dt>
         <dd>{visibleText(advice.summary, KEEP_LINE_BREAKS)}</dd>
-        <dt>{advice.mitigation_only ? 'Mitigation' : 'What to do'}</dt>
-        <dd>{visibleText(advice.recommended_action, KEEP_LINE_BREAKS)}</dd>
+        {advice.solutions.length > 0 && (
+          <>
+            <dt>Solutions</dt>
+            <dd>
+              <ol className="steps">
+                {advice.solutions.map((text, index) => (
+                  <li key={`${index}-${text}`}>{visibleText(text, KEEP_LINE_BREAKS)}</li>
+                ))}
+              </ol>
+            </dd>
+          </>
+        )}
+        {advice.mitigations.length > 0 && (
+          <>
+            <dt>Mitigations until a fix exists</dt>
+            <dd>
+              <ul className="steps">
+                {advice.mitigations.map((text, index) => (
+                  <li key={`${index}-${text}`}>{visibleText(text, KEEP_LINE_BREAKS)}</li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        )}
         <dt>Risks</dt>
         <dd>{visibleText(advice.risk_notes, KEEP_LINE_BREAKS)}</dd>
       </dl>
+      {advice.unsafe_commands_removed > 0 && (
+        <p className="muted">
+          {countText(advice.unsafe_commands_removed, 'AI command')}{' '}
+          {advice.unsafe_commands_removed === 1 ? 'was' : 'were'} not shown: it skips a safety check.
+        </p>
+      )}
       {advice.commands.length > 0 && (
         // Kept apart from the verdict: these come from the AI and are untrusted.
         <div className="commands">
           <p className="commands-heading">
-            AI-suggested commands: verify before running. This page only shows them; it never runs them.
+            AI-suggested, verify before running. This page only shows these commands; it never runs them.
           </p>
           {advice.commands.map((command, index) => (
             <pre key={index} translate="no">
