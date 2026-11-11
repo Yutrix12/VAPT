@@ -140,6 +140,7 @@ export function FindingsTable({
       </table>
       {openRow !== undefined && (
         <DetailsDialog
+          key={openRow.key}
           title={cellsOf(openRow, secretFixSteps, notInFormat).name}
           subtitle={
             <>

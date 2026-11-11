@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { KEEP_LINE_BREAKS, hasHiddenCharacters, visibleText } from '../../shared/text'
 
 type CopyState = 'idle' | 'copied' | 'failed'
@@ -12,17 +12,26 @@ export function CodeBlock({ text, label }: { text: string; label?: string | null
   const [copy, setCopy] = useState<CopyState>('idle')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const hidden = hasHiddenCharacters(text)
+  const hintId = useId()
+  const mounted = useRef(true)
 
-  // Stop the pending "Copied" reset if the block goes away first.
-  useEffect(() => () => clearTimeout(timer.current), [])
+  useEffect(() => {
+    mounted.current = true // StrictMode runs the cleanup once before the real mount
+    return () => {
+      mounted.current = false
+      clearTimeout(timer.current) // stop the pending "Copied" reset if the block goes away first
+    }
+  }, [])
 
   async function copyText() {
+    let next: CopyState = 'copied'
     try {
       await navigator.clipboard.writeText(text)
-      setCopy('copied')
     } catch {
-      setCopy('failed') // no clipboard access (or refused): the text can still be selected
+      next = 'failed' // no clipboard access (or refused): the text can still be selected
     }
+    if (!mounted.current) return // the block went away while the clipboard answered
+    setCopy(next)
     clearTimeout(timer.current)
     timer.current = setTimeout(() => setCopy('idle'), 2000)
   }
@@ -38,13 +47,18 @@ export function CodeBlock({ text, label }: { text: string; label?: string | null
           type="button"
           className="secondary copy-button"
           disabled={hidden}
-          title={hidden ? 'This command has hidden characters, so it cannot be copied' : undefined}
+          aria-describedby={hidden ? hintId : undefined}
           onClick={() => void copyText()}
         >
           {copy === 'copied' ? 'Copied' : copy === 'failed' ? 'Copy failed' : 'Copy'}
           <span className="visually-hidden"> {label ? visibleText(label) : 'command'}</span>
         </button>
       </div>
+      {hidden && (
+        <p id={hintId} className="muted code-hint">
+          Copy is off: this command has hidden characters, so what you would paste differs from what you see.
+        </p>
+      )}
       <span className="visually-hidden" aria-live="polite">
         {copy === 'copied' ? 'Copied to the clipboard' : copy === 'failed' ? 'Could not copy' : ''}
       </span>

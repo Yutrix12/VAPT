@@ -28,6 +28,7 @@ export function FixCommands({ commands, note }: Props) {
           {commands.map((command, index) => (
             <CodeBlock key={`${index}-${command.label ?? ''}`} label={command.label} text={command.lines.join('\n')} />
           ))}
+          {commands.length === 0 && note === null && <p className="muted">The report gives no fix command.</p>}
           {note !== null && <p className="muted">{visibleText(note)}</p>}
           {commands.length > 0 && (
             <p className="muted">
