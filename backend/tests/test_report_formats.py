@@ -8,8 +8,8 @@ next sub-steps. Everything else gets one clear message.
 import json
 import unittest
 
+from app.parsers.models import ReportError
 from report_formats import SUPPORTED_FORMATS, parse_report_file
-from trivy_parser import ReportError
 
 
 class DetectionTest(unittest.TestCase):

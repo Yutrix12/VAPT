@@ -7,10 +7,10 @@ import unittest
 import httpx2
 from fastapi.testclient import TestClient
 
+from app.parsers.models import PackageGroup, Report
 from main import (MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES, PackageGroupOut,
                   ReportDetails, app)
 from tests.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
-from trivy_parser import PackageGroup, Report
 
 
 def upload(client: TestClient, name: str, content: bytes) -> httpx2.Response:

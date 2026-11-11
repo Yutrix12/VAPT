@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.parsers.models import Finding, ReportError
 from fix_steps import SECRET_FIX_STEPS
 from fixes import (FIX_SCHEMA, FixAdvice, FixError, FixGroup, build_messages,
                    validate_answer)
@@ -18,8 +19,6 @@ from llm_client import (LLMError, LLMSettings, chat_json, is_this_computer,
 from llm_config import current_settings
 from report_formats import parse_report_file
 from trivy_parser import (
-    Finding,
-    ReportError,
     findings_by_group,
     group_by_package,
     group_key,

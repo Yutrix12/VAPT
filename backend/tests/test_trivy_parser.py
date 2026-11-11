@@ -9,9 +9,9 @@ import codecs
 import json
 import unittest
 
+from app.parsers.models import ReportError
 from tests.reports import FS_JSON, IMAGE_JSON, REAL_REPORTS_FOUND, SKIP_REASON
 from trivy_parser import (
-    ReportError,
     decode_report_json,
     group_by_package,
     parse_report,

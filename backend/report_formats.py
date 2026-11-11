@@ -10,11 +10,10 @@ SUPPORTED_FORMATS lists only what already works, for the error message.
 
 import json
 
+from app.parsers.models import Report, ReportError
 from trivy_parser import (
     NOT_IN_FORMAT,
     TRIVY_JSON,
-    Report,
-    ReportError,
     is_trivy_json,
     load_json,
     parse_report_data,
