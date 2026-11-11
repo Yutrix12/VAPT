@@ -103,7 +103,8 @@ describe('the data status line', () => {
   it('says when data is old', () => {
     const data: ThreatData = { kev: source({ age_days: 9, old: true }), epss: source() }
     const status = threatStatusText(data)
-    expect(status.text).toContain('(9 days old, old: run the refresh command)')
+    expect(status.text).toContain('(9 days old, old)')
+    expect(status.text).not.toContain('refresh')
     expect(status.needsRefresh).toBe(true)
   })
 

@@ -68,7 +68,7 @@ function sourceText(label: string, source: ThreatSource): string {
     case 'error':
       return `${label} data cannot be used: ${source.error ?? 'unknown error'}.`
     case 'loaded': {
-      const age = source.old ? `${ageText(source.age_days)}, old: run the refresh command` : ageText(source.age_days)
+      const age = source.old ? `${ageText(source.age_days)}, old` : ageText(source.age_days)
       return `${label} data of ${source.as_of ?? 'unknown date'} (${age}).`
     }
   }

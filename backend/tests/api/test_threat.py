@@ -1,5 +1,6 @@
 """KEV and EPSS in POST /api/analyze: local files only, never guessed, never sent to the AI."""
 
+import dataclasses
 import json
 import socket
 import unittest
@@ -11,6 +12,7 @@ from fastapi.testclient import TestClient
 from app.fixes.prompts import build_messages, prompt_data
 from app.fixes.schemas import FixGroup
 from app.main import app
+from app.parsers.models import Finding
 from tests.api.test_analyze import upload
 from tests.support.threat_files import ThreatDataDirCase, epss_gz, kev_json
 
@@ -23,6 +25,19 @@ def two_cve_report() -> bytes:
     return json.dumps({"SchemaVersion": 2, "ArtifactType": "repository", "Results": [
         {"Target": "requirements.txt", "Class": "lang-pkgs", "Type": "pip", "Vulnerabilities": [
             vuln("CVE-2026-0001", "demo"), vuln("CVE-2026-0002", "demo"), vuln("GHSA-aaaa-bbbb-cccc", "other")]}]}).encode()
+
+
+class FindingFieldsTest(ThreatDataDirCase):
+    """FindingOut copies the fields of Finding by hand; a field added to one must not be lost."""
+
+    def test_the_answer_has_every_field_of_a_finding_and_threat_only_with_data(self) -> None:
+        client = TestClient(app, base_url="http://localhost")
+        fields = {f.name for f in dataclasses.fields(Finding)}
+        finding = upload(client, "r.json", two_cve_report()).json()["package_groups"][0]["findings"][0]
+        self.assertEqual(set(finding), fields)
+        self.write_kev(kev_json(["CVE-2026-0001"]))
+        finding = upload(client, "r.json", two_cve_report()).json()["package_groups"][0]["findings"][0]
+        self.assertEqual(set(finding), fields | {"threat"})
 
 
 class AnalyzeWithoutDataTest(ThreatDataDirCase):
