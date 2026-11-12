@@ -1,0 +1,189 @@
+/* Base: elements, buttons, the focus ring and small shared classes. */
+body {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  line-height: 1.25;
+}
+
+code,
+.code,
+.mono {
+  font-family: var(--mono);
+  font-size: 0.93em;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* The focus ring: one style on every control. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.hint {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: 0.93rem;
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 20;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+/* Buttons */
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent; /* our own hover/focus styles show the state */
+  font: inherit;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 120ms, border-color 120ms;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.primary:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.secondary {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--faint);
+  background: var(--surface-2);
+}
+
+/* A quiet button that looks like text (for example "Clear all"). */
+.text-button {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--accent);
+  padding: var(--space-1) var(--space-2);
+}
+
+.text-button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.wide {
+  width: 100%;
+}
+
+/* Form controls look the same everywhere. */
+input[type='search'],
+input[type='text'],
+select {
+  font: inherit;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* A status line: a dot plus words (the words carry the meaning). */
+.status-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 0.93rem;
+  overflow-wrap: anywhere;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--faint);
+  transform: translateY(-1px);
+}
+
+.status-ok .dot {
+  background: var(--ok);
+}
+
+.status-error {
+  color: var(--error-text);
+}
+
+.status-error .dot {
+  background: var(--critical);
+}
+
+/* Small screens: every control is at least 44 px high. */
+@media (max-width: 720px), (pointer: coarse) {
+  button,
+  input[type='search'],
+  input[type='text'],
+  select {
+    min-height: var(--target);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

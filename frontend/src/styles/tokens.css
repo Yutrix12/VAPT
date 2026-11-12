@@ -1,0 +1,79 @@
+/* Theme tokens: the one place for colours, spacing, radius and fonts. Shared by
+   the home page and the Trivy page. Light and dark come from light-dark(): the
+   system setting by default, or the toggle in the header (data-theme on <html>). */
+:root {
+  color-scheme: light dark;
+
+  /* Neutral greys */
+  --canvas: light-dark(#f6f7f8, #0e1013); /* page background */
+  --surface: light-dark(#ffffff, #15181c); /* cards, table, dialog */
+  --surface-2: light-dark(#eff1f3, #1d2126); /* hover, code, quiet fills */
+  --line: light-dark(#e1e4e8, #2a2f35); /* thin dividers */
+  --line-strong: light-dark(#c4cad1, #3c434b); /* control borders */
+  --ink: light-dark(#1b1f24, #e6e9ed); /* text */
+  --muted: light-dark(#59636e, #9ba5b0); /* secondary text, 4.5:1 or more on every surface */
+  --faint: light-dark(#8a939c, #6b747e); /* disabled only, never for text that matters */
+  --on-solid: light-dark(#ffffff, #0e1013); /* text on the solid ink button */
+
+  /* One accent: links and the focus ring */
+  --accent: light-dark(#0b5cad, #6cb2ff);
+  --accent-bg: light-dark(#ddf4ff, #0e2a47);
+  --on-accent: light-dark(#ffffff, #0e1013); /* text on a solid accent button */
+  /* The colour line used along the top of panels and under the header. */
+  --accent-line: linear-gradient(90deg, var(--accent), var(--low), var(--high));
+
+  /* Severity: text, soft fill and solid (bars, shapes) per level. Each level is
+     also shown with a word and a shape, so colour is never the only signal. */
+  --critical-text: light-dark(#a1231f, #ff9a96);
+  --critical-bg: light-dark(#ffebe9, #3d1618);
+  --critical: light-dark(#cf222e, #f85149);
+  --high-text: light-dark(#8a3b00, #ffa657);
+  --high-bg: light-dark(#fff1e5, #3b2111);
+  --high: light-dark(#d1590f, #db6d28);
+  --medium-text: light-dark(#6b4e00, #e3b341);
+  --medium-bg: light-dark(#fff8c5, #34290a);
+  --medium: light-dark(#bf8700, #d29922);
+  --low-text: light-dark(#0b5cad, #79c0ff);
+  --low-bg: light-dark(#ddf4ff, #0e2a47);
+  --low: light-dark(#218bff, #388bfd);
+  --unknown-text: light-dark(#4b535c, #aab4bf);
+  --unknown-bg: light-dark(#e6e9ec, #262b31);
+  --unknown: light-dark(#8c959f, #6e7781);
+
+  /* Status */
+  --ok-text: light-dark(#1a6b34, #7ee2a0);
+  --ok-bg: light-dark(#e3f4e8, #10301d);
+  --ok: light-dark(#2da44e, #3fb950);
+  --error-text: var(--critical-text);
+  --error-bg: var(--critical-bg);
+
+  --backdrop: rgb(10 12 16 / 0.55);
+
+  /* Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius: 6px;
+  --target: 44px; /* the smallest touch target on small screens */
+
+  /* Fonts: one system UI stack, one monospace stack (IDs, versions, files, commands) */
+  --sans: ui-sans-serif, system-ui, 'Segoe UI Variable Text', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
+
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}

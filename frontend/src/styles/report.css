@@ -1,0 +1,186 @@
+/* Report details (a compact strip), severity counts (a bar and chips), the empty state. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 34rem;
+  min-height: 50vh;
+  justify-content: center;
+  margin: 0 auto;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+  animation: float 6s ease-in-out infinite;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.empty h2 {
+  margin: 0 0 var(--space-1);
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+@keyframes float {
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.empty p {
+  margin: 0;
+}
+
+.report-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+/* Key/value facts. In the dialog they sit in a grid; under the report title they form one strip. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+
+.facts .wide-fact {
+  grid-column: span 2;
+}
+
+.facts dt {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.report-title + .facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-2) 0 var(--space-3);
+  border-block: 1px solid var(--line);
+  font-size: 0.93rem;
+}
+
+.report-title + .facts > div {
+  min-width: 0;
+}
+
+.report-title + .facts .wide-fact {
+  grid-column: auto;
+}
+
+/* Severity counts: one bar, then five small chips in the table's colours and shapes. */
+.overview {
+  margin: var(--space-4) 0 var(--space-5);
+}
+
+.overview h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+}
+
+.rails {
+  display: flex;
+  gap: var(--space-2); /* the wider gap sets UNKNOWN apart from the rated bar */
+}
+
+.rail {
+  display: flex;
+  flex-basis: 0;
+  min-width: 6px;
+  gap: 2px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--line);
+}
+
+.rail-part {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.rail-critical {
+  background: var(--critical);
+  --shape: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.rail-high {
+  background: var(--high);
+  --shape: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.rail-medium {
+  background: var(--medium);
+  --shape: inset(0);
+}
+
+.rail-low {
+  background: var(--low);
+  --shape: circle(50%);
+}
+
+.rail-unknown {
+  background: var(--unknown);
+  --shape: polygon(0 38%, 100% 38%, 100% 62%, 0 62%);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.93rem;
+}
+
+.legend-apart {
+  color: var(--muted);
+}
+
+.swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  clip-path: var(--shape);
+}
+
+.legend-count {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.overview .muted {
+  margin: 0;
+  font-size: 0.93rem;
+}

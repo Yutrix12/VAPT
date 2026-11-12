@@ -146,7 +146,7 @@ export function FilterBar({ filters, onChange, counts, statuses, kevLoaded }: Pr
         </label>
         <button
           type="button"
-          className="secondary"
+          className="text-button"
           disabled={!isFiltering(filters)}
           onClick={() => onChange(defaultFilters())}
         >

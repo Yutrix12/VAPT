@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AnalyzeResult, Finding, License, Misconfiguration, PackageGroup, Secret, Severity } from '../../api/types'
 import { defaultFilters, type FilterState } from '../filters/filterState'
-import { buildRows, severityCounts } from './rows'
+import { buildRows, mergeCvesPerPackage, severityCounts, totalRows } from './rows'
 
 function finding(severity: Severity, status: string, id: string): Finding {
   return {
@@ -67,9 +67,38 @@ describe('buildRows', () => {
       'secret:CRITICAL',
       'misconfiguration:HIGH',
       'license:MEDIUM',
+      'vulnerability:LOW', // openssl B
+      'vulnerability:LOW', // bash C
+      'misconfiguration:LOW',
+    ])
+  })
+
+  it('gives each CVE of a package its own row, with its own severity (low and critical are never merged)', () => {
+    const rows = buildRows(result, filters({ kind: 'vulnerability' }))
+    const openssl = rows.flatMap((row) =>
+      row.kind === 'vulnerability' && row.shown.group.pkg_name === 'openssl'
+        ? [[row.severity, row.shown.findings.map((f) => f.vuln_id)]]
+        : [],
+    )
+    expect(openssl).toEqual([['CRITICAL', ['A']], ['LOW', ['B']]])
+  })
+
+  it('merges the CVE rows of a package back into one package row, at its worst CVE', () => {
+    const rows = mergeCvesPerPackage(buildRows(result, filters()))
+    expect(summary(rows)).toEqual([
+      'vulnerability:CRITICAL', // openssl: A and B
+      'secret:CRITICAL',
+      'misconfiguration:HIGH',
+      'license:MEDIUM',
       'vulnerability:LOW', // bash
       'misconfiguration:LOW',
     ])
+    const [openssl] = rows
+    expect(openssl.kind === 'vulnerability' && openssl.shown.findings.map((f) => f.vuln_id)).toEqual(['A', 'B'])
+  })
+
+  it('counts every CVE as one item before any filter', () => {
+    expect(totalRows(result)).toBe(3 + 2 + 1 + 1)
   })
 
   it('keeps a vulnerability row to the findings that match the filters', () => {
@@ -117,7 +146,7 @@ describe('buildRows: kind, search and fix available', () => {
   it('shows one kind only', () => {
     expect(summary(buildRows(withFix, filters({ kind: 'secret' })))).toEqual(['secret:CRITICAL'])
     expect(summary(buildRows(withFix, filters({ kind: 'vulnerability' })))).toEqual([
-      'vulnerability:CRITICAL', 'vulnerability:LOW'])
+      'vulnerability:CRITICAL', 'vulnerability:LOW', 'vulnerability:LOW'])
     expect(summary(buildRows(withFix, filters({ kind: 'license' })))).toEqual(['license:MEDIUM'])
   })
 
@@ -175,12 +204,14 @@ describe('known exploited only, and the sort "Known exploited first"', () => {
     rows.map((row) => (row.kind === 'vulnerability' ? (row.shown.group.pkg_name ?? '?') : row.kind))
 
   it('keeps Trivy\'s severity order by default, whatever the KEV data says', () => {
-    expect(names(buildRows(data, filters()))).toEqual(['openssl', 'secret', 'log4j', 'misconfiguration', 'bash', 'license', 'misconfiguration'])
+    expect(names(buildRows(data, filters()))).toEqual([
+      'openssl', 'secret', 'log4j', 'log4j', 'misconfiguration', 'bash', 'license', 'openssl', 'misconfiguration',
+    ])
   })
 
-  it('"Known exploited first" puts the packages with a known exploited CVE first, then the same order as before', () => {
+  it('"Known exploited first" puts the known exploited CVEs first, then the same order as before', () => {
     expect(names(buildRows(data, filters({ sort: 'kev' })))).toEqual([
-      'log4j', 'openssl', 'secret', 'misconfiguration', 'bash', 'license', 'misconfiguration',
+      'log4j', 'openssl', 'secret', 'log4j', 'misconfiguration', 'bash', 'license', 'openssl', 'misconfiguration',
     ])
   })
 

@@ -1,5 +1,7 @@
 // Plain functions behind the AI explanations (no React).
 import {
+  type BuiltCommand,
+  type Finding,
   type FixGroupRequest,
   type FixStatus,
   type License,
@@ -46,6 +48,21 @@ export function serialQueue(): (task: () => Promise<void>) => Promise<void> {
     last = run.catch(() => undefined)
     return run
   }
+}
+
+/** The commands for one CVE: only those of its own fixed version(s), and why there are none. */
+export function cveFix(group: PackageGroup, finding: Finding): { commands: BuiltCommand[]; note: string | null } {
+  const versions = (finding.fixed_version ?? '').split(',').map((part) => part.trim()).filter((part) => part !== '')
+  if (versions.length === 0) {
+    return { commands: [], note: 'Trivy lists no fixed version for this CVE yet, so there is no upgrade command.' }
+  }
+  const commands = group.fix_commands.filter((command) => versions.includes(command.version))
+  if (commands.length === 0) {
+    return { commands, note: group.fix_commands_note ?? 'No command is built for this fixed version.' }
+  }
+  const several =
+    'Trivy lists several fixed versions for this CVE (often one per release). Use the one that fits your release; versions are not compared here.'
+  return { commands, note: versions.length > 1 ? several : null }
 }
 
 /** The sentence for vulnerabilities that no upgrade closes (page and fix summary). */

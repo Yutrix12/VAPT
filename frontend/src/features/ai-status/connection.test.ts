@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { BACKEND_UNREACHABLE } from '../../api/client'
 import { connectionFromStatus } from './connection'
 
 describe('connectionFromStatus', () => {
@@ -21,6 +22,15 @@ describe('connectionFromStatus', () => {
       ok: true, data: { ...local, model_found: false, leaves_this_computer: true },
     })
     expect(connection.state === 'error' && connection.message).not.toContain('ollama pull')
+  })
+
+  it('does not repeat the backend message when the backend itself is down: it says what that means for the AI', () => {
+    const connection = connectionFromStatus({ ok: false, message: BACKEND_UNREACHABLE })
+    expect(connection.state).toBe('error')
+    const message = connection.state === 'error' ? connection.message : ''
+    expect(message).not.toBe(BACKEND_UNREACHABLE)
+    expect(message).toContain('AI')
+    expect(message).toContain('backend')
   })
 
   it('passes on the error of a failed check', () => {

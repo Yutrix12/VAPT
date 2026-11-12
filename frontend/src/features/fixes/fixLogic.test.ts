@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Finding, License, Misconfiguration, PackageGroup, ReportDetails, Secret } from '../../api/types'
 import {
   answerState,
+  cveFix,
   licenseRequest,
   misconfigurationRequest,
   openAfterUpgradeText,
@@ -10,6 +11,37 @@ import {
   serialQueue,
   toFixGroup,
 } from './fixLogic'
+
+describe('cveFix: the fix of one CVE', () => {
+  const commands = (...versions: string[]) =>
+    versions.map((version) => ({ label: versions.length > 1 ? `Fixed version ${version}` : null, version, lines: [`install ${version}`] }))
+  const pkg = (fix_commands: PackageGroup['fix_commands'], note: string | null = null) =>
+    ({ fix_commands, fix_commands_note: note }) as PackageGroup
+
+  it('takes only the commands of the own fixed version of that CVE', () => {
+    const fix = cveFix(pkg(commands('3.5.4', '3.5.7')), { ...finding('CVE-1', '3.5.7'), fixed_version: '3.5.7' })
+    expect(fix.commands.map((c) => c.version)).toEqual(['3.5.7'])
+    expect(fix.note).toBeNull()
+  })
+
+  it('a CVE with several fixed versions gets a command for each one and a note to pick', () => {
+    const fix = cveFix(pkg(commands('1', '2', '3')), { ...finding('CVE-1', null), fixed_version: '1, 3' })
+    expect(fix.commands.map((c) => c.version)).toEqual(['1', '3'])
+    expect(fix.note).toContain('several fixed versions')
+  })
+
+  it('a CVE with no fixed version has no command and says Trivy lists none', () => {
+    const fix = cveFix(pkg(commands('3.5.7')), { ...finding('CVE-2', null), fixed_version: null })
+    expect(fix.commands).toEqual([])
+    expect(fix.note).toBe('Trivy lists no fixed version for this CVE yet, so there is no upgrade command.')
+  })
+
+  it('with a fixed version but no built command, gives the reason of the package', () => {
+    const fix = cveFix(pkg([], 'No command is built for apk: its syntax is not verified.'), { ...finding('CVE-3', '1.2'), fixed_version: '1.2' })
+    expect(fix.commands).toEqual([])
+    expect(fix.note).toBe('No command is built for apk: its syntax is not verified.')
+  })
+})
 
 describe('openAfterUpgradeText', () => {
   it('says how many vulnerabilities stay open, in singular or plural', () => {

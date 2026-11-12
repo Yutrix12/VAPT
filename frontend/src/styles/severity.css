@@ -1,0 +1,70 @@
+/* Severity: one set of rules for the table badge, the filter chips and the shapes.
+   Every level has a word, a colour and a shape (diamond, triangle, square, circle, dash). */
+.severity-critical {
+  background: var(--critical-bg);
+  color: var(--critical-text);
+  --shape: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.severity-high {
+  background: var(--high-bg);
+  color: var(--high-text);
+  --shape: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.severity-medium {
+  background: var(--medium-bg);
+  color: var(--medium-text);
+  --shape: inset(0);
+}
+
+.severity-low {
+  background: var(--low-bg);
+  color: var(--low-text);
+  --shape: circle(50%);
+}
+
+.severity-unknown {
+  background: var(--unknown-bg);
+  color: var(--unknown-text);
+  --shape: polygon(0 38%, 100% 38%, 100% 62%, 0 62%);
+}
+
+.badge-severity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-severity::before,
+.chip[class*='severity-']::before {
+  content: '';
+  flex: none;
+  width: 0.65em;
+  height: 0.65em;
+  background: currentColor;
+  clip-path: var(--shape);
+}
+
+/* Known exploited (CISA KEV): a badge beside the item name. */
+.badge-kev {
+  display: inline-block;
+  margin: 0 var(--space-2);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--critical-text);
+  border-radius: 999px;
+  background: var(--critical-bg);
+  color: var(--critical-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.no-fix {
+  color: var(--critical-text);
+}

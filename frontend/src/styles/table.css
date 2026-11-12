@@ -1,0 +1,199 @@
+/* The findings table: compact rows, a sticky header, thin dividers, no stripes. */
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.section-head p {
+  margin: 0;
+  font-size: 0.93rem;
+}
+
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+/* "clip", not "auto": a scroll container would stop the header from sticking to the page. */
+.table-scroll {
+  position: relative;
+  overflow-x: clip;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* The colour line along the top edge of the table, as on the home page cards. */
+.table-scroll::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  height: 2px;
+  background: var(--accent-line);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.groups > thead > tr > th {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 1;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.groups > tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+
+.group-row:hover > td,
+.group-row:focus-within > td {
+  background: var(--surface-2);
+}
+
+.sev-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* The ID, package and files are monospace: they are names to copy, not prose. */
+.item-name {
+  font-weight: 600;
+}
+
+.item-name > span:first-child,
+.target,
+.fix-cell .code {
+  font-family: var(--mono);
+  font-size: 0.93em;
+}
+
+.item-name > span:first-child {
+  overflow-wrap: anywhere;
+}
+
+.details-button {
+  display: inline-block;
+  margin: 0 0 0 var(--space-2);
+  padding: 1px var(--space-2);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.fix-cell {
+  min-width: 10rem;
+  max-width: 28rem;
+  overflow-wrap: anywhere;
+}
+
+.target {
+  min-width: 11rem;
+  max-width: 18rem;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.where-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.86rem;
+}
+
+.kind-cell {
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* Narrow screens: each row becomes a compact card (labels from data-label). */
+@media (max-width: 720px) {
+  .groups > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .groups,
+  .groups > tbody,
+  .groups > tbody > tr,
+  .groups > tbody > tr > td {
+    display: block;
+  }
+
+  /* More specific than ".groups > tbody > tr" above, so grid wins. */
+  .groups > tbody > .group-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Specific enough to beat the desktop hover rule. */
+  .groups > tbody > .group-row > td {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .group-row > .item-name,
+  .group-row > .target,
+  .group-row > .fix-cell {
+    grid-column: 1 / -1;
+  }
+
+  .group-row > td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--sans);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .group-row > .sev-cell {
+    width: auto;
+  }
+
+  .target,
+  .fix-cell {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .details-button {
+    min-height: var(--target);
+    padding: var(--space-1) var(--space-4);
+  }
+}

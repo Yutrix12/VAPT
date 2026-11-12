@@ -142,9 +142,17 @@ describe('buildFixSummary', () => {
     expect(text).toContain('- Artifact type: Container image; operating system: debian 13.1')
     expect(text).toContain('- Report format: Trivy JSON')
     expect(text).toContain('4 findings in 3 packages: 1 Critical, 1 High, 1 Medium, 1 Low; 0 Unknown (not rated)')
-    expect(text).toContain('Filters: none. This summary lists all 3 items.')
+    expect(text).toContain('Filters: none. This summary lists all 4 items.')
     expect(text).toContain('- AI model used: `qwen3:8b`')
     expect(text).toContain('> AI suggestions: verify before applying.')
+  })
+
+  it('lists each CVE of a package with its own severity and fixed version', () => {
+    expect(text).toContain(
+      '- Each CVE and its fix:\n  - `CVE-1` (Critical): fixed in `3.5.4`\n  - `CVE-2` (Low): no fixed version yet',
+    )
+    // one section per package, even though the table has one row per CVE
+    expect(text.match(/^## \d+\. openssl$/gm)).toHaveLength(1)
   })
 
   it('lists a verified package with its fixed versions, the verdict, the advice and the commands', () => {
@@ -248,7 +256,7 @@ describe('buildFixSummary', () => {
 
   it('follows the filters and says which ones were on', () => {
     const highOnly = summaryOf(fixes, new Set<Severity>(['HIGH']))
-    expect(highOnly).toContain('Filters: severity High. This summary lists 1 of 3 items.')
+    expect(highOnly).toContain('Filters: severity High. This summary lists 1 of 4 items.')
     expect(highOnly).toContain('## 1. zlib')
     expect(highOnly).not.toMatch(/^## \d+\. openssl$/m) // no section for the filtered-out package
   })
@@ -272,8 +280,8 @@ describe('buildFixSummary for every kind and the built commands', () => {
   const withCommands: PackageGroup = {
     ...openssl,
     fix_commands: [
-      { label: 'Fixed version 3.5.4', lines: ['apt-get update', 'apt-get install --only-upgrade openssl=3.5.4'] },
-      { label: 'Fixed version 3.5.5', lines: ['apt-get update', 'apt-get install --only-upgrade openssl=3.5.5'] },
+      { label: 'Fixed version 3.5.4', version: '3.5.4', lines: ['apt-get update', 'apt-get install --only-upgrade openssl=3.5.4'] },
+      { label: 'Fixed version 3.5.5', version: '3.5.5', lines: ['apt-get update', 'apt-get install --only-upgrade openssl=3.5.5'] },
     ],
     fix_commands_note: 'Trivy lists several fixed versions (often one per release). Use the one that fits your release.',
   }
@@ -378,7 +386,7 @@ describe('buildFixSummary for every kind and the built commands', () => {
 
   it('follows the filters for every kind and names them', () => {
     const text = build(new Map(), { ...defaultFilters(), kind: 'secret' })
-    expect(text).toContain('Filters: kind Secrets. This summary lists 1 of 6 items.')
+    expect(text).toContain('Filters: kind Secrets. This summary lists 1 of 7 items.')
     expect(text).toContain('## 1. aws-access-key-id (AWS)')
     expect(text).not.toContain('DS-0002')
   })

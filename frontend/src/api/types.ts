@@ -131,6 +131,7 @@ export interface License {
 /** One block of upgrade commands built by the backend; the label names the fixed version when there are several. */
 export interface BuiltCommand {
   label: string | null
+  version: string // the one fixed version these lines install
   lines: string[]
 }
 

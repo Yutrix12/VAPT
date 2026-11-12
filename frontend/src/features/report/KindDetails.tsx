@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react'
-import type { License, Misconfiguration, Secret } from '../../api/types'
+import type { Finding, License, Misconfiguration, PackageGroup, Secret } from '../../api/types'
 import { NOT_IN_FORMAT, lineText, misconfigurationName } from '../../shared/reportText'
 import { safeLink, visibleText } from '../../shared/text'
+import { EPSS_LABEL, KEV_LABEL, epssCellText, hasThreatData, kevCellText } from '../../shared/threat'
+import { cveFix } from '../fixes/fixLogic'
+import { FixCommands } from '../fixes/FixCommands'
 
 /** One labelled fact; wide ones take a whole line. */
 function Fact({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
@@ -29,6 +32,45 @@ function Link({ url, children }: { url: string | null; children: string }) {
 function where(target: string, start: number | null, end: number | null): string {
   const lines = lineText(start, end)
   return lines === null ? target : `${target}, ${lines}`
+}
+
+/** One CVE: its facts, and its own fix (the fixed version Trivy lists for it, and the commands for that version). */
+export function VulnerabilityDetails({ group, finding }: { group: PackageGroup; finding: Finding }) {
+  const fix = cveFix(group, finding)
+  return (
+    <div className="kind-details">
+      <dl className="facts">
+        <Fact label="Title" wide>
+          {visibleText(finding.title ?? 'The report gives no title.')}
+        </Fact>
+        <Fact label="Package" wide>
+          <span translate="no">
+            {visibleText(group.pkg_name ?? 'unknown package')} {visibleText(group.installed_version ?? 'unknown')}
+          </span>
+          , <span translate="no">{visibleText(group.target)}</span>
+        </Fact>
+        <Fact label="Status">{visibleText(finding.status)}</Fact>
+        <Fact label="CVSS score">{finding.cvss_score ?? '–'}</Fact>
+        {hasThreatData(group) && <Fact label={KEV_LABEL}>{kevCellText(finding.threat)}</Fact>}
+        {hasThreatData(group) && <Fact label={EPSS_LABEL}>{epssCellText(finding.threat)}</Fact>}
+        <Link url={finding.primary_url}>About this vulnerability</Link>
+      </dl>
+      <div className="fix-panel">
+        <h3 className="fix-title">Fix for this CVE</h3>
+        <p>
+          {finding.fixed_version ? (
+            <>
+              Upgrade to <span translate="no" className="code nowrap">{visibleText(finding.fixed_version)}</span> (Trivy’s
+              fixed version for this CVE).
+            </>
+          ) : (
+            'Trivy lists no fixed version for this CVE yet. It stays open after any upgrade.'
+          )}
+        </p>
+        <FixCommands commands={fix.commands} note={fix.note} />
+      </div>
+    </div>
+  )
 }
 
 /** The details of a failed configuration check: what is wrong and Trivy's own fix text. */

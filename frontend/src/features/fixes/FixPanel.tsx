@@ -87,7 +87,7 @@ export function FixPanel({ fix, connection, onExplain, fallback = TRIVY_FIX_STIL
   }, [shouldAsk])
 
   return (
-    <div className="fix-panel" aria-live="polite">
+    <div className="fix-panel ai-panel" aria-live="polite">
       <FixContent fix={fix} connection={connection} needsClick={needsClick} onExplain={onExplain} fallback={fallback} />
     </div>
   )

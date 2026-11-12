@@ -12,9 +12,10 @@ export type Row =
   | { kind: 'secret'; key: string; severity: Severity; item: Secret }
   | { kind: 'license'; key: string; severity: Severity; item: License }
 
-/** The rows there are before any filter: one per package, plus one per other finding. */
+/** The rows there are before any filter: one per CVE finding, plus one per other finding. */
 export function totalRows(result: Kinds): number {
-  return result.package_groups.length + result.misconfigurations.length + result.secrets.length + result.licenses.length
+  const cves = result.package_groups.reduce((sum, group) => sum + group.findings.length, 0)
+  return cves + result.misconfigurations.length + result.secrets.length + result.licenses.length
 }
 
 /** A row that is not a vulnerable package. */
@@ -73,8 +74,17 @@ export function buildRows(result: Kinds, filters: FilterState): Row[] {
   const wanted = (rowKind: Kind) => kind === ALL_KINDS || kind === rowKind
   const rows: Row[] = []
   if (wanted('vulnerability')) {
+    // One row per CVE, never per package: a package's low and high severity CVEs
+    // each keep their own severity, fixed version and fix.
     for (const shown of filterGroups(result.package_groups, severities, status, { search: filters.search, fixOnly, kevOnly })) {
-      rows.push({ kind: 'vulnerability', key: groupKey(shown.group), severity: shown.worst, shown })
+      for (const finding of shown.findings) {
+        rows.push({
+          kind: 'vulnerability',
+          key: `${groupKey(shown.group)}#${shown.group.findings.indexOf(finding)}`,
+          severity: finding.severity,
+          shown: { group: shown.group, findings: [finding], worst: finding.severity },
+        })
+      }
     }
   }
   const others = (rowKind: Exclude<Kind, 'vulnerability'>, items: (Misconfiguration | Secret | License)[]) => {
@@ -92,15 +102,40 @@ export function buildRows(result: Kinds, filters: FilterState): Row[] {
   others('misconfiguration', result.misconfigurations)
   others('secret', result.secrets)
   others('license', result.licenses)
-  // The sort is stable, so a vulnerability tie keeps filterGroups' order (most shown findings first).
+  // The sort is stable, so a vulnerability tie keeps filterGroups' order (worst package first), then the report's order.
   rows.sort((a, b) => compareSeverity(a.severity, b.severity) || KIND_ORDER[a.kind] - KIND_ORDER[b.kind])
   // A second, stable sort: the severity order above is kept inside each of the two groups.
   return filters.sort === 'kev' ? rows.sort((a, b) => Number(isExploitedRow(b)) - Number(isExploitedRow(a))) : rows
 }
 
-/** A package with at least one CVE on the KEV list (its whole group, not only the CVEs the filters keep). */
+/** A CVE on the KEV list. */
 export function isExploitedRow(row: Row): boolean {
-  return row.kind === 'vulnerability' && kevCount(row.shown.group.findings) > 0
+  return row.kind === 'vulnerability' && kevCount(row.shown.findings) > 0
+}
+
+/**
+ * The CVE rows of one package as one package row (at the place of its first, so worst, CVE).
+ * The fix summary and the AI advice are per package; the table is per CVE.
+ */
+export function mergeCvesPerPackage(rows: Row[]): Row[] {
+  const merged: Row[] = []
+  const byGroup = new Map<string, Extract<Row, { kind: 'vulnerability' }>>()
+  for (const row of rows) {
+    if (row.kind !== 'vulnerability') {
+      merged.push(row)
+      continue
+    }
+    const key = groupKey(row.shown.group)
+    const first = byGroup.get(key)
+    if (first === undefined) {
+      const copy = { ...row, key, shown: { ...row.shown, findings: [...row.shown.findings] } }
+      byGroup.set(key, copy)
+      merged.push(copy)
+    } else {
+      first.shown.findings.push(...row.shown.findings)
+    }
+  }
+  return merged
 }
 
 /** Findings per severity over all kinds (the backend's counts are vulnerabilities only). */

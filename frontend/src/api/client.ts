@@ -15,7 +15,9 @@ const ANALYZE_TIMEOUT_MS = 60000
 // clearer message arrives first.
 const LLM_CHECK_TIMEOUT_MS = 20000
 const FIX_TIMEOUT_MS = 150000
-const NOT_RUNNING = 'Cannot reach the backend. Start it as described in README.md.'
+/** The message when no answer came from our backend (it is not running). */
+export const BACKEND_UNREACHABLE = 'Cannot reach the backend. Start it as described in README.md.'
+const NOT_RUNNING = BACKEND_UNREACHABLE
 
 function isTimeout(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'TimeoutError'

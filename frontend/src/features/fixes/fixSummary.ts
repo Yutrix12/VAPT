@@ -7,6 +7,7 @@
 import {
   SEVERITIES,
   type AnalyzeResult,
+  type Finding,
   type FixAdvice,
   type FixState,
   type Kind,
@@ -30,7 +31,7 @@ import { countText, formatScanDate, KEEP_LINE_BREAKS, visibleText } from '../../
 import { EPSS_LABEL, KEV_LABEL, packageEpssText, packageKevText, threatStatusText } from '../../shared/threat'
 import { ALL_STATUSES } from '../filters/filterGroups'
 import { ALL_KINDS, type FilterState } from '../filters/filterState'
-import { severityCounts, totalRows, type OtherRow, type Row } from '../report/rows'
+import { mergeCvesPerPackage, severityCounts, totalRows, type OtherRow, type Row } from '../report/rows'
 import { answerState, openAfterUpgradeText, otherAnswerState } from './fixLogic'
 
 /** Line breaks become spaces, so text cannot start a heading or a list. */
@@ -234,6 +235,18 @@ function builtCommandLines(group: PackageGroup): string[] {
   ]
 }
 
+/** Each CVE of the package with its own severity and fixed version (never merged into one line). */
+function cveLines(findings: Finding[]): string[] {
+  return [
+    '- Each CVE and its fix:',
+    ...findings.map(
+      (finding) =>
+        `  - ${codeSpan(finding.vuln_id ?? 'unknown ID')} (${severityLabel(finding.severity)}): ` +
+        (finding.fixed_version ? `fixed in ${codeSpan(finding.fixed_version)}` : 'no fixed version yet'),
+    ),
+  ]
+}
+
 function groupSection(
   row: Extract<Row, { kind: 'vulnerability' }>,
   index: number,
@@ -253,6 +266,7 @@ function groupSection(
     `- Target: ${escapeMarkdown(group.target)}`,
     `- Findings: ${count} (highest severity: ${severityLabel(row.severity)})`,
     `- Fixed versions: ${trivyFixText(group)}`,
+    ...cveLines(findings),
     ...threatLines(group, threatLoaded),
     ...noCommandLines(group),
     ...aiLines(fix),
@@ -375,7 +389,8 @@ export function buildFixSummary(input: SummaryInput): string {
     "> AI suggestions: verify before applying. Only Trivy's fixed versions are ever shown as a fix, " +
       'and the commands were never run.',
     '',
-    ...input.rows.flatMap((row, index) => rowSection(row, index, input)),
+    // The table has one row per CVE; the summary has one section per package, with each CVE's fix inside.
+    ...mergeCvesPerPackage(input.rows).flatMap((row, index) => rowSection(row, index, input)),
   ]
   return lines.join('\n')
 }
