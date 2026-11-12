@@ -1,4 +1,9 @@
-# Trivy report viewer
+# Vulnerability Insight Platform
+
+One place for the tools that read vulnerability scans. Today it has one tool,
+the Trivy report viewer.
+
+## The Trivy report viewer
 
 Upload a Trivy vulnerability report (JSON) in the browser. The app shows
 what was scanned, counts the vulnerabilities by severity, groups them by
@@ -261,6 +266,5 @@ Not built in this prototype:
   comparing reports. The `fingerprint` of each finding and the
   `file_sha256` of each report are kept for this.
 - Several users and login.
-- Report formats other than Trivy JSON and the Trivy text table (HTML from
-  Trivy’s html.tpl is planned next).
+- Report formats other than Trivy JSON and the Trivy text table.
 - Agents or MCP integration.

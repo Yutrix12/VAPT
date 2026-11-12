@@ -118,7 +118,7 @@ class AnalyzeContentTest(unittest.TestCase):
 
     def test_each_group_carries_its_built_fix_commands(self) -> None:
         group = upload(self.client, "r.json", tiny_report()).json()["package_groups"][0]
-        self.assertEqual(group["fix_commands"], [{"label": None, "lines": ["python -m pip install 'demo==1.1'"]}])
+        self.assertEqual(group["fix_commands"], [{"label": None, "version": "1.1", "lines": ["python -m pip install 'demo==1.1'"]}])
         self.assertIsNone(group["fix_commands_note"])
 
     def test_a_group_without_a_verified_command_says_why(self) -> None:

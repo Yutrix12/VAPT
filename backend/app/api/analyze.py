@@ -44,7 +44,7 @@ def package_group_out(group: PackageGroup, findings: list[Finding], threat: Thre
     return PackageGroupOut(
         **vars(group),
         findings=[finding_out(finding, threat) for finding in findings],
-        fix_commands=[FixCommandOut(label=c.label, lines=list(c.lines)) for c in built.commands],
+        fix_commands=[FixCommandOut(label=c.label, version=c.version, lines=list(c.lines)) for c in built.commands],
         fix_commands_note=built.note,
     )
 

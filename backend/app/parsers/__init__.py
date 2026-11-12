@@ -2,10 +2,9 @@
 
 The file name and its extension never decide (owner's brief A). Every
 parser returns the same Report structure (app.parsers.models), so the API and the
-page do not care which format was uploaded. Supported (owner's decision
-2026-11-11): Trivy JSON, Trivy's text (table) output and Trivy HTML from
-html.tpl; HTML is added in the next sub-step of U3, and SUPPORTED_FORMATS
-lists only what already works, for the error message.
+page do not care which format was uploaded. Supported: Trivy JSON and
+Trivy's text (table) output; SUPPORTED_FORMATS lists them for the error
+message.
 """
 
 # Not `import json`: importing the app.parsers.json package below would bind

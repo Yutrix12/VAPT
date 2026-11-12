@@ -1,8 +1,7 @@
 """Tests for format detection (upgrade step U3).
 
-Supported formats (owner's decision 2026-11-11): Trivy JSON, Trivy's text
-(table) output and Trivy HTML (html.tpl); the last two are added in the
-next sub-steps. Everything else gets one clear message.
+Supported formats: Trivy JSON and Trivy's text (table) output. Everything
+else gets one clear message.
 """
 
 import json

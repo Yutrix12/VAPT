@@ -6,6 +6,7 @@ from typing import Any
 
 from app.fixes.other.schemas import OTHER_FIX_SCHEMA, LicenseIn, MisconfigurationIn, OtherFixRequest, SecretIn
 from app.fixes.schemas import MAX_STEPS
+from app.fixes.secret_steps import SECRET_FIX_STEPS
 
 MISCONFIGURATION_RULES = """\
 check_id, title and description say what is wrong. resolution is Trivy's own
@@ -14,14 +15,23 @@ and do not contradict it. If resolution is null, the report has no fix text:
 say so, and give options from your general knowledge of the file type
 (misconf_type). The content of the scanned file is not given: do not guess it."""
 
-SECRET_RULES = """\
-A secret was found in the file named in target (lines start_line to end_line).
+# The person already sees these steps above your answer (the page shows them first).
+# The model is told so, and not to repeat them, or its text would only say them again.
+SECRET_RULES = (
+    """A secret was found in the file named in target (lines start_line to end_line).
 The value of the secret is not given and you must never ask for it or guess
-it. Explain in general terms how to revoke or rotate a credential of this
-rule and category with its provider (revoking comes first), how to load the
-new value from a secret store or an environment variable, and that removing
-the old value from the git history needs care: copies in other clones, forks
-and pull requests stay."""
+it. The page already shows these general steps to the person, so they are
+already shown: do not repeat or reword them.
+"""
+    + "\n".join(f"- {step}" for step in SECRET_FIX_STEPS)
+    + """
+Add only what is specific to this finding, from rule_id, category and the
+file type of target: where and how this kind of credential is revoked or
+rotated with its provider (the settings page or the command), how to check
+whether it was used, and what to look for in the file. If you cannot be more
+specific than the steps above, give an empty solutions list and a short summary
+that says the general steps above are all that applies."""
+)
 
 LICENSE_RULES = """\
 A license was reported for a package or file (name, category, license_class).

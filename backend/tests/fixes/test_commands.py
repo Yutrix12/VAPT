@@ -41,6 +41,12 @@ class BuiltCommandsTest(unittest.TestCase):
                 built = build_fix_commands(name, package_type, [version])
                 self.assertEqual([c.lines for c in built.commands], [(command,)])
 
+    def test_each_command_says_which_fixed_version_it_is_for(self) -> None:
+        built = build_fix_commands("openssl", "debian", ["3.5.4-1", "3.5.5-1"])
+        self.assertEqual([command.version for command in built.commands], ["3.5.4-1", "3.5.5-1"])
+        single = build_fix_commands("openssl", "debian", ["3.5.4-1"])
+        self.assertEqual([command.version for command in single.commands], ["3.5.4-1"])
+
     def test_several_fixed_versions_give_one_labelled_command_each(self) -> None:
         built = build_fix_commands("pip", "pip", ["23.3", "25.3, 26.0"])
         self.assertEqual(lines(built), [

@@ -82,6 +82,15 @@ class PromptTest(unittest.TestCase):
         self.assertIn("value of the secret is not given", system)
         self.assertIn("never ask for it", system)
 
+    def test_secret_prompt_says_the_fixed_steps_are_already_shown_and_must_not_be_repeated(self) -> None:
+        from app.fixes.secret_steps import SECRET_FIX_STEPS
+
+        system = build_other_messages(REQUEST.validate_python(SECRET))[0]["content"]
+        for step in SECRET_FIX_STEPS:
+            self.assertIn(step, system)
+        self.assertIn("already shown", system)
+        self.assertIn("do not repeat", system.lower())
+
     def test_license_prompt_gives_options_only_and_no_legal_verdict(self) -> None:
         system = build_other_messages(REQUEST.validate_python(LICENSE))[0]["content"]
         self.assertIn("legal or compliance team", system)

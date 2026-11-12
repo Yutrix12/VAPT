@@ -59,6 +59,7 @@ class FixCommand:
     """The lines of one command block; the label says which fixed version it is for."""
 
     label: str | None
+    version: str  # the one fixed version these lines install
     lines: tuple[str, ...]
 
 
@@ -141,7 +142,7 @@ def build_fix_commands(name: str | None, package_type: str | None, fixed_version
         return BuiltFix((), "The package name or version has unusual characters, so no command is built.")
     chosen = versions[:MAX_VERSIONS]
     label = (lambda version: f"Fixed version {version}") if len(versions) > 1 else (lambda version: None)
-    commands = tuple(FixCommand(label(version), builder(name, version)) for version in chosen)
+    commands = tuple(FixCommand(label(version), version, builder(name, version)) for version in chosen)
     notes = []
     if len(versions) > 1:
         notes.append(

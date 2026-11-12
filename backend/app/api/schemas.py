@@ -147,6 +147,7 @@ class FixCommandOut(BaseModel):
     """One block of built commands: the lines, and the fixed version they are for (if several)."""
 
     label: str | None
+    version: str  # the fixed version these lines install
     lines: list[str]
 
 
