@@ -1,8 +1,8 @@
 """Tests for app/parsers/json/parser.py: the rules and the real reports.
 
 The real-report tests need image.json and fs.json (see tests/support/reports.py)
-and are skipped with a reason when they are missing. Expected numbers come
-from the trivy-report-format skill.
+and are skipped with a reason when they are missing. Expected numbers are
+fixed in the tests.
 """
 
 import unittest
@@ -18,7 +18,7 @@ DEBIAN_TARGET = "python:3.9-slim (debian 13.1)"
 
 
 class RulesTest(unittest.TestCase):
-    """Rules a-d, g and l from the trivy-report-format skill."""
+    """Rules a-d, g and l."""
 
     def first_finding(self, report: dict):
         return parse_report_bytes("r.json", as_bytes(report)).findings[0]

@@ -1,7 +1,7 @@
 """The text parser against real Trivy output, with the JSON report as the oracle.
 
 Each table in samples/tables was made by `trivy convert` from the JSON report
-of the same name, so both must give the same findings (trivy-formats skill).
+of the same name, so both must give the same findings.
 Skipped with a reason when the sample tables are missing.
 """
 

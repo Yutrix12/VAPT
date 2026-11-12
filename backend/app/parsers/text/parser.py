@@ -5,7 +5,7 @@ artifact, OS or git data, no class, no CVSS score, no published date, a title
 cut by Trivy, and no fix text for misconfigurations. What it lacks is named in
 `NOT_IN_TEXT` (shown as "not in this format"), never guessed. The source lines
 Trivy prints around a secret or a misconfiguration are never read: they can
-hold the secret itself (secrets rule). Facts: trivy-formats skill.
+hold the secret itself (secrets rule).
 """
 
 import hashlib

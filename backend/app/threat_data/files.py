@@ -1,8 +1,8 @@
 """The local KEV and EPSS files: where they are and how they are read.
 
 Nothing here uses the network. The files are made by the refresh command
-(app.threat_data.refresh), which the owner runs by hand. Formats: see the
-threat-data skill (CISA KEV JSON feed, FIRST EPSS csv.gz).
+(app.threat_data.refresh), which the owner runs by hand. Formats: CISA KEV
+JSON feed, FIRST EPSS csv.gz.
 
 A source is "loaded", "not_loaded" (no file) or "error" (a file that cannot
 be used, with a message). A value is never guessed: with no data the answer

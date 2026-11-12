@@ -1,7 +1,7 @@
 """Tests for app/analysis/: summary and package groups of the real reports.
 
 Needs image.json and fs.json (see tests/support/reports.py); skipped with a
-reason when they are missing. Expected numbers: trivy-report-format skill.
+reason when they are missing.
 """
 
 import unittest

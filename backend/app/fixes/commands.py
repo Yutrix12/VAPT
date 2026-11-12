@@ -1,7 +1,7 @@
 """Upgrade commands built by code from the package type, name and Trivy's fixed version.
 
 The syntax of each command is checked in the package manager's official docs
-(fix-commands skill, with the sources). A package type that is not verified
+(the sources are in the official docs of each tool). A package type that is not verified
 gets no command and a note that says so. Nothing here runs a command: they are
 only shown. The words of a command come from an untrusted report, so a command
 is built only from names and versions that match a strict pattern.
@@ -95,7 +95,7 @@ def _cargo(name: str, version: str) -> tuple[str, ...]:
     return (f"cargo update {name} --precise {version}",)
 
 
-# Trivy package type -> (the name shape, how to build the command); only verified ones, see the skill.
+# Trivy package type -> (the name shape, how to build the command); only verified ones.
 BUILDERS: dict[str, tuple[re.Pattern[str], Callable[[str, str], tuple[str, ...]]]] = {
     "debian": (PLAIN_NAME, _apt),
     "ubuntu": (PLAIN_NAME, _apt),

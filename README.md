@@ -55,8 +55,8 @@ runs on your own computer. Nothing is saved.
 - **Fix commands built by code**, behind a **Show fix code** button in a
   package’s details (each block has a **Copy** button): for debian, ubuntu,
   fedora, rocky, alma, pip, npm, Go modules and Cargo, from the package
-  name and Trivy’s fixed version, with syntax checked in the official docs
-  (see `.claude/skills/fix-commands`). Other package types get no command and
+  name and Trivy’s fixed version, with syntax checked in the official docs.
+  Other package types get no command and
   the page says so.
 - **Download fix summary**: a Markdown file (`fix-summary-<report>.md`) of
   what the page shows (the filters apply, and the file names them): the
@@ -224,8 +224,8 @@ python -m app.threat_data refresh
 It saves the CISA KEV JSON feed and the FIRST EPSS file into `backend/data/`
 (not in git) and keeps the old file when a download fails or is not valid.
 Run it again whenever you want newer data; the page shows the age of the data
-and marks it old after 7 days. Sources and formats, checked on 2026-11-11:
-`.claude/skills/threat-data`.
+and marks it old after 7 days. Sources and formats were checked on 2026-11-11
+(CISA KEV JSON feed, FIRST EPSS csv.gz).
 
 ## Security in short
 

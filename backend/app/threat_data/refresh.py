@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 from app.threat_data.files import EPSS_FILE, KEV_FILE, DataError, parse_kev, read_epss
 
-# Checked on 2026-11-11, see the threat-data skill.
+# Checked on 2026-11-11.
 SOURCES = {
     "kev": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
     "epss": "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz",

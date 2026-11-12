@@ -2,8 +2,7 @@
 
 Trivy merges equal neighbouring cells downwards. A border line segment made
 of "─" ends the cell above; a segment of spaces means the cell continues.
-The text of a merged cell sits in its first block of lines (trivy-formats
-skill).
+The text of a merged cell sits in its first block of lines.
 """
 
 from app.parsers.models import ReportError

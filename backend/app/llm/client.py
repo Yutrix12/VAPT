@@ -1,6 +1,6 @@
 """A small Ollama HTTP client (standard library only).
 
-Facts about the Ollama API are in the ollama-api skill. Every failure
+Every failure
 becomes one LLMError with a clear message that never contains the API key.
 """
 

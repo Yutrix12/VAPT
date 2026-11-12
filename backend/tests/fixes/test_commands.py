@@ -1,6 +1,6 @@
 """Tests for app/fixes/commands.py: upgrade commands built by code (U4).
 
-The syntax of every command is in the fix-commands skill, with its source.
+The syntax of every command comes from the package manager's official docs.
 """
 
 import unittest

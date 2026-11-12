@@ -1,1 +1,1 @@
-"""Local KEV and EPSS data (see the threat-data skill). Reading never uses the network."""
+"""Local KEV and EPSS data (CISA KEV, FIRST EPSS). Reading never uses the network."""

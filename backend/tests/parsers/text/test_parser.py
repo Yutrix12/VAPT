@@ -2,7 +2,7 @@
 
 Small tables are drawn by tests/support/trivy_tables.py. The tests against
 real Trivy output need the sample tables (see tests/support/reports.py) and
-are skipped with a reason when they are missing. Facts: trivy-formats skill.
+are skipped with a reason when they are missing.
 """
 
 import codecs
